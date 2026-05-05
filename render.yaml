@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: boundaryless-rut
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NODE_ENV
+        value: production
+      - key: PGSSLMODE
+        value: require
+      - key: LOGIN_RATE_LIMIT
+        value: "8"
+      - key: DATABASE_URL
+        sync: false
+      - key: API_SESSION_SECRET
+        sync: false
+      - key: APP_URL
+        sync: false

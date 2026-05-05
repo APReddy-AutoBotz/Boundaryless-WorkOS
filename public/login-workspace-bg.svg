@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Subtle office corridor background">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.42" stop-color="#eef7f8"/>
+      <stop offset="1" stop-color="#dcecef"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f8fbfc"/>
+      <stop offset="1" stop-color="#d8e8ec"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.94"/>
+      <stop offset="0.56" stop-color="#d9eef2" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.5"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#wall)"/>
+  <path d="M0 690 L1600 610 L1600 900 L0 900 Z" fill="url(#floor)"/>
+
+  <g opacity="0.68">
+    <path d="M96 0 L605 0 L470 900 L0 900 L0 0 Z" fill="#ffffff"/>
+    <path d="M544 0 L865 0 L742 900 L425 900 Z" fill="url(#glass)"/>
+    <path d="M808 0 L1065 0 L1008 900 L730 900 Z" fill="url(#glass)"/>
+    <path d="M1050 0 L1260 0 L1292 900 L1000 900 Z" fill="url(#glass)"/>
+    <path d="M1246 0 L1600 0 L1600 900 L1290 900 Z" fill="rgba(255,255,255,0.62)"/>
+  </g>
+
+  <g opacity="0.38" stroke="#93a9b8" stroke-width="3">
+    <line x1="565" y1="0" x2="442" y2="900"/>
+    <line x1="820" y1="0" x2="720" y2="900"/>
+    <line x1="1042" y1="0" x2="990" y2="900"/>
+    <line x1="1258" y1="0" x2="1290" y2="900"/>
+  </g>
+
+  <g opacity="0.52">
+    <rect x="645" y="128" width="172" height="8" rx="4" fill="#ffffff"/>
+    <rect x="920" y="108" width="134" height="8" rx="4" fill="#ffffff"/>
+    <rect x="1188" y="88" width="122" height="8" rx="4" fill="#ffffff"/>
+    <path d="M725 132 L746 162" stroke="#9dafb8" stroke-width="3"/>
+    <path d="M982 112 L995 142" stroke="#9dafb8" stroke-width="3"/>
+  </g>
+
+  <g opacity="0.62" transform="translate(910 240)">
+    <ellipse cx="160" cy="570" rx="290" ry="34" fill="#99aeba" opacity="0.18" filter="url(#soft)"/>
+
+    <g fill="#003761">
+      <circle cx="115" cy="84" r="32"/>
+      <path d="M76 132 C76 104 154 104 154 132 L166 330 L62 330 Z"/>
+      <rect x="72" y="318" width="34" height="204" rx="17"/>
+      <rect x="126" y="318" width="34" height="204" rx="17"/>
+    </g>
+
+    <g fill="#003761" opacity="0.92">
+      <circle cx="238" cy="72" r="36"/>
+      <path d="M192 126 C192 92 284 92 284 126 L300 360 L176 360 Z"/>
+      <rect x="188" y="348" width="40" height="230" rx="20"/>
+      <rect x="252" y="348" width="40" height="230" rx="20"/>
+      <rect x="200" y="160" width="72" height="92" rx="10" fill="#ffffff" opacity="0.75"/>
+    </g>
+
+    <g fill="#596878">
+      <circle cx="355" cy="92" r="30"/>
+      <path d="M318 140 C318 114 392 114 392 140 L405 326 L305 326 Z"/>
+      <rect x="316" y="315" width="32" height="200" rx="16"/>
+      <rect x="366" y="315" width="32" height="200" rx="16"/>
+    </g>
+
+    <g fill="#003761" opacity="0.82">
+      <circle cx="452" cy="102" r="28"/>
+      <path d="M418 148 C418 124 486 124 486 148 L500 318 L404 318 Z"/>
+      <rect x="412" y="306" width="30" height="190" rx="15"/>
+      <rect x="460" y="306" width="30" height="190" rx="15"/>
+      <path d="M472 178 L536 210 L526 238 L462 204 Z" fill="#ffffff" opacity="0.75"/>
+    </g>
+  </g>
+
+  <path d="M0 0 H780 C570 140 340 220 0 244 Z" fill="#ffffff" opacity="0.84"/>
+  <path d="M0 0 H1600 V900 H1260 C1420 740 1492 500 1400 308 C1300 96 992 24 710 0 H0 Z" fill="#ffffff" opacity="0.22"/>
+</svg>
