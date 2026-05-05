@@ -174,6 +174,7 @@ export interface TimesheetEntry {
 }
 
 export interface TimesheetSummary {
+  id?: string;
   employeeId: string;
   employeeName: string;
   weekEnding: string;

@@ -11,7 +11,7 @@ import {
   normalizeEmployee, normalizeProject, normalizeAllocation,
   normalizeClient, normalizeTimesheetSummary, normalizeAuditLog,
   normalizeSettings, normalizeCatalogItem, normalizeRoleDefinition,
-  normalizeCountryDirector,
+  normalizeCountryDirector, normalizeImportExportLog,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee } from './calculations';
 
@@ -68,6 +68,7 @@ export const employeeService = {
         department: emp.department,
         country: emp.country,
         primary_country_director_id: emp.primaryCountryDirectorId,
+        mapped_country_director_ids: emp.mappedCountryDirectorIds,
         status: emp.status,
       });
       return;
@@ -172,8 +173,17 @@ export const clientService = {
     }
     const list = DataStorage.get<Client[]>(STORAGE_KEYS.CLIENTS, []);
     const idx = list.findIndex(c => c.id === client.id);
+    const previous = idx >= 0 ? list[idx] : undefined;
     if (idx >= 0) list[idx] = client; else list.push(client);
     DataStorage.set(STORAGE_KEYS.CLIENTS, list);
+    if (previous && previous.name !== client.name) {
+      const projects = DataStorage.get<Project[]>(STORAGE_KEYS.PROJECTS, []);
+      DataStorage.set(STORAGE_KEYS.PROJECTS, projects.map(project => (
+        project.clientId === client.id || project.client === previous.name
+          ? { ...project, client: client.name, clientId: client.id }
+          : project
+      )));
+    }
   },
   delete: async (id: string): Promise<boolean> => {
     if (await checkBackend()) {
@@ -288,7 +298,11 @@ export const timesheetService = {
   },
   approve: async (timesheetId: string, _reason?: string): Promise<void> => {
     if (await checkBackend()) {
-      await api.patch(`/api/timesheets/${timesheetId}/status`, { status: 'Approved' });
+      const backendId = timesheetId.includes(':')
+        ? (await timesheetService.getAll()).find(t => `${t.employeeId}:${t.weekEnding}` === timesheetId)?.id
+        : timesheetId;
+      if (!backendId) throw new Error('Timesheet record was not found for approval.');
+      await api.patch(`/api/timesheets/${backendId}/status`, { status: 'Approved' });
       return;
     }
     const [empId, weekEnding] = timesheetId.includes(':') ? timesheetId.split(':') : [timesheetId, ''];
@@ -301,7 +315,11 @@ export const timesheetService = {
   },
   reject: async (timesheetId: string, reason: string): Promise<void> => {
     if (await checkBackend()) {
-      await api.patch(`/api/timesheets/${timesheetId}/status`, { status: 'Rejected', reason });
+      const backendId = timesheetId.includes(':')
+        ? (await timesheetService.getAll()).find(t => `${t.employeeId}:${t.weekEnding}` === timesheetId)?.id
+        : timesheetId;
+      if (!backendId) throw new Error('Timesheet record was not found for rejection.');
+      await api.patch(`/api/timesheets/${backendId}/status`, { status: 'Rejected', reason });
       return;
     }
     const [empId, weekEnding] = timesheetId.includes(':') ? timesheetId.split(':') : [timesheetId, ''];
@@ -318,15 +336,36 @@ export const timesheetService = {
 export const adminService = {
   getAuditLogs: async (): Promise<AuditLog[]> => {
     if (await checkBackend()) {
-      const raw = await api.get<Record<string, unknown>[]>('/api/audit-logs');
-      return raw.map(normalizeAuditLog);
+      try {
+        const raw = await api.get<Record<string, unknown>[]>('/api/audit-logs');
+        return raw.map(normalizeAuditLog);
+      } catch (error) {
+        return [];
+      }
     }
     return DataStorage.get<AuditLog[]>(STORAGE_KEYS.AUDIT_LOGS, []);
   },
   getImportExportLogs: async (): Promise<ImportExportLog[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/import-export-logs');
+      return raw.map(normalizeImportExportLog);
+    }
     return DataStorage.get<ImportExportLog[]>(STORAGE_KEYS.IMPORT_EXPORT_LOGS, []);
   },
   saveImportExportLog: async (log: Omit<ImportExportLog, 'id' | 'timestamp' | 'userName'> & Partial<Pick<ImportExportLog, 'id' | 'timestamp' | 'userName'>>): Promise<ImportExportLog> => {
+    if (await checkBackend()) {
+      const raw = await api.post<Record<string, unknown>>('/api/import-export-logs', {
+        operation: log.operation,
+        channel: log.channel,
+        fileName: log.fileName,
+        status: log.status,
+        totalRows: log.totalRows,
+        validRows: log.validRows,
+        errorRows: log.errorRows,
+        errors: log.errors,
+      });
+      return normalizeImportExportLog(raw);
+    }
     const u = actor();
     const nextLog: ImportExportLog = {
       ...log,

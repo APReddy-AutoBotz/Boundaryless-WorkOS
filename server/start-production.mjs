@@ -10,6 +10,7 @@ if (process.env.AUTO_MIGRATE === 'true') {
 
 if (process.env.AUTO_SEED_DEMO === 'true') {
   console.log('AUTO_SEED_DEMO=true; seeding demo data before startup.');
+  console.warn('WARNING: AUTO_SEED_DEMO=true in production will refresh demo records on every startup. Set AUTO_SEED_DEMO=false before editing demo records into real company data.');
   await import('./seed-demo.mjs');
   if (process.exitCode && process.exitCode !== 0) {
     process.exit(process.exitCode);

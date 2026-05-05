@@ -125,6 +125,16 @@ const verifyPassword = async (password, passwordHash) => {
   return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(key, 'hex'));
 };
 
+const scryptHash = async (value) => {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const key = await new Promise((resolve, reject) => {
+    crypto.scrypt(value, salt, 64, (error, result) => error ? reject(error) : resolve(result.toString('hex')));
+  });
+  return `scrypt$${salt}$${key}`;
+};
+
+const isGlobalRole = (req) => ['Admin', 'HR'].includes(req.user?.activeRole);
+
 const requireDatabase = (req, res, next) => {
   if (!process.env.DATABASE_URL) {
     res.status(503).json({ error: 'DATABASE_URL is not configured' });
@@ -258,16 +268,47 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(req.user);
 });
 
-app.get('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'TeamLead'), (_req, res) => run(res, `
-  select e.*, coalesce(json_agg(ecdm.country_director_id) filter (where ecdm.country_director_id is not null), '[]') as mapped_country_director_ids
-  from employees e
-  left join employee_country_director_map ecdm on ecdm.employee_id = e.id
-  group by e.id
-  order by e.name
-`));
+app.get('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'TeamLead', 'ProjectManager', 'Employee'), async (req, res) => {
+  const params = [];
+  let where = '';
+  if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = 'where e.id = $1 or e.employee_id = $2';
+  } else if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    where = `
+      where e.primary_country_director_id = $1
+         or exists (
+          select 1 from employee_country_director_map scope
+          where scope.employee_id = e.id and scope.country_director_id = $1
+        )
+    `;
+  } else if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = `
+      where e.id = $1 or e.employee_id = $2
+         or exists (
+          select 1
+          from project_allocations pa
+          join projects p on p.id = pa.project_id
+          where pa.employee_id = e.id
+            and (p.manager_id = $1 or p.manager_id = $2)
+        )
+    `;
+  }
+  await run(res, `
+    select e.*, coalesce(json_agg(ecdm.country_director_id) filter (where ecdm.country_director_id is not null), '[]') as mapped_country_director_ids
+    from employees e
+    left join employee_country_director_map ecdm on ecdm.employee_id = e.id
+    ${where}
+    group by e.id
+    order by e.name
+  `, params);
+});
 
 app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
+    id: z.string().min(1).optional(),
     employee_id: z.string().min(1),
     name: z.string().min(1),
     email: z.string().email(),
@@ -275,6 +316,9 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
     department: z.string().min(1),
     country: z.string().min(1),
     primary_country_director_id: z.string().min(1),
+    mapped_country_director_ids: z.array(z.string()).default([]),
+    roles: z.array(z.enum(['Employee', 'TeamLead', 'ProjectManager', 'CountryDirector', 'HR', 'Admin'])).optional(),
+    initial_password: z.string().min(6).optional(),
     status: z.enum(['Active', 'On Leave', 'Exited']).default('Active'),
   });
   const parsed = schema.safeParse(req.body);
@@ -282,20 +326,100 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  await run(res, `
-    insert into employees (employee_id, name, email, designation, department, country, primary_country_director_id, status)
-    values ($1,$2,$3,$4,$5,$6,$7,$8)
-    on conflict (employee_id) do update set
-      name = excluded.name,
-      email = excluded.email,
-      designation = excluded.designation,
-      department = excluded.department,
-      country = excluded.country,
-      primary_country_director_id = excluded.primary_country_director_id,
-      status = excluded.status,
-      updated_at = now()
-    returning *
-  `, Object.values(parsed.data));
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = (await client.query('select * from employees where employee_id = $1', [parsed.data.employee_id])).rows[0];
+    const employeeResult = await client.query(`
+      insert into employees (id, employee_id, name, email, designation, department, country, primary_country_director_id, status)
+      values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9)
+      on conflict (employee_id) do update set
+        name = excluded.name,
+        email = excluded.email,
+        designation = excluded.designation,
+        department = excluded.department,
+        country = excluded.country,
+        primary_country_director_id = excluded.primary_country_director_id,
+        status = excluded.status,
+        updated_at = now()
+      returning *
+    `, [
+      parsed.data.id || null,
+      parsed.data.employee_id,
+      parsed.data.name,
+      parsed.data.email,
+      parsed.data.designation,
+      parsed.data.department,
+      parsed.data.country,
+      parsed.data.primary_country_director_id,
+      parsed.data.status,
+    ]);
+    const employee = employeeResult.rows[0];
+    const mappedIds = Array.from(new Set([parsed.data.primary_country_director_id, ...parsed.data.mapped_country_director_ids].filter(Boolean)));
+    await client.query('delete from employee_country_director_map where employee_id = $1', [employee.id]);
+    for (const directorId of mappedIds) {
+      await client.query(`
+        insert into employee_country_director_map (employee_id, country_director_id)
+        values ($1,$2)
+        on conflict do nothing
+      `, [employee.id, directorId]);
+    }
+
+    const existingUser = (await client.query('select id from users where lower(username) = lower($1) or employee_id = $2', [parsed.data.employee_id, parsed.data.employee_id])).rows[0];
+    const passwordHash = existingUser && !parsed.data.initial_password
+      ? null
+      : await scryptHash(parsed.data.initial_password || process.env.DEMO_SEED_PASSWORD || 'demo123');
+    const userResult = await client.query(`
+      insert into users (username, employee_id, email, password_hash, status, updated_at)
+      values ($1,$2,$3,$4,$5,now())
+      on conflict (username) do update set
+        employee_id = excluded.employee_id,
+        email = excluded.email,
+        password_hash = coalesce($4, users.password_hash),
+        status = excluded.status,
+        updated_at = now()
+      returning id
+    `, [
+      parsed.data.employee_id.toLowerCase(),
+      parsed.data.employee_id,
+      parsed.data.email,
+      passwordHash,
+      parsed.data.status === 'Exited' ? 'Disabled' : 'Active',
+    ]);
+    const employeeCode = parsed.data.employee_id.toUpperCase();
+    const defaultRoleNames = employeeCode.startsWith('ADMIN-')
+      ? ['Admin']
+      : employeeCode.startsWith('HR-')
+        ? ['HR']
+        : employeeCode.startsWith('CD-')
+          ? ['CountryDirector']
+          : employeeCode.startsWith('PM-')
+            ? ['ProjectManager', 'Employee']
+            : ['Employee'];
+    const roleNames = parsed.data.roles || defaultRoleNames;
+    const roleResult = await client.query('select id, name from roles where name = any($1::text[])', [roleNames]);
+    await client.query('delete from user_roles where user_id = $1', [userResult.rows[0].id]);
+    for (const role of roleResult.rows) {
+      await client.query('insert into user_roles (user_id, role_id) values ($1,$2) on conflict do nothing', [userResult.rows[0].id, role.id]);
+    }
+    await audit(client, req, {
+      module: 'Employee',
+      action: previous ? 'Update Employee' : 'Create Employee',
+      entityType: 'Employee',
+      entityId: employee.id,
+      oldValue: previous,
+      newValue: employee,
+      details: `${previous ? 'Updated' : 'Created'} employee ${employee.employee_id} and synchronized login`,
+    });
+    await client.query('commit');
+    res.json({ ...employee, mapped_country_director_ids: mappedIds });
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Employee save failed' });
+  } finally {
+    client.release();
+  }
 });
 
 app.delete('/api/employees/:id', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
@@ -356,7 +480,36 @@ app.delete('/api/employees/:id', requireDatabase, requireAuth, requireRoles('Adm
   }
 });
 
-app.get('/api/projects', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager'), (_req, res) => run(res, 'select * from projects order by name'));
+app.get('/api/projects', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'Employee', 'TeamLead'), async (req, res) => {
+  const params = [];
+  let where = '';
+  if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = `
+      where exists (
+        select 1 from project_allocations pa
+        where pa.project_id = projects.id
+          and (pa.employee_id = $1 or pa.employee_id = $2)
+      )
+    `;
+  } else if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = 'where manager_id = $1 or manager_id = $2';
+  } else if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    where = `
+      where exists (
+        select 1
+        from project_allocations pa
+        join employees e on e.id = pa.employee_id
+        left join employee_country_director_map ecdm on ecdm.employee_id = e.id
+        where pa.project_id = projects.id
+          and (e.primary_country_director_id = $1 or ecdm.country_director_id = $1)
+      )
+    `;
+  }
+  await run(res, `select * from projects ${where} order by name`, params);
+});
 app.post('/api/projects', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
     id: z.string().min(1).optional(),
@@ -522,13 +675,40 @@ app.patch('/api/projects/:id/status', requireDatabase, requireAuth, requireRoles
     client.release();
   }
 });
-app.get('/api/clients', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager'), (_req, res) => run(res, `
-  select c.*, coalesce(json_agg(ccdm.country_director_id) filter (where ccdm.country_director_id is not null), '[]') as country_director_ids
-  from clients c
-  left join client_country_director_map ccdm on ccdm.client_id = c.id
-  group by c.id
-  order by c.name
-`));
+app.get('/api/clients', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'Employee', 'TeamLead'), async (req, res) => {
+  const params = [];
+  let where = '';
+  if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    where = `
+      where exists (
+        select 1 from client_country_director_map scope
+        where scope.client_id = c.id and scope.country_director_id = $1
+      )
+    `;
+  } else if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = 'where exists (select 1 from projects p where p.client_id = c.id and (p.manager_id = $1 or p.manager_id = $2))';
+  } else if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = `
+      where exists (
+        select 1
+        from projects p
+        join project_allocations pa on pa.project_id = p.id
+        where p.client_id = c.id and (pa.employee_id = $1 or pa.employee_id = $2)
+      )
+    `;
+  }
+  await run(res, `
+    select c.*, coalesce(json_agg(ccdm.country_director_id) filter (where ccdm.country_director_id is not null), '[]') as country_director_ids
+    from clients c
+    left join client_country_director_map ccdm on ccdm.client_id = c.id
+    ${where}
+    group by c.id
+    order by c.name
+  `, params);
+});
 app.post('/api/clients', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
     id: z.string().min(1).optional(),
@@ -590,7 +770,35 @@ app.delete('/api/clients/:id', requireDatabase, requireAuth, requireRoles('Admin
     returning *
   `, [req.params.id]);
 });
-app.get('/api/allocations', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager'), (_req, res) => run(res, 'select * from project_allocations order by start_date desc'));
+app.get('/api/allocations', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'Employee', 'TeamLead'), async (req, res) => {
+  const params = [];
+  let where = '';
+  if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = 'where employee_id = $1 or employee_id = $2';
+  } else if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = `
+      where exists (
+        select 1 from projects p
+        where p.id = project_allocations.project_id
+          and (p.manager_id = $1 or p.manager_id = $2)
+      )
+    `;
+  } else if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    where = `
+      where exists (
+        select 1
+        from employees e
+        left join employee_country_director_map ecdm on ecdm.employee_id = e.id
+        where e.id = project_allocations.employee_id
+          and (e.primary_country_director_id = $1 or ecdm.country_director_id = $1)
+      )
+    `;
+  }
+  await run(res, `select * from project_allocations ${where} order by start_date desc`, params);
+});
 app.post('/api/allocations', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager'), async (req, res) => {
   const schema = z.object({
     id: z.string().min(1).optional(),
@@ -735,6 +943,28 @@ app.delete('/api/allocations/:id', requireDatabase, requireAuth, requireRoles('A
       res.status(404).json({ error: 'Allocation not found' });
       return;
     }
+    if (req.user.activeRole === 'ProjectManager') {
+      const managed = (await client.query('select 1 from projects where id = $1 and (manager_id = $2 or manager_id = $3)', [previous.project_id, req.user.employeeRecordId, req.user.employeeId])).rows[0];
+      if (!managed) {
+        await client.query('rollback');
+        res.status(403).json({ error: 'Project managers can end only allocations on their own projects' });
+        return;
+      }
+    }
+    if (req.user.activeRole === 'CountryDirector') {
+      const scoped = (await client.query(`
+        select 1
+        from employees e
+        left join employee_country_director_map ecdm on ecdm.employee_id = e.id
+        where e.id = $1 and (e.primary_country_director_id = $2 or ecdm.country_director_id = $2)
+        limit 1
+      `, [previous.employee_id, req.user.countryDirectorId])).rows[0];
+      if (!scoped) {
+        await client.query('rollback');
+        res.status(403).json({ error: 'Country Directors can end only scoped employee allocations' });
+        return;
+      }
+    }
     const result = await client.query(`
       update project_allocations
       set status = 'Completed',
@@ -762,7 +992,60 @@ app.delete('/api/allocations/:id', requireDatabase, requireAuth, requireRoles('A
     client.release();
   }
 });
-app.get('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), (_req, res) => run(res, 'select * from timesheets order by week_ending desc'));
+app.get('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
+  const params = [];
+  let where = '';
+  if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = 'where t.employee_id = $1 or e.employee_id = $2';
+  } else if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    where = `
+      where e.primary_country_director_id = $1
+         or exists (
+          select 1 from employee_country_director_map ecdm
+          where ecdm.employee_id = e.id and ecdm.country_director_id = $1
+        )
+    `;
+  } else if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = `
+      where exists (
+        select 1
+        from timesheet_entries scope_te
+        join projects scope_p on scope_p.id = scope_te.project_id
+        where scope_te.timesheet_id = t.id
+          and (scope_p.manager_id = $1 or scope_p.manager_id = $2)
+      )
+    `;
+  }
+  await run(res, `
+    select
+      t.*,
+      coalesce(json_agg(json_build_object(
+        'id', te.id,
+        'employee_id', t.employee_id,
+        'project_id', te.project_id,
+        'project_name', p.name,
+        'work_type', te.work_type,
+        'client_name', te.client_name,
+        'category', te.category,
+        'work_date', te.work_date,
+        'hours', te.hours,
+        'remark', te.remark,
+        'status', t.status,
+        'billable', te.billable,
+        'week_ending', t.week_ending
+      ) order by te.work_date, te.id) filter (where te.id is not null), '[]') as entries
+    from timesheets t
+    join employees e on e.id = t.employee_id
+    left join timesheet_entries te on te.timesheet_id = t.id
+    left join projects p on p.id = te.project_id
+    ${where}
+    group by t.id
+    order by t.week_ending desc, t.updated_at desc
+  `, params);
+});
 app.post('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
   const entrySchema = z.object({
     id: z.string().optional(),
@@ -993,7 +1276,54 @@ app.patch('/api/timesheets/:id/status', requireDatabase, requireAuth, requireRol
     client.release();
   }
 });
-app.get('/api/settings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => run(res, 'select key, value from system_settings order by key'));
+app.get('/api/settings', requireDatabase, requireAuth, (_req, res) => run(res, 'select key, value from system_settings order by key'));
+app.post('/api/settings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    expectedWeeklyHours: z.number().min(1).max(168),
+    utilizationThresholdHigh: z.number().min(0).max(300),
+    utilizationThresholdLow: z.number().min(0).max(300),
+    benchThreshold: z.number().min(0).max(100),
+    timesheetPolicyMaxHours: z.number().min(1).max(168).optional(),
+    blockOverAllocation: z.boolean().optional(),
+    demoSubmissionMode: z.boolean().optional(),
+    currency: z.string().min(1).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = (await client.query('select key, value from system_settings order by key')).rows;
+    for (const [key, value] of Object.entries(parsed.data)) {
+      await client.query(`
+        insert into system_settings (key, value, updated_at)
+        values ($1, $2::jsonb, now())
+        on conflict (key) do update set value = excluded.value, updated_at = now()
+      `, [key, JSON.stringify(value)]);
+    }
+    await audit(client, req, {
+      module: 'Settings',
+      action: 'Update Settings',
+      entityType: 'SystemSettings',
+      entityId: 'system',
+      oldValue: previous,
+      newValue: parsed.data,
+      details: 'Updated system settings',
+    });
+    await client.query('commit');
+    const result = await pool.query('select key, value from system_settings order by key');
+    res.json(result.rows);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Settings save failed' });
+  } finally {
+    client.release();
+  }
+});
 
 const catalogTypeSchema = z.enum(['departments', 'countries', 'industries']);
 const catalogModules = {
@@ -1133,7 +1463,7 @@ app.delete('/api/catalogs/:catalogType/:id', requireDatabase, requireAuth, requi
   }
 });
 
-app.get('/api/country-directors', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector'), (_req, res) => run(res, 'select * from country_directors order by region, name'));
+app.get('/api/country-directors', requireDatabase, requireAuth, (_req, res) => run(res, 'select * from country_directors order by region, name'));
 app.post('/api/country-directors', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
     id: z.string().min(1),
@@ -1204,7 +1534,7 @@ app.delete('/api/country-directors/:id', requireDatabase, requireAuth, requireRo
     client.release();
   }
 });
-app.get('/api/role-definitions', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => run(res, 'select * from role_definitions where active = true order by name'));
+app.get('/api/role-definitions', requireDatabase, requireAuth, (_req, res) => run(res, 'select * from role_definitions where active = true order by name'));
 app.post('/api/role-definitions', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
     id: z.string().min(1),
@@ -1277,6 +1607,43 @@ app.delete('/api/role-definitions/:id', requireDatabase, requireAuth, requireRol
   }
 });
 app.get('/api/audit-logs', requireDatabase, requireAuth, requireRoles('Admin'), (_req, res) => run(res, 'select * from audit_logs order by created_at desc limit 500'));
+app.get('/api/import-export-logs', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => run(res, 'select * from import_export_logs order by created_at desc limit 100'));
+app.post('/api/import-export-logs', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    operation: z.enum(['Import', 'Export']),
+    channel: z.string().min(1),
+    fileName: z.string().min(1),
+    status: z.enum(['Success', 'Partial', 'Failed', 'Dry Run']),
+    totalRows: z.number().int().min(0),
+    validRows: z.number().int().min(0),
+    errorRows: z.number().int().min(0),
+    errors: z.array(z.object({
+      rowNumber: z.number().int(),
+      field: z.string().optional(),
+      message: z.string(),
+    })).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  await run(res, `
+    insert into import_export_logs (operation, channel, file_name, status, total_rows, valid_rows, error_rows, errors, user_name)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    returning *
+  `, [
+    parsed.data.operation,
+    parsed.data.channel,
+    parsed.data.fileName,
+    parsed.data.status,
+    parsed.data.totalRows,
+    parsed.data.validRows,
+    parsed.data.errorRows,
+    parsed.data.errors ? JSON.stringify(parsed.data.errors) : null,
+    req.user.username,
+  ]);
+});
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

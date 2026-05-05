@@ -7,7 +7,7 @@
 import type {
   Employee, Project, Allocation, Client, CountryDirector,
   TimesheetSummary, TimesheetEntry, AuditLog, SystemSettings,
-  RoleDefinition, CatalogItem, UserSession, UserRole,
+  RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
 } from '../types';
 
 // ─── Backend availability detection ──────────────────────────────────────────
@@ -171,22 +171,40 @@ export const normalizeClient = (r: Record<string, unknown>): Client => ({
 export const normalizeTimesheetSummary = (
   r: Record<string, unknown>,
   employeeMap: Map<string, Employee>,
-): TimesheetSummary => ({
-  employeeId: String(r.employee_id),
-  employeeName: employeeMap.get(String(r.employee_id))?.name ?? String(r.employee_id),
-  weekEnding: String(r.week_ending).slice(0, 10),
-  totalHours: Number(r.total_hours),
-  billableHours: Number(r.billable_hours),
-  status: r.status as TimesheetSummary['status'],
-  rejectionReason: r.rejection_reason ? String(r.rejection_reason) : undefined,
-  submittedAt: r.submitted_at ? String(r.submitted_at) : undefined,
-  approvedAt: r.approved_at ? String(r.approved_at) : undefined,
-  approvedBy: r.approved_by ? String(r.approved_by) : undefined,
-  rejectedAt: r.rejected_at ? String(r.rejected_at) : undefined,
-  rejectedBy: r.rejected_by ? String(r.rejected_by) : undefined,
-  updatedAt: r.updated_at ? String(r.updated_at) : undefined,
-  entries: [],
-});
+): TimesheetSummary => {
+  const entries = Array.isArray(r.entries) ? (r.entries as Record<string, unknown>[]) : [];
+  return {
+    id: r.id ? String(r.id) : undefined,
+    employeeId: String(r.employee_id),
+    employeeName: employeeMap.get(String(r.employee_id))?.name ?? String(r.employee_id),
+    weekEnding: String(r.week_ending).slice(0, 10),
+    totalHours: Number(r.total_hours),
+    billableHours: Number(r.billable_hours),
+    status: r.status as TimesheetSummary['status'],
+    rejectionReason: r.rejection_reason ? String(r.rejection_reason) : undefined,
+    submittedAt: r.submitted_at ? String(r.submitted_at) : undefined,
+    approvedAt: r.approved_at ? String(r.approved_at) : undefined,
+    approvedBy: r.approved_by ? String(r.approved_by) : undefined,
+    rejectedAt: r.rejected_at ? String(r.rejected_at) : undefined,
+    rejectedBy: r.rejected_by ? String(r.rejected_by) : undefined,
+    updatedAt: r.updated_at ? String(r.updated_at) : undefined,
+    entries: entries.map((entry): TimesheetEntry => ({
+      id: String(entry.id),
+      employeeId: String(entry.employee_id ?? r.employee_id),
+      projectId: entry.project_id ? String(entry.project_id) : undefined,
+      projectName: entry.project_name ? String(entry.project_name) : undefined,
+      workType: entry.work_type as TimesheetEntry['workType'],
+      clientName: entry.client_name ? String(entry.client_name) : undefined,
+      category: entry.category ? String(entry.category) : undefined,
+      date: String(entry.work_date).slice(0, 10),
+      hours: Number(entry.hours),
+      remark: entry.remark ? String(entry.remark) : undefined,
+      status: (entry.status || r.status) as TimesheetEntry['status'],
+      billable: Boolean(entry.billable) as true,
+      weekEnding: String(entry.week_ending ?? r.week_ending).slice(0, 10),
+    })),
+  };
+};
 
 export const normalizeAuditLog = (r: Record<string, unknown>): AuditLog => ({
   id: String(r.id),
@@ -201,6 +219,20 @@ export const normalizeAuditLog = (r: Record<string, unknown>): AuditLog => ({
   oldValue: r.old_value ?? undefined,
   newValue: r.new_value ?? undefined,
   reason: r.reason ? String(r.reason) : undefined,
+  timestamp: String(r.created_at),
+});
+
+export const normalizeImportExportLog = (r: Record<string, unknown>): ImportExportLog => ({
+  id: String(r.id),
+  operation: r.operation as ImportExportLog['operation'],
+  channel: String(r.channel),
+  fileName: String(r.file_name),
+  status: r.status as ImportExportLog['status'],
+  totalRows: Number(r.total_rows),
+  validRows: Number(r.valid_rows),
+  errorRows: Number(r.error_rows),
+  errors: Array.isArray(r.errors) ? r.errors as ImportExportLog['errors'] : undefined,
+  userName: String(r.user_name),
   timestamp: String(r.created_at),
 });
 

@@ -55,15 +55,15 @@ In Render, add these variables to the Web Service:
 | `NODE_ENV` | `production` |
 | `LOGIN_RATE_LIMIT` | `8` |
 | `AUTO_MIGRATE` | `true` for first Render deployment |
-| `AUTO_SEED_DEMO` | `true` for first Render deployment/demo |
+| `AUTO_SEED_DEMO` | `true` only for the first disposable demo seed; set to `false` before real data edits |
 | `DEMO_SEED_PASSWORD` | `demo123` or your chosen demo password |
 | `APP_URL` | Render app URL, for example `https://boundaryless-rut.onrender.com` |
 
 Render provides `PORT` automatically. Do not manually set `PORT` unless Render asks you to.
 
-For the first deployment on Render Free, keep `AUTO_MIGRATE=true` and `AUTO_SEED_DEMO=true`. This lets the app create the Supabase schema and seed demo users during startup because Render Free does not provide a convenient interactive shell.
+For the first deployment on Render Free, keep `AUTO_MIGRATE=true` and temporarily set `AUTO_SEED_DEMO=true`. This lets the app create the Supabase schema and seed demo users during startup because Render Free does not provide a convenient interactive shell.
 
-After the demo database is seeded and you start making real changes, set `AUTO_SEED_DEMO=false` so startup does not refresh demo records on every deploy. Keeping `AUTO_MIGRATE=true` is safe because migrations are idempotent.
+After the demo database is seeded and you start making real changes, set `AUTO_SEED_DEMO=false` so startup does not refresh demo records on every deploy. This is mandatory before renaming demo employees, clients, Project Managers, Country Directors, projects, or allocations into real company records. Keeping `AUTO_MIGRATE=true` is safe because migrations are idempotent.
 
 If your Supabase password contains special characters, URL-encode it in `DATABASE_URL`. For example, `@` inside the password must become `%40`.
 
@@ -111,6 +111,8 @@ npm run api:seed:demo -- --reset
 ```
 
 Use reset carefully because it can overwrite seeded demo data.
+
+Do not run reset against a database that contains real company data. Demo reset is intended only for disposable demo databases.
 
 ## 8. Deployment Verification
 

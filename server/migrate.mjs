@@ -7,7 +7,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const serverDir = dirname(fileURLToPath(import.meta.url));
-const migrationId = '002_catalogs_and_production_parity';
+const migrationId = '003_handover_hardening';
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required to run database migrations.');

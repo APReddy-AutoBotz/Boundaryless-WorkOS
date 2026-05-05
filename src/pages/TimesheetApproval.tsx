@@ -105,7 +105,7 @@ export const TimesheetApproval = () => {
 
   const handleApprove = async (ts: TimesheetSummary) => {
     await timesheetService.approve(
-      `${ts.employeeId}:${ts.weekEnding}`,
+      ts.id || `${ts.employeeId}:${ts.weekEnding}`,
       undefined
     );
     await refreshTimesheets();
@@ -132,7 +132,7 @@ export const TimesheetApproval = () => {
       setRejectionError('A rejection reason is required before sending this timesheet back.');
       return;
     }
-    await timesheetService.reject(`${rejectionTarget.employeeId}:${rejectionTarget.weekEnding}`, remark);
+    await timesheetService.reject(rejectionTarget.id || `${rejectionTarget.employeeId}:${rejectionTarget.weekEnding}`, remark);
     await refreshTimesheets();
     setActionNotice(`Rejected ${rejectionTarget.employeeName}'s timesheet for ${rejectionTarget.weekEnding}.`);
     if (selectedId === `${rejectionTarget.employeeId}:${rejectionTarget.weekEnding}`) setSelectedId(null);
@@ -146,7 +146,7 @@ export const TimesheetApproval = () => {
     }
     await Promise.all(
       submittedFilteredTimesheets.map(ts =>
-        timesheetService.approve(`${ts.employeeId}:${ts.weekEnding}`)
+        timesheetService.approve(ts.id || `${ts.employeeId}:${ts.weekEnding}`)
       )
     );
     await refreshTimesheets();

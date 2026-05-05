@@ -8,6 +8,16 @@ globalThis.localStorage = {
   removeItem: (key) => store.delete(key),
   clear: () => store.clear(),
 };
+globalThis.sessionStorage = {
+  getItem: (key) => (store.has(`session:${key}`) ? store.get(`session:${key}`) : null),
+  setItem: (key, value) => store.set(`session:${key}`, String(value)),
+  removeItem: (key) => store.delete(`session:${key}`),
+  clear: () => {
+    for (const key of [...store.keys()]) {
+      if (key.startsWith('session:')) store.delete(key);
+    }
+  },
+};
 
 const { DataStorage } = await import('../src/services/storage.ts');
 const { employeeService, projectService, allocationService } = await import('../src/services/api.ts');
@@ -21,9 +31,9 @@ const {
 
 DataStorage.resetDemoData();
 
-const employees = employeeService.getAll();
-const projects = projectService.getAll();
-const allocations = allocationService.getAll();
+const employees = await employeeService.getAll();
+const projects = await projectService.getAll();
+const allocations = await allocationService.getAll();
 
 const admin = await authService.login('admin-1', 'demo123');
 assert.ok(admin, 'admin account should be available');
@@ -67,7 +77,7 @@ const cdEmployeeIds = new Set(employees
   .map(employee => employee.id));
 const scopedAllocation = allocations.find(allocation => cdEmployeeIds.has(allocation.employeeId));
 assert.ok(scopedAllocation, 'CD should have at least one scoped seeded allocation');
-const scopedProject = projectService.getById(scopedAllocation.projectId);
+const scopedProject = await projectService.getById(scopedAllocation.projectId);
 assert.ok(scopedProject, 'scoped allocation should reference a project');
 assert.equal(
   canAccessProjectDetail({

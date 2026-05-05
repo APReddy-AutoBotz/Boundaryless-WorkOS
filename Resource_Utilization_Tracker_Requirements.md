@@ -3,9 +3,9 @@
 **Document Owner:** AP  
 **Application:** Resource Utilization Tracker  
 **Target Stack:** React + TypeScript + Tailwind CSS frontend, Node.js API backend, PostgreSQL database  
-**Current State:** Enhanced near-production frontend demo with dual-mode async service layer, local fallback data, explicit client master data, role-based workflows, routed detail views, allocation/timesheet logic, starter Node API, PostgreSQL schema, PostgreSQL demo seed/provisioning, and initial frontend API response normalizers  
-**Last Reconciled:** 1 May 2026  
-**Next Step:** Repair the remaining Node smoke test harness/data assertions, complete API/backend parity, connect a real PostgreSQL environment, perform backend-mode UAT, implement data-level authorization, harden migrations/security, and prepare production deployment runbook  
+**Current State:** Near-production internal product build with local demo mode, Render/Supabase backend deployment, dual-mode async service layer, PostgreSQL schema/migrations/seed, scoped backend APIs, backend settings/timesheet/import-export history support, and handover documentation
+**Last Reconciled:** 5 May 2026
+**Next Step:** Disable demo reseeding before real data edits, run browser UAT by role, replace personal Supabase/Render with company-owned infrastructure, complete remaining backend import/report parity, harden password lifecycle/operations, and load real data
 
 ---
 
@@ -1564,7 +1564,7 @@ These are not required for the current demo, but they are recommended for a prod
 
 ## 25. Version 2 Production Readiness Plan
 
-This section reflects the 27 April 2026 codebase review after the dual-mode API adapter and async service migration changes.
+This section reflects the 5 May 2026 codebase review after Render/Supabase deployment, demo seed repair, scoped backend API hardening, timesheet backend contract repair, settings API parity, import/export history persistence, and production handover documentation updates.
 
 ### 25.1 QA Readiness Summary
 
@@ -1572,50 +1572,50 @@ This section reflects the 27 April 2026 codebase review after the dual-mode API 
 |---|---|---|---|
 | TypeScript compile | Ready | `npm run lint` passes. | Safe for continued demo/UAT iteration. |
 | Production frontend bundle | Ready | `npm run build` passes and produces route-split bundles in `dist`. | Safe to package for a frontend demo. |
-| Backend contract scaffold | Ready as foundation | `npm run test:backend` passes for catalog routes, static serving, rate-limit guardrails, and seed script presence. | Backend foundation is credible, but not full API parity. |
-| Local demo mode | Mostly ready | Rich demo data, local persistence, role flows, dashboards, allocations, timesheets, imports/exports, and reports are implemented. | Suitable for leadership walkthrough after smoke tests are repaired and core browser journeys are checked. |
-| Automated regression suite | Not ready | `npm run test:access` fails due Node `sessionStorage`; `npm run test:requirements` fails due stale synchronous service assumptions. | Must fix before demo sign-off and every future implementation batch. |
-| Backend/PostgreSQL mode | Partial | API client and normalizers exist; backend APIs exist for core resources. Missing parity remains for settings writes, timesheet ID handling, full scoped reports, imports, and data-level RBAC. | Not ready for multi-user UAT until connected to real PostgreSQL and API-mode browser-tested. |
-| Production go-live | Not ready | Local fallback still exists, backend parity is incomplete, security lifecycle and operational runbook are pending. | Treat as Version 2 production build plan, not production release. |
+| Backend contract scaffold | Ready as foundation | `npm run test:backend` covers schema, static serving, start script, settings route, import/export history route, and timesheet entries contract. | Backend foundation is credible for controlled UAT; remaining work is deeper API/browser coverage. |
+| Local demo mode | Ready for guided demo | Rich demo data, local persistence, role flows, dashboards, allocations, timesheets, imports/exports, and reports are implemented. | Suitable for leadership walkthrough after smoke suite passes and quick browser sanity check. |
+| Automated regression suite | Improved | `test:backend`, `test:access`, `test:requirements`, and optional `test:backend-api` are aligned with async services and demo data v6. | Run on every handover hardening change. |
+| Backend/PostgreSQL mode | Controlled UAT ready | Render/Supabase deployment has logged in successfully; backend APIs now cover scoped reads, settings writes, timesheet IDs/entries, and import/export history. | Requires browser UAT by role before company production handover. |
+| Production go-live | Not ready | Company-owned infrastructure, real data migration, password lifecycle, monitoring, backups, and final security sign-off are pending. | Treat as a production handover candidate, not final go-live. |
 
 **Estimated readiness:**
 
 | Release Target | Readiness Estimate | Meaning |
 |---|---:|---|
-| Leadership demo using local demo mode | 75-80% | Build passes and feature coverage is strong, but current smoke test failures and async form await issues should be fixed before the demo. |
-| Controlled internal UAT using local demo mode | 65-70% | Needs smoke repair, browser workflow pass, and clear demo-data reset guidance. |
-| Multi-user UAT using PostgreSQL backend | 45-50% | Backend foundation exists, but real DB connection, API parity, ID mapping, and data-level authorization are not yet proven. |
-| Production go-live | 35-40% | Product scope is strong, but backend cutover, security, operations, audit immutability, backups, monitoring, and deployment hardening remain. |
+| Leadership demo using local or Render demo mode | 85-90% | Feature coverage is strong and deployment has loaded/logged in; run a quick role-based browser pass before stakeholders. |
+| Controlled internal UAT using Render/Supabase backend | 65-75% | Backend mode is usable for controlled testing, but role-by-role UAT and remaining import/report parity are still required. |
+| Company technical handover readiness | 60-70% | Handover docs, deployment path, and backend foundation exist; company-owned secrets/DB and real data load are still needed. |
+| Production go-live | 45-55% | Product scope is strong, but production auth lifecycle, operations, backups, monitoring, security review, and real-data UAT remain. |
 
 ### 25.2 What Is Done
 
 | Workstream | Done Items | Current Confidence |
 |---|---|---|
 | Product scope | Employee, client, project, allocation, timesheet, approval, planned/actual/forecast utilization, dashboards, import/export, audit, and admin settings are represented. | High for demo scope. |
-| Demo data | 120-person dataset, 60 projects, 15 clients, 8 CDs, PM/HR/Admin users, multi-CD mappings, realistic utilization, allocations, and timesheets. | High once tests are updated for async services. |
+| Demo data | 120-person dataset, 60 projects, 15 clients, 8 CDs, PM/HR/Admin users, multi-CD mappings, realistic utilization, allocations, and daily timesheets with per-entry DB-safe hours. | High for demo and UAT seed. |
 | UI/UX | Boundaryless-inspired internal UI, compact CD dashboard, client/resource drilldowns, global search, route-aware scroll reset, app-native notices/modals, better sorting affordance, and route-level lazy loading. | High for demo; needs browser UAT across roles. |
 | Business user documentation | A non-technical user flow guide now exists at `Resource_Utilization_Tracker_User_Flow_Guide.md`, covering role responsibilities, ideal weekly operating rhythm, screen-by-screen usage, utilization logic, governance ownership, and data quality rules. | High for business onboarding and demo support. |
 | Technical status documentation | `Resource_Utilization_Tracker_Technical_Status.md` now summarizes implemented areas, pending demo/UAT/production work, current QA status, user inputs needed, and recommended next technical actions. | High for engineering review and production-readiness tracking. |
 | Core local calculations | Planned utilization, actual utilization from approved timesheets, forecast snapshots, resource headcount, and project actual contribution are implemented in frontend/local mode. | Medium-high; backend parity tests pending. |
 | Admin governance | Role, Country Director, department, country, industry, threshold/settings, demo reset, and guarded delete flows exist in UI/local mode. | Medium-high; API cutover pending. |
-| Backend foundation | Express API, PostgreSQL schema, migration runner, seed script, scrypt login, signed sessions/tokens, route-role checks, catalog APIs, core CRUD/write endpoints, and static production serving exist. | Medium; parity and deployment not complete. |
-| Frontend API migration foundation | `apiClient.ts` provides health detection, token handling, fetch wrapper, and response normalizers; `api.ts` is now dual-mode async with local fallback. Employee, Project, and Allocation forms now await async catalog loads/saves and no longer crash on async catalog data. | Medium; backend route mismatches and backend-mode UAT remain. |
+| Backend foundation | Express API, PostgreSQL schema, migration runner, seed script, scrypt login, signed sessions/tokens, scoped route checks, catalog/settings/import-export/timesheet APIs, and static production serving exist. | Medium-high for controlled UAT; full production operations still pending. |
+| Frontend API migration foundation | `apiClient.ts` provides health detection, token handling, fetch wrapper, and response normalizers; `api.ts` is dual-mode async with local fallback and backend timesheet/settings/import-export support. | Medium-high; backend-mode browser UAT remains. |
 
 ### 25.3 Production Gaps and Required Implementation
 
 | Priority | Area | Current Gap | Required Implementation | User Input Needed |
 |---:|---|---|---|---|
-| P0 | PostgreSQL environment | No real database connection has been supplied or verified in this workspace. | Create/verify PostgreSQL DB, run migrations, seed demo data, validate API health as `database: connected`. | **Yes:** `DATABASE_URL`, SSL requirement, DB host/port/name/user/password, allowed IP/network, backup ownership. |
-| P0 | Environment/secrets | Production secret values are not configured. | Set `API_SESSION_SECRET`, `NODE_ENV=production`, `LOGIN_RATE_LIMIT`, `SERVE_STATIC`, cookie/security settings, and secret rotation process. | **Yes:** secret management approach and deployment environment. |
-| P0 | Smoke test repair | `test:access` and `test:requirements` currently fail after async/sessionStorage migration and demo-user model changes. | Add Node `sessionStorage` mock, await all async services in tests, update demo-user assertions, and align smoke fixtures with dual-mode service behavior. | No. |
+| P0 | Company PostgreSQL environment | Personal Supabase works for demo, but company-owned DB is not connected. | Replace `DATABASE_URL`, run migrations, seed/load data, validate API health as `database: connected`. | **Yes:** company `DATABASE_URL`, SSL requirement, backup ownership. |
+| P0 | Environment/secrets | Personal/demo secret values are not final. | Set company-owned `API_SESSION_SECRET`, `NODE_ENV=production`, `LOGIN_RATE_LIMIT`, cookie/security settings, secret rotation, and `AUTO_SEED_DEMO=false` before real edits. | **Yes:** secret management approach and deployment environment. |
+| P0 | Smoke test repair | Repaired in current hardening batch. | Continue running `lint`, `build`, `test:backend`, `test:access`, `test:requirements`, and optional backend API smoke before each deploy. | No. |
 | P1 | Async form hardening | Employee, Project, and Allocation forms now await the main async catalog loads/saves; broader API-backed saving/error states are still not standardized across every page. | Add consistent saving/error UI, prevent close before save completes, and refresh parent state after resolved writes across all remaining async workflows. | No. |
-| P0 | API route parity | Frontend calls `POST /api/settings`, but backend has only `GET /api/settings`. Timesheet approval sends `employeeId:weekEnding`, but backend expects DB timesheet ID. | Add settings write API, return/preserve backend timesheet IDs in frontend models, update approval/rejection calls, complete missing import/export/report APIs. | No, unless settings approval rules differ. |
-| P0 | Backend data-level RBAC | Backend route roles exist, but row-level scoping is incomplete for PM, CD, Team Lead, Employee, and HR. | Enforce scoped reads/writes for employees, projects, allocations, timesheets, clients, audit, reports, and exports. | **Yes:** final business rules for Team Lead and PM approval visibility. |
-| P0 | Authentication lifecycle | Username/password exists, but production lifecycle is incomplete. | User provisioning, password change/reset, password policy, account lockout, session expiry/refresh, admin user management, disabled user behavior. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
+| P0 | API route parity | Settings write, scoped core reads, backend timesheet ID/entries, and import/export history are implemented. Remaining gaps are server-side import apply jobs, scoped report endpoints, and browser UAT edge cases. | Complete report/import endpoints and run role-by-role backend browser UAT. | No, unless settings approval rules differ. |
+| P0 | Backend data-level RBAC | Initial row scoping exists for Employee, PM, CD, HR/Admin reads and critical allocation/timesheet writes. | Finish report/export scoping, Team Lead rules, and PM approval visibility after business confirmation. | **Yes:** final Team Lead and PM rules. |
+| P0 | Authentication lifecycle | Username/password exists and employee saves synchronize login status/roles. | Add password change/reset, password policy, account lockout, session expiry/refresh, admin user management UI, and initial password workflow. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
 | P0 | Audit immutability | Frontend/local audit exists; backend audit exists for many writes but not all production operations. | Make server-side audit mandatory and immutable for every create/update/deactivate/import/export/approval/settings action. | **Yes:** audit retention period and who can export audit data. |
 | P0 | Deployment | No final target environment is defined. | Prepare production start, reverse proxy/HTTPS, static serving, environment variables, process manager/container setup, logging, monitoring, backup/restore, rollback. | **Yes:** hosting target, domain/internal URL, HTTPS certificate approach, log/monitoring tool. |
 | P1 | Backend calculation parity | Frontend calculates many KPIs locally; backend scoped report/calculation APIs are incomplete. | Move/duplicate calculation logic into tested backend report endpoints for dashboard, planned, actual, forecast, client/CD scopes. | No, unless reporting definitions change. |
-| P1 | Import/export hardening | CSV local import/export works; server-side jobs and XLSX/PDF are pending. | Backend import jobs, duplicate resolution, validation reports, import history, export APIs, optional XLSX/PDF. | **Yes:** accepted file templates and whether XLSX/PDF are required for go-live. |
+| P1 | Import/export hardening | CSV local import/export works and backend history persistence exists; server-side apply jobs and XLSX/PDF are pending. | Backend import jobs, duplicate resolution, validation reports, export APIs, optional XLSX/PDF. | **Yes:** accepted file templates and whether XLSX/PDF are required for go-live. |
 | P1 | Browser workflow automation | No Playwright suite exists. | Add browser tests for login, role routing, employee/project/client CRUD, allocation edit, timesheet submit/approve/reject, reports, import/export, global search. | No. |
 | P1 | Real data migration | Demo data is ready, but real employee/client/project data is not loaded. | Define import templates, cleanse data, load into PostgreSQL, reconcile IDs, validate calculations. | **Yes:** real master data files and mapping rules. |
 | P2 | Code redundancy | Shared components exist, but table/filter/report duplication remains. | Expand `DataTable`/`FilterBar`, extract report primitives, split large pages after UAT. | No. |
@@ -1625,20 +1625,20 @@ This section reflects the 27 April 2026 codebase review after the dual-mode API 
 
 | Sequence | Phase | Goal | Exit Criteria |
 |---:|---|---|---|
-| 1 | Stabilize current demo | Repair failing smoke tests, await async form saves, fix obvious API-mode route mismatches that affect local fallback behavior. | `lint`, `build`, `test:backend`, `test:access`, and `test:requirements` all pass. |
-| 2 | Connect PostgreSQL | Use supplied DB credentials, run migrations, seed demo data, verify `/api/health` returns `database: connected`. | API server can authenticate seeded users and return employees/projects/clients/allocations/timesheets from DB. |
-| 3 | Prove backend mode in browser | Run app with backend connected and execute Admin, HR, CD, PM, Team Lead, Employee journeys. | Core browser workflows pass without falling back to localStorage. |
-| 4 | Complete API parity | Add missing settings write, backend timesheet ID support, full CRUD parity, import/export APIs, scoped report endpoints, and server-side validation. | Frontend no longer relies on localStorage for production mode. |
-| 5 | Enforce data security | Implement data-level RBAC for every API and audit every critical mutation. | Role-specific API tests prove users see and change only allowed records. |
+| 1 | Protect real data | Keep `AUTO_SEED_DEMO=false` after initial seed and before editing demo records into real records. | Real-data edits survive deploy restarts. |
+| 2 | Prove backend mode in browser | Run app with backend connected and execute Admin, HR, CD, PM, Team Lead, Employee journeys. | Core browser workflows pass without falling back to localStorage. |
+| 3 | Company infrastructure handover | Replace personal Supabase/Render values with company-owned DB, hosting, and secrets. | Company owns infrastructure and `/api/health` is connected. |
+| 4 | Real data load | Load catalogs, CDs, employees/users, clients, projects, allocations, and optional historical timesheets. | Dashboards/cards/lists update from real records with stable IDs. |
+| 5 | Complete API/report/import parity | Add remaining server-side import/report endpoints and finish backend browser UAT. | Production mode does not rely on localStorage-only features. |
 | 6 | Production auth and operations | Add password lifecycle, account management, secure cookies/session expiry, logging, monitoring, backup/restore, deployment runbook. | Security checklist and operations runbook approved. |
-| 7 | UAT and go-live hardening | Load real data, run multi-user UAT, fix edge cases, freeze release. | Signed UAT by Admin, HR, CD, PM, Team Lead, and Employee representatives. |
+| 7 | UAT and go-live hardening | Run multi-user UAT, fix edge cases, freeze release. | Signed UAT by Admin, HR, CD, PM, Team Lead, and Employee representatives. |
 
 ### 25.5 User Input Needed
 
 | Needed From User / Company | Required For | Priority | Notes |
 |---|---|---:|---|
-| PostgreSQL connection details | Backend-mode UAT and production data persistence | P0 | Provide `DATABASE_URL` or host, port, database, username, password, SSL mode. |
-| Deployment target | Production packaging and runbook | P0 | Internal server, VM, Docker host, Render/Railway, IIS reverse proxy, or other platform. |
+| Company PostgreSQL connection details | Company-owned production data persistence | P0 | Provide `DATABASE_URL` or host, port, database, username, password, SSL mode. |
+| Company deployment target | Production packaging and runbook | P0 | Internal server, VM, Docker host, Render/Railway, IIS reverse proxy, or other platform. |
 | Internal URL/domain and HTTPS approach | Secure cookies and production access | P0 | Needed before production session/cookie settings can be finalized. |
 | Initial production admin users | User provisioning | P0 | Names, usernames, emails, roles. |
 | Password policy | Username/password production auth | P0 | Minimum length, expiry, reset process, account lockout, MFA requirement if any. |
@@ -1651,11 +1651,10 @@ This section reflects the 27 April 2026 codebase review after the dual-mode API 
 
 ### 25.6 Demo Recommendation
 
-For the next demo, use local demo mode unless a PostgreSQL connection is provided and backend-mode UAT is completed. Before showing it to stakeholders:
+For the next demo, use the deployed Render/Supabase demo or local demo mode. Before showing it to stakeholders:
 
-1. Fix `test:access` and `test:requirements`.
-2. Continue async save/error-state hardening beyond the Employee, Project, and Allocation form fixes already completed.
-3. Run a browser pass for Admin, HR, CD, PM, Team Lead, and Employee.
-4. Keep the current Boundaryless color/font styling unchanged.
-5. Share `Resource_Utilization_Tracker_User_Flow_Guide.md` with business stakeholders before or during demo walkthroughs.
-6. Clearly describe the backend as "foundation implemented, production cutover in progress" rather than "fully live multi-user production."
+1. Confirm `AUTO_SEED_DEMO=false` if any demo records have been manually edited.
+2. Run smoke tests and a browser pass for Admin, HR, CD, PM, Team Lead, and Employee.
+3. Keep the current Boundaryless color/font styling unchanged.
+4. Share `Resource_Utilization_Tracker_User_Flow_Guide.md` with business stakeholders before or during demo walkthroughs.
+5. Clearly describe the system as "ready for controlled UAT and company handover hardening" rather than "final production go-live."

@@ -175,6 +175,20 @@ create table if not exists audit_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists import_export_logs (
+  id uuid primary key default gen_random_uuid(),
+  operation text not null check (operation in ('Import', 'Export')),
+  channel text not null,
+  file_name text not null,
+  status text not null check (status in ('Success', 'Partial', 'Failed', 'Dry Run')),
+  total_rows integer not null default 0,
+  valid_rows integer not null default 0,
+  error_rows integer not null default 0,
+  errors jsonb,
+  user_name text not null,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_employee_cd_map_cd on employee_country_director_map(country_director_id);
 create index if not exists idx_client_cd_map_cd on client_country_director_map(country_director_id);
 create index if not exists idx_catalog_items_type_active on catalog_items(catalog_type, active, name);
@@ -184,6 +198,7 @@ create index if not exists idx_allocations_project_dates on project_allocations(
 create index if not exists idx_timesheets_employee_week on timesheets(employee_id, week_ending);
 create index if not exists idx_timesheets_status on timesheets(status);
 create index if not exists idx_audit_logs_created_at on audit_logs(created_at desc);
+create index if not exists idx_import_export_logs_created_at on import_export_logs(created_at desc);
 
 insert into roles(name)
 values ('Employee'), ('TeamLead'), ('ProjectManager'), ('CountryDirector'), ('HR'), ('Admin')

@@ -1,6 +1,6 @@
 # Resource Utilization Tracker - Technical Status and Production Readiness
 
-**Last Updated:** 1 May 2026  
+**Last Updated:** 5 May 2026
 **Audience:** Engineering, QA, technical reviewers, implementation partners, and production-readiness reviewers  
 **Purpose:** Summarize what is implemented, what is pending, what is blocked by user/company input, and the recommended next implementation order.
 
@@ -8,7 +8,7 @@
 
 ## 1. Current Technical State
 
-The application is currently a strong near-production frontend demo with a backend foundation in progress.
+The application is currently a strong near-production product build with Render/Supabase deployment proven for demo usage and a hardened backend/API path in progress.
 
 It includes:
 
@@ -21,11 +21,15 @@ It includes:
 - PostgreSQL schema and migration runner
 - PostgreSQL demo seed script
 - Scrypt password verification and signed backend sessions/tokens
-- Backend route-level role middleware
+- Backend route-level role middleware and initial row-scoped API reads
 - Backend health endpoint
 - Production static serving support for the built frontend
+- Render deployment scaffold with migration/demo seed startup support
+- Import/export history persistence in backend mode
+- Backend settings write endpoint
+- Backend timesheet IDs and entries returned to the frontend
 
-The app is ready for leadership/demo walkthroughs in local demo mode. It is not yet ready as a fully multi-user production system because real PostgreSQL connectivity, full backend API parity, backend data-level authorization, and production operations are still pending.
+The app is ready for guided leadership/demo walkthroughs and controlled backend-mode UAT on Render/Supabase. It is not yet final production because company-owned infrastructure, real-data import, browser UAT by role, password lifecycle, monitoring, backup/restore, and final security sign-off are still pending.
 
 ---
 
@@ -33,9 +37,10 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 | Service | URL | Current Status |
 |---|---|---|
-| Frontend Vite app | `http://localhost:3000/` | Running |
-| Backend API health | `http://localhost:4000/api/health` | Running |
-| Backend database state | `database: not_configured` | PostgreSQL connection not supplied |
+| Frontend Vite app | `http://localhost:3000/` | Local demo server |
+| Backend API health | `http://localhost:4000/api/health` or deployed `/api/health` | Depends on active server |
+| Render deployment | `https://boundaryless-rut.onrender.com` | Demo deployment verified by user |
+| Backend database state | `database: connected` on Render/Supabase | Personal Supabase currently used for demo/UAT |
 
 ---
 
@@ -45,9 +50,10 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 |---|---|---|---|
 | TypeScript / lint | `npm run lint` | Passing | `tsc --noEmit` succeeds |
 | Production build | `npm run build` | Passing | Vite build succeeds |
-| Backend contract smoke | `npm run test:backend` | Passing | Confirms backend scaffold, catalog routes, static serving guardrails, rate-limit guardrail, and seed script presence |
-| Access-control smoke | `npm run test:access` | Failing | Node test harness does not define browser `sessionStorage` |
-| Requirements smoke | `npm run test:requirements` | Failing | Current demo-user assertion needs to be reconciled with the updated seeded/local user model |
+| Backend contract smoke | `npm run test:backend` | Passing after current hardening | Confirms backend scaffold, catalog/settings/import-export/timesheet contract, static serving guardrails, rate-limit guardrail, and seed script presence |
+| Access-control smoke | `npm run test:access` | Passing after current hardening | Node browser storage mocks added and async service usage reconciled |
+| Requirements smoke | `npm run test:requirements` | Passing after current hardening | Demo version, async services, cascading rename, guarded deletes, and timesheet validation reconciled |
+| Backend API smoke | `npm run test:backend-api` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; can validate deployed API login and core reads |
 
 ---
 
@@ -55,7 +61,7 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 | Area | Status | Notes |
 |---|---|---|
-| Login/logout | Partial | Username/password demo login works; backend auth foundation exists. Production password lifecycle is pending. |
+| Login/logout | Partial | Username/password login works in local and backend mode. Production password reset/change, expiry, and lockout are pending. |
 | Role-based navigation | Done for frontend demo | Sidebar and route access are role-filtered. Backend route-level role checks exist. |
 | Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. |
 | Employee Detail | Done for demo | Shows allocation, utilization, project participation, and related navigation. |
@@ -69,9 +75,9 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 | Actual Utilization | Done for demo | Uses approved timesheets. Backend parity pending. |
 | Forecast Utilization | Done for demo | Uses future allocation outlooks. Backend parity pending. |
 | Dashboard | Done for demo | Company KPIs, CD portfolio cards, client/project/resource drilldowns, and route-aware navigation exist. |
-| Import/Export | Partial | CSV import/export and validation reports exist in frontend. Backend import jobs and XLSX/PDF are pending. |
-| Audit Trail | Partial | Frontend/local audit is visible and exportable. Immutable server-side audit coverage is pending. |
-| Governance Settings | Partial | Roles, CDs, departments, countries, industries, thresholds, and guarded deletes exist. Full backend persistence parity pending. |
+| Import/Export | Partial | CSV import/export, validation reports, and backend import/export history persistence exist. Server-side import apply jobs and XLSX/PDF are pending. |
+| Audit Trail | Partial | Frontend/local audit is visible/exportable, and backend audit exists for major writes. Immutable full server-side audit coverage is pending. |
+| Governance Settings | Partial | Roles, CDs, departments, countries, industries, thresholds, settings write API, and guarded deletes exist. Full browser UAT pending. |
 | Global Search | Done for demo | Routes to employees, projects, clients, and relevant records; outside-click behavior is handled. |
 | Business user documentation | Done | `Resource_Utilization_Tracker_User_Flow_Guide.md` exists for non-technical users. |
 
@@ -100,11 +106,10 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 | Priority | Item | Required Action |
 |---:|---|---|
-| P0 | Fix `test:access` | Add `sessionStorage` mock to Node smoke test setup or adjust auth test harness. |
-| P0 | Fix `test:requirements` | Update demo-user assertion to match the current user/account model and async service behavior. |
 | P0 | Browser UAT | Run Admin, HR, Country Director, Project Manager, Team Lead, and Employee journeys manually or through Playwright. |
+| P0 | Render env safety | Set `AUTO_SEED_DEMO=false` after the first successful demo seed and before editing demo records into real records. |
 | P1 | Async save state polish | Add consistent saving/error states across remaining API-ready pages. |
-| P1 | Demo reset guidance | Document how to reset local demo data before stakeholder demos. |
+| P1 | Demo reset guidance | Keep reset guidance visible for disposable demo databases only. |
 
 ---
 
@@ -112,12 +117,12 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 | Priority | Item | Required Action | User Input Needed |
 |---:|---|---|---|
-| P0 | PostgreSQL connection | Provide database credentials, run migration, seed demo data, verify `database: connected`. | Yes |
-| P0 | API parity | Complete missing backend routes and frontend API usage for settings, timesheet IDs, imports, exports, scoped reports, and full CRUD. | No |
-| P0 | Backend data-level authorization | Enforce row-level/scoped access for Admin, HR, CD, PM, Team Lead, and Employee. | Yes, final business rules |
+| P0 | Company PostgreSQL connection | Replace personal Supabase credentials with company-owned PostgreSQL/Supabase credentials, run migrations, seed/load data, verify `database: connected`. | Yes |
+| P0 | API parity | Core parity improved for settings, scoped reads, timesheet IDs/entries, employee provisioning, and import/export history. Remaining parity: server-side imports, report endpoints, complete browser UAT, and final edge cases. | No |
+| P0 | Backend data-level authorization | Initial scoped reads exist for Employee, PM, CD, HR/Admin. Finish write-scope and report/export scoping sign-off. | Yes, final business rules |
 | P0 | Backend calculation parity | Move/report calculation logic to tested backend endpoints. | No |
 | P0 | Production auth lifecycle | Password policy, reset process, lockout behavior, disabled-user behavior, session expiry. | Yes |
-| P1 | Import/export backend jobs | Server-side validation, duplicate handling, job history, audit records, optional XLSX/PDF. | Yes, file/report formats |
+| P1 | Import/export backend jobs | Server-side validation, duplicate handling, apply transactions, audit records, optional XLSX/PDF. History persistence now exists. | Yes, file/report formats |
 | P1 | Real data load | Cleanse and load real employee/client/project/allocation data. | Yes |
 
 ---
@@ -139,16 +144,14 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 ## 9. Recommended Next Implementation Order
 
-1. Fix `test:access` by adding a Node `sessionStorage` mock.
-2. Fix `test:requirements` by reconciling the demo-user assertion with the current user/account model.
-3. Run a browser UAT pass across Admin, HR, Country Director, Project Manager, Team Lead, and Employee roles.
-4. Add a local demo reset guide and confirm demo credentials.
-5. Connect a real PostgreSQL database when credentials are available.
-6. Run `npm run api:migrate` and `npm run api:seed:demo`.
-7. Validate `/api/health` returns `database: connected`.
-8. Complete API route parity and frontend backend-mode UAT.
-9. Implement data-level backend authorization.
-10. Add production authentication lifecycle and deployment runbook.
+1. Run the complete smoke suite after every backend hardening change.
+2. Set `AUTO_SEED_DEMO=false` in Render after the initial seed and before real edits.
+3. Run browser UAT across Admin, HR, Country Director, Project Manager, Team Lead, and Employee roles.
+4. Replace personal Supabase/Render values with company-owned environment variables.
+5. Load real catalogs, Country Directors, employees/users, clients, projects, allocations, and optional historical timesheets.
+6. Complete remaining backend import/report APIs and browser-test backend mode.
+7. Finalize data-level authorization rules for Team Lead and Project Manager visibility.
+8. Add production password lifecycle, monitoring, backup/restore, and release runbook.
 
 ---
 
@@ -156,8 +159,8 @@ The app is ready for leadership/demo walkthroughs in local demo mode. It is not 
 
 | Input Needed | Why It Is Needed |
 |---|---|
-| PostgreSQL `DATABASE_URL` or DB host/port/name/user/password/SSL mode | Required for backend-mode UAT and multi-user persistence |
-| Hosting/deployment target | Required for production startup, reverse proxy, HTTPS, logs, and runbook |
+| Company PostgreSQL `DATABASE_URL` or DB host/port/name/user/password/SSL mode | Required to replace personal Supabase before company handover |
+| Company hosting/deployment target | Required for production startup, reverse proxy, HTTPS, logs, and runbook |
 | Internal URL/domain | Required for secure cookies and app access planning |
 | Initial production admin users | Required for production user provisioning |
 | Password policy | Required for username/password production auth |
@@ -181,9 +184,9 @@ Temporary deployment direction selected for handover preparation:
 
 | Release Target | Readiness |
 |---|---:|
-| Leadership demo using local demo mode | 75-80% |
-| Controlled internal UAT using local demo mode | 65-70% |
-| Multi-user UAT using PostgreSQL backend | 45-50% |
-| Production go-live | 35-40% |
+| Leadership demo using local or Render demo mode | 85-90% |
+| Controlled internal UAT using Render/Supabase backend | 65-75% |
+| Company technical handover readiness | 60-70% |
+| Production go-live | 45-55% |
 
-The product is suitable for a guided business demo in local demo mode. It should not yet be presented as a fully deployed multi-user production system until PostgreSQL backend mode, API parity, data-level authorization, and operations hardening are complete.
+The product is suitable for a guided business demo and controlled UAT with demo data. It should not yet be presented as final production until company-owned infrastructure, real data, complete browser UAT, password lifecycle, monitoring, backup/restore, and security sign-off are complete.

@@ -8,6 +8,16 @@ globalThis.localStorage = {
   removeItem: (key) => store.delete(key),
   clear: () => store.clear(),
 };
+globalThis.sessionStorage = {
+  getItem: (key) => (store.has(`session:${key}`) ? store.get(`session:${key}`) : null),
+  setItem: (key, value) => store.set(`session:${key}`, String(value)),
+  removeItem: (key) => store.delete(`session:${key}`),
+  clear: () => {
+    for (const key of [...store.keys()]) {
+      if (key.startsWith('session:')) store.delete(key);
+    }
+  },
+};
 
 const { DataStorage, STORAGE_KEYS } = await import('../src/services/storage.ts');
 const { employeeService, projectService, allocationService, timesheetService, adminService, clientService } = await import('../src/services/api.ts');
@@ -23,18 +33,18 @@ const inRange = (start, end) => new Date(start) <= new Date(todayIso) && new Dat
 
 DataStorage.resetDemoData();
 
-const employees = employeeService.getAll();
-const projects = projectService.getAll();
-const clients = clientService.getAll();
-const allocations = allocationService.getAll();
-const timesheets = timesheetService.getAll();
-const directors = adminService.getCountryDirectors();
-const settings = adminService.getSettings();
-const departments = adminService.getDepartments();
-const countries = adminService.getCountries();
-const industries = adminService.getIndustries();
+const employees = await employeeService.getAll();
+const projects = await projectService.getAll();
+const clients = await clientService.getAll();
+const allocations = await allocationService.getAll();
+const timesheets = await timesheetService.getAll();
+const directors = await adminService.getCountryDirectors();
+const settings = await adminService.getSettings();
+const departments = await adminService.getDepartments();
+const countries = await adminService.getCountries();
+const industries = await adminService.getIndustries();
 
-assert.equal(DataStorage.get(STORAGE_KEYS.DEMO_DATA_VERSION, ''), 'demo-120-people-60-processes-v5', 'demo data version should be current');
+assert.equal(DataStorage.get(STORAGE_KEYS.DEMO_DATA_VERSION, ''), 'demo-120-people-60-processes-v6', 'demo data version should be current');
 assert.ok(employees.length >= 110, 'demo data should include employee, PM, CD, HR, and Admin users');
 assert.equal(projects.length, 60, 'demo data should include 60 projects/processes');
 assert.ok(clients.length >= 15, 'demo data should include client master records');
@@ -77,7 +87,7 @@ const futureWeekEnding = new Date(futureWeekStart);
 futureWeekEnding.setDate(futureWeekEnding.getDate() + 4);
 const futureEntryDate = toIsoDate(futureWeekStart);
 
-assert.throws(() => timesheetService.save({
+await assert.rejects(() => timesheetService.save({
   employeeId: activeEmployees[0].id,
   employeeName: activeEmployees[0].name,
   weekEnding: toIsoDate(futureWeekEnding),
@@ -132,12 +142,12 @@ assert.equal(companyMetrics.totalEmployees, activeEmployees.length, 'company met
 
 const clientToRename = clients[0];
 const originalClientName = clientToRename.name;
-clientService.save({ ...clientToRename, name: `${originalClientName} Renamed` });
-assert.ok(projectService.getAll().some(project => project.clientId === clientToRename.id && project.client === `${originalClientName} Renamed`), 'client master rename should cascade to linked project display names');
+await clientService.save({ ...clientToRename, name: `${originalClientName} Renamed` });
+assert.ok((await projectService.getAll()).some(project => project.clientId === clientToRename.id && project.client === `${originalClientName} Renamed`), 'client master rename should cascade to linked project display names');
 
 const usedDepartment = departments.find(department => employees.some(employee => employee.department === department.name));
 assert.ok(usedDepartment, 'test requires a used department');
-assert.equal(adminService.deleteDepartment(usedDepartment.id), false, 'department catalog delete should be guarded when employees or roles still use it');
+assert.equal(await adminService.deleteDepartment(usedDepartment.id), false, 'department catalog delete should be guarded when employees or roles still use it');
 
 const customIndustry = {
   id: 'industry-smoke-test',
@@ -145,9 +155,9 @@ const customIndustry = {
   active: true,
   createdAt: new Date().toISOString(),
 };
-adminService.saveIndustry(customIndustry);
-assert.ok(adminService.getIndustries().some(industry => industry.id === customIndustry.id), 'industry catalog should accept new values');
-assert.equal(adminService.deleteIndustry(customIndustry.id), true, 'unused industry catalog value should be retired');
+await adminService.saveIndustry(customIndustry);
+assert.ok((await adminService.getIndustries()).some(industry => industry.id === customIndustry.id), 'industry catalog should accept new values');
+assert.equal(await adminService.deleteIndustry(customIndustry.id), true, 'unused industry catalog value should be retired');
 
 console.log(JSON.stringify({
   status: 'passed',

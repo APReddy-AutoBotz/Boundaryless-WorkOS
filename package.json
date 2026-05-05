@@ -15,7 +15,8 @@
     "lint": "tsc --noEmit",
     "test:requirements": "node --import tsx tests/requirements-smoke.mjs",
     "test:access": "node --import tsx tests/access-control-smoke.mjs",
-    "test:backend": "node tests/backend-contract-smoke.mjs"
+    "test:backend": "node tests/backend-contract-smoke.mjs",
+    "test:backend-api": "node tests/backend-api-smoke.mjs"
   },
   "dependencies": {
     "@babel/compat-data": "^7.29.0",
