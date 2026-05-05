@@ -96,10 +96,10 @@ const seed = async () => {
         set catalog_type = $2,
             name = $3,
             active = $4,
-            updated_at = $6
+            updated_at = $5
         where id = $1
            or (catalog_type = $2 and name = $3)
-      `, [item.id, item.catalogType, item.name, item.active, item.createdAt, item.updatedAt || item.createdAt]);
+      `, [item.id, item.catalogType, item.name, item.active, item.updatedAt || item.createdAt]);
 
       await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
