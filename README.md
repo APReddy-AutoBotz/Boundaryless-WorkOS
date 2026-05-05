@@ -2,6 +2,8 @@
 
 Internal resource utilization, allocation, timesheet, and governance tracker for employees, Project Managers, Country Directors, HR, and Admin users.
 
+Utilization is calculated against delivery capacity only. Admin, HR, and Country Director governance users remain in the app for access, approvals, and ownership, but they are excluded from utilization denominators. Project Managers count only when they have active project allocations.
+
 The application can run in two modes:
 
 - Local demo mode: Vite frontend with browser-local demo data for fast demos and UI testing.

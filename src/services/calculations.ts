@@ -49,6 +49,51 @@ export const getActiveAllocationsForEmployee = (
   });
 };
 
+export const isGovernanceEmployee = (employee: Pick<Employee, 'employeeId' | 'designation' | 'department' | 'utilizationEligible'>) => {
+  const code = employee.employeeId.toUpperCase();
+  const designation = employee.designation.toLowerCase();
+  const department = employee.department.toLowerCase();
+  return employee.utilizationEligible === false ||
+    code.startsWith('ADMIN-') ||
+    code.startsWith('HR-') ||
+    code.startsWith('CD-') ||
+    designation === 'country director' ||
+    designation === 'system administrator' ||
+    designation === 'hr manager' ||
+    department === 'regional leadership' ||
+    department === 'administration' ||
+    department === 'human resources';
+};
+
+export const getDefaultUtilizationEligible = (employee: Pick<Employee, 'employeeId' | 'designation' | 'department'>) => {
+  return !isGovernanceEmployee({ ...employee, utilizationEligible: undefined });
+};
+
+export const isProjectManagerCapacity = (employee: Pick<Employee, 'employeeId' | 'designation'>) => {
+  return employee.employeeId.toUpperCase().startsWith('PM-') || employee.designation === 'Project Manager';
+};
+
+export const isUtilizationEligibleEmployee = (
+  employee: Employee,
+  allocations: Allocation[] = [],
+  projects: Project[] = [],
+  date = toDateOnly(new Date()),
+  includeProposedProjects = false
+) => {
+  if (employee.status !== 'Active' || isGovernanceEmployee(employee)) return false;
+  if (!isProjectManagerCapacity(employee)) return true;
+  if (employee.activeProjectCount > 0 || employee.plannedUtilization > 0) return true;
+  return getActiveAllocationsForEmployee(employee.id, allocations, projects, date, date, includeProposedProjects).length > 0;
+};
+
+export const getUtilizationEligibleEmployees = (
+  employees: Employee[],
+  allocations: Allocation[] = [],
+  projects: Project[] = [],
+  date = toDateOnly(new Date()),
+  includeProposedProjects = false
+) => employees.filter(employee => isUtilizationEligibleEmployee(employee, allocations, projects, date, includeProposedProjects));
+
 export const getApprovedHours = (timesheets: TimesheetSummary[], employeeId: string, weekEnding?: string) => {
   return timesheets
     .filter(timesheet =>
@@ -81,12 +126,15 @@ export const getUtilizationBand = (load: number, settings: SystemSettings) => {
 
 export const getCompanyMetrics = (employees: Employee[], settings: SystemSettings) => {
   const activeEmployees = employees.filter(employee => employee.status === 'Active');
-  const totalPlanned = activeEmployees.reduce((sum, employee) => sum + employee.plannedUtilization, 0);
+  const eligibleEmployees = getUtilizationEligibleEmployees(activeEmployees);
+  const totalPlanned = eligibleEmployees.reduce((sum, employee) => sum + employee.plannedUtilization, 0);
   return {
     totalEmployees: activeEmployees.length,
-    averagePlanned: activeEmployees.length ? totalPlanned / activeEmployees.length : 0,
-    overloaded: activeEmployees.filter(employee => getUtilizationBand(employee.plannedUtilization, settings) === 'Overloaded').length,
-    underutilized: activeEmployees.filter(employee => {
+    utilizationEligibleEmployees: eligibleEmployees.length,
+    governanceUsers: activeEmployees.length - eligibleEmployees.length,
+    averagePlanned: eligibleEmployees.length ? totalPlanned / eligibleEmployees.length : 0,
+    overloaded: eligibleEmployees.filter(employee => getUtilizationBand(employee.plannedUtilization, settings) === 'Overloaded').length,
+    underutilized: eligibleEmployees.filter(employee => {
       const band = getUtilizationBand(employee.plannedUtilization, settings);
       return band === 'Underutilized' || band === 'Bench';
     }).length,

@@ -357,6 +357,19 @@ Rules:
 
 ## 10. Utilization Calculation Rules
 
+### 10.0 Utilization Population / Eligibility
+
+Utilization measures delivery capacity, not total company payroll.
+
+Rules:
+
+- Utilization-eligible people include delivery employees, consultants, developers, Business Analysts, Solution Architects, interns, support/delivery roles, and other client-delivery capacity.
+- Admin, HR, and Country Director governance users must remain available for login, approvals, settings, ownership, and reporting, but must be excluded from planned, actual, and forecast utilization denominators.
+- Project Managers count in utilization only when they have an active project allocation or project capacity contribution.
+- Admin/HR/Country Director records must not be deleted just to correct utilization metrics; they must be classified as non-utilization governance users.
+- Company-level, Country Director-level, planned, actual, forecast, employee filters, dashboards, and exports must use the same utilization eligibility rule.
+- A future admin override may expose this as `utilizationEligible` or `capacityCategory`, but the production default rule is delivery-only.
+
 ### 10.1 Planned Utilization
 
 **Formula:**
@@ -376,6 +389,8 @@ Rules:
 - Only active allocations should be counted.
 - Allocation date ranges should be respected.
 - Completed/inactive project allocations should be excluded.
+- Only utilization-eligible people should be counted in utilization denominators.
+- Project Manager planned allocation should contribute when the PM has an active allocation.
 - If allocation total exceeds threshold, employee should be flagged as overloaded.
 - If allocation total is below threshold, employee should be flagged as underutilized or bench depending on rules.
 
@@ -398,6 +413,8 @@ Rules:
 - Expected weekly hours must come from Admin/System Settings.
 - Default can be 40 if no setting exists.
 - Only approved client-related timesheet hours count.
+- Only utilization-eligible people should be counted in actual utilization denominators.
+- Project Manager approved client/project timesheet hours should contribute when the PM is allocated to that project.
 - Rejected timesheets do not count.
 - Draft timesheets do not count.
 - Submitted but unapproved timesheets do not count unless later business rule changes.
@@ -423,13 +440,17 @@ Rules:
 - Employees rolling off projects should be identified.
 - Future bench employees should be identified.
 - Upcoming over-allocation should be identified.
+- Forecast denominators should include only utilization-eligible people for each forecast date.
 - Forecast should not rely only on static mock values.
 
 ### 10.4 Company-Level Metrics
 
 Company-level metrics must:
 
-- Count each active employee once.
+- Show total active people separately from utilization-eligible FTE.
+- Count each active person once in total people metrics.
+- Count only utilization-eligible people in average planned, average actual, forecast, overloaded, underutilized, and bench utilization metrics.
+- Show Admin/HR/Country Director governance users separately where useful.
 - Not double-count employees mapped to multiple Country Directors.
 - Exclude inactive employees where applicable.
 - Show overall company health.
@@ -438,8 +459,9 @@ Company-level metrics must:
 
 Country Director-level metrics must:
 
-- Include employees mapped to that Country Director.
-- Include employees even if they are also mapped to another Country Director.
+- Include delivery/resources mapped to that Country Director for utilization/FTE metrics.
+- Exclude the Country Director governance user from utilization/FTE metrics unless that person is separately configured as delivery capacity.
+- Include mapped employees even if they are also mapped to another Country Director.
 - Clearly explain that shared employees may appear in multiple CD views.
 - Avoid double-counting in company-level totals.
 
@@ -461,7 +483,9 @@ Top row must always show company-wide metrics, not filtered by Country Director.
 
 Required KPIs:
 
-- Total Employees
+- Total People / Total Employees
+- Utilization-Eligible FTE
+- Governance Users where useful
 - Average Utilization %
 - Overloaded Employees
 - Underutilized Employees
@@ -475,11 +499,12 @@ Replace unnecessary load trend analysis with Country Director/region-wise metric
 Each Country Director card/row should show:
 
 - Country Director name
-- Team size
+- Utilization-eligible FTE / delivery resources in scope
 - Average planned utilization
 - Average actual utilization
-- Overloaded count
-- Underutilized count
+- Active projects and clients in scope
+- Overloaded count based on eligible delivery resources
+- Underutilized count based on eligible delivery resources
 - Pending timesheets
 - Projects at risk if applicable
 
@@ -1159,8 +1184,10 @@ For realistic testing/demo, maintain at least:
 
 Current enhanced demo target:
 
-- Around 60-70% overall planned utilization for active employees.
+- Around 60-70% overall planned utilization for utilization-eligible active delivery capacity.
 - Enough mapped allocations to test dashboard, Country Director, client, project, employee, planned utilization, actual utilization, forecast, timesheet, and audit flows.
+- Admin, HR, and Country Director demo users exist as governance users and do not reduce utilization averages.
+- Project Manager demo users are counted in utilization only when they have project allocations.
 
 Original minimum baseline:
 
@@ -1187,6 +1214,7 @@ These are acceptable for near-production demo but must be addressed before true 
 5. PostgreSQL schema, starter API, migration runner, and demo seed/provisioning exist, but frontend integration, incremental production migrations, real company data-load scripts, and full backend CRUD parity are pending.
 6. Import/export may require backend or library hardening.
 7. Employee-level contracted hours may be needed later for part-time resources.
+8. Utilization eligibility is implemented through a default delivery-only policy and data field; a dedicated admin UI override can be added later if business owners want manual exceptions.
 
 ---
 
@@ -1199,6 +1227,7 @@ Before true production go-live:
 - Implement secure authentication.
 - Add server-side validation.
 - Complete incremental database migrations and production data-load process.
+- Preserve the delivery-only utilization eligibility policy when replacing demo data with real employee records.
 - Add error handling and logging.
 - Add deployment configuration.
 - Add backup/restore strategy.

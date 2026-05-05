@@ -113,6 +113,7 @@ export const normalizeEmployee = (r: Record<string, unknown>): Employee => ({
     ? (r.mapped_country_director_ids as string[])
     : [],
   status: r.status as Employee['status'],
+  utilizationEligible: r.utilization_eligible === undefined ? true : Boolean(r.utilization_eligible),
   plannedUtilization: 0,
   actualUtilization: 0,
   activeProjectCount: 0,

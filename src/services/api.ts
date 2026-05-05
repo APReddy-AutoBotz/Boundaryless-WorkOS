@@ -13,7 +13,7 @@ import {
   normalizeSettings, normalizeCatalogItem, normalizeRoleDefinition,
   normalizeCountryDirector, normalizeImportExportLog,
 } from './apiClient';
-import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee } from './calculations';
+import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible } from './calculations';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -69,6 +69,7 @@ export const employeeService = {
         country: emp.country,
         primary_country_director_id: emp.primaryCountryDirectorId,
         mapped_country_director_ids: emp.mappedCountryDirectorIds,
+        utilization_eligible: emp.utilizationEligible ?? getDefaultUtilizationEligible(emp),
         status: emp.status,
       });
       return;
@@ -76,7 +77,11 @@ export const employeeService = {
     // localStorage mode
     const list = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
     const idx = list.findIndex(e => e.id === emp.id);
-    if (idx >= 0) list[idx] = emp; else list.push(emp);
+    const nextEmployee = {
+      ...emp,
+      utilizationEligible: emp.utilizationEligible ?? getDefaultUtilizationEligible(emp),
+    };
+    if (idx >= 0) list[idx] = nextEmployee; else list.push(nextEmployee);
     DataStorage.set(STORAGE_KEYS.EMPLOYEES, list);
     DataStorage.ensureUserAccounts();
     DataStorage.recalculateUtilization();

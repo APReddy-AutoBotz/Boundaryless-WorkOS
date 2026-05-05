@@ -11,7 +11,7 @@ import {
   CatalogItem,
 } from '../types';
 
-export const DEMO_DATA_VERSION = 'demo-120-people-60-processes-v6';
+export const DEMO_DATA_VERSION = 'demo-120-people-60-processes-v7';
 
 const isoDate = (date: Date) => date.toISOString().split('T')[0];
 const pad = (value: number) => value.toString().padStart(2, '0');
@@ -133,7 +133,8 @@ const makeEmployee = (
   country: string,
   primaryCountryDirectorId: string,
   mappedCountryDirectorIds: string[],
-  status: Employee['status'] = 'Active'
+  status: Employee['status'] = 'Active',
+  utilizationEligible = true
 ): Employee => ({
   id,
   employeeId,
@@ -145,6 +146,7 @@ const makeEmployee = (
   primaryCountryDirectorId,
   mappedCountryDirectorIds: Array.from(new Set(mappedCountryDirectorIds)),
   status,
+  utilizationEligible,
   plannedUtilization: 0,
   actualUtilization: 0,
   activeProjectCount: 0,
@@ -234,8 +236,8 @@ export const generateDemoDataset = () => {
   });
 
   const employees: Employee[] = [
-    makeEmployee('admin-1', 'ADMIN-1', 'Admin-1', 'System Administrator', 'Administration', 'United Kingdom', 'cd-1', ['cd-1']),
-    makeEmployee('hr-1', 'HR-1', 'HR-1', 'HR Manager', 'Human Resources', 'India', 'cd-2', ['cd-1', 'cd-2']),
+    makeEmployee('admin-1', 'ADMIN-1', 'Admin-1', 'System Administrator', 'Administration', 'United Kingdom', 'cd-1', ['cd-1'], 'Active', false),
+    makeEmployee('hr-1', 'HR-1', 'HR-1', 'HR Manager', 'Human Resources', 'India', 'cd-2', ['cd-1', 'cd-2'], 'Active', false),
   ];
 
   countryDirectors.forEach((director, index) => {
@@ -247,7 +249,9 @@ export const generateDemoDataset = () => {
       'Regional Leadership',
       pick(DEFAULT_COUNTRIES, index),
       director.id,
-      [director.id]
+      [director.id],
+      'Active',
+      false
     ));
   });
 
@@ -358,7 +362,7 @@ export const generateDemoDataset = () => {
           ? [35, 25, 20]
       : index % 3 === 0
               ? [45, 30]
-              : [80];
+              : [78];
 
     plan.forEach((percentage, planIndex) => {
       const projectPool = index % 9 === 0 && planIndex === plan.length - 1 ? liveProjects : currentProjects;

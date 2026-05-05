@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getUtilizationEligibleEmployees } from '../services/calculations';
 
 export const ActualUtilization = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -78,7 +79,7 @@ export const ActualUtilization = () => {
   const kpis = useMemo<KPIData[]>(() => {
     if (employees.length === 0) return [];
     
-    const active = employees.filter(e => e.status === 'Active');
+    const active = getUtilizationEligibleEmployees(employees);
     
     // Average actual utilization across approved timesheets in the current scope
     const approvedTimesheets = scopedTimesheets.filter(timesheet => timesheet.status === 'Approved');
@@ -107,7 +108,7 @@ export const ActualUtilization = () => {
   }, [employees, scopedTimesheets, settings]);
 
   const weeklyReconciliation = useMemo(() => {
-    const active = employees.filter(employee => employee.status === 'Active');
+    const active = getUtilizationEligibleEmployees(employees);
     const activeById = new Map(active.map(employee => [employee.id, employee]));
     const weeks = Array.from(new Set<string>(scopedTimesheets.map(timesheet => timesheet.weekEnding)))
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -117,8 +118,8 @@ export const ActualUtilization = () => {
       const weekSheets = scopedTimesheets.filter(timesheet => timesheet.weekEnding === weekEnding);
       const submittedSheets = weekSheets.filter(timesheet => timesheet.status !== 'Draft');
       const approvedSheets = weekSheets.filter(timesheet => timesheet.status === 'Approved');
-      const submittedEmployeeIds = new Set(submittedSheets.map(timesheet => timesheet.employeeId));
-      const approvedEmployeeIds = new Set(approvedSheets.map(timesheet => timesheet.employeeId));
+      const submittedEmployeeIds = new Set<string>(submittedSheets.map(timesheet => timesheet.employeeId));
+      const approvedEmployeeIds = new Set<string>(approvedSheets.map(timesheet => timesheet.employeeId));
       const plannedEmployees = Array.from(approvedEmployeeIds)
         .map(employeeId => activeById.get(employeeId))
         .filter(Boolean) as Employee[];
@@ -145,7 +146,7 @@ export const ActualUtilization = () => {
   const varianceWatchlist = useMemo(() => {
     const expectedWeeklyHours = settings?.expectedWeeklyHours || 40;
     return employees
-      .filter(employee => employee.status === 'Active')
+      .filter(employee => getUtilizationEligibleEmployees([employee]).length > 0)
       .map(employee => {
         const latestApproved = scopedTimesheets
           .filter(timesheet => timesheet.employeeId === employee.id && timesheet.status === 'Approved')

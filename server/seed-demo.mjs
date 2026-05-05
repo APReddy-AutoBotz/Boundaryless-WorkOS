@@ -156,9 +156,9 @@ const seed = async () => {
       await query(client, `
         insert into employees (
           id, employee_id, name, email, designation, department, country,
-          primary_country_director_id, status, expected_weekly_hours, updated_at
+          primary_country_director_id, status, utilization_eligible, expected_weekly_hours, updated_at
         )
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
         on conflict (id) do update set
           employee_id = excluded.employee_id,
           name = excluded.name,
@@ -168,6 +168,7 @@ const seed = async () => {
           country = excluded.country,
           primary_country_director_id = excluded.primary_country_director_id,
           status = excluded.status,
+          utilization_eligible = excluded.utilization_eligible,
           expected_weekly_hours = excluded.expected_weekly_hours,
           updated_at = now()
       `, [
@@ -180,6 +181,7 @@ const seed = async () => {
         employee.country,
         employee.primaryCountryDirectorId,
         employee.status,
+        employee.utilizationEligible ?? true,
         40,
       ]);
 

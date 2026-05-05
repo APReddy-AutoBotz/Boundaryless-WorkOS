@@ -119,6 +119,7 @@ export interface Employee {
   mappedCountryDirectorIds: string[]; // Supports many-to-many mapping
   avatar?: string;
   status: 'Active' | 'On Leave' | 'Exited';
+  utilizationEligible?: boolean;
   plannedUtilization: number;
   actualUtilization: number;
   activeProjectCount: number;

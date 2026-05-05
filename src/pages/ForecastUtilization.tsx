@@ -32,7 +32,7 @@ import {
 import { cn } from '../lib/utils';
 import { downloadCsv } from '../lib/csv';
 import { Link } from 'react-router-dom';
-import { getAllocationLoad, isProjectAvailableForPlanning, overlapsDateRange } from '../services/calculations';
+import { getAllocationLoad, isProjectAvailableForPlanning, overlapsDateRange, isUtilizationEligibleEmployee } from '../services/calculations';
 
 const toIsoDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -102,13 +102,18 @@ export const ForecastUtilization = () => {
 
   const supplyDemandData = useMemo(() => {
     if (employees.length === 0) return [];
-    
-    const capacity = employees.filter(e => e.status === 'Active').length * 100;
+    const employeeById = new Map<string, Employee>(employees.map(employee => [employee.id, employee]));
     
     return forecastPoints.map(point => {
+      const eligibleEmployees = employees.filter(employee =>
+        isUtilizationEligibleEmployee(employee, allocations, projects, point.iso, true)
+      );
+      const capacity = eligibleEmployees.length * 100;
       const demandPercent = allocations.filter(a => {
         const project = projects.find(p => p.id === a.projectId);
+        const employee = employeeById.get(a.employeeId);
         if (!project || (project.status !== 'Active' && project.status !== 'Proposed')) return false;
+        if (!employee || !isUtilizationEligibleEmployee(employee, allocations, projects, point.iso, true)) return false;
         return a.status === 'Active' &&
           isProjectAvailableForPlanning(project, point.iso, point.iso, true) &&
           overlapsDateRange(a.startDate, a.endDate, point.iso, point.iso);
@@ -125,7 +130,7 @@ export const ForecastUtilization = () => {
 
   const forecastRows = useMemo(() => {
     return employees
-      .filter(emp => emp.status === 'Active')
+      .filter(emp => forecastPoints.some(point => isUtilizationEligibleEmployee(emp, allocations, projects, point.iso, true)))
       .map(emp => {
         const snapshots = forecastPoints.map(point => ({
           ...point,
@@ -167,10 +172,9 @@ export const ForecastUtilization = () => {
 
   const kpis = useMemo<KPIData[]>(() => {
     if (employees.length === 0) return [];
-    const active = employees.filter(e => e.status === 'Active');
     const horizonForecasts = forecastRows.map(row => row.horizonLoad);
     const peakForecasts = forecastRows.map(row => row.peakLoad);
-    const projectedAvg = active.length > 0 ? (horizonForecasts.reduce((sum, value) => sum + value, 0) / active.length).toFixed(1) : 0;
+    const projectedAvg = forecastRows.length > 0 ? (horizonForecasts.reduce((sum, value) => sum + value, 0) / forecastRows.length).toFixed(1) : 0;
     const futureBench = horizonForecasts.filter(value => value === 0).length;
     const highPressureMonth = [...supplyDemandData].sort((a, b) => b.pressure - a.pressure)[0];
     const capacityGaps = projects.filter(project => {

@@ -26,6 +26,7 @@ const {
   getAllocationLoad,
   getLatestApprovedActualUtilization,
   getCompanyMetrics,
+  getUtilizationEligibleEmployees,
 } = await import('../src/services/calculations.ts');
 
 const todayIso = new Date().toISOString().split('T')[0];
@@ -44,7 +45,7 @@ const departments = await adminService.getDepartments();
 const countries = await adminService.getCountries();
 const industries = await adminService.getIndustries();
 
-assert.equal(DataStorage.get(STORAGE_KEYS.DEMO_DATA_VERSION, ''), 'demo-120-people-60-processes-v6', 'demo data version should be current');
+assert.equal(DataStorage.get(STORAGE_KEYS.DEMO_DATA_VERSION, ''), 'demo-120-people-60-processes-v7', 'demo data version should be current');
 assert.ok(employees.length >= 110, 'demo data should include employee, PM, CD, HR, and Admin users');
 assert.equal(projects.length, 60, 'demo data should include 60 projects/processes');
 assert.ok(clients.length >= 15, 'demo data should include client master records');
@@ -60,8 +61,15 @@ assert.ok(countries.length >= 10, 'country catalog should be seeded');
 assert.ok(industries.length >= 10, 'industry catalog should be seeded');
 
 const activeEmployees = employees.filter(employee => employee.status === 'Active');
-const averagePlanned = activeEmployees.reduce((sum, employee) => sum + employee.plannedUtilization, 0) / activeEmployees.length;
+const utilizationEligibleEmployees = getUtilizationEligibleEmployees(activeEmployees, allocations, projects);
+const governanceEmployees = activeEmployees.filter(employee => !getUtilizationEligibleEmployees([employee], allocations, projects).length);
+const averagePlanned = utilizationEligibleEmployees.reduce((sum, employee) => sum + employee.plannedUtilization, 0) / utilizationEligibleEmployees.length;
 assert.ok(averagePlanned >= 60 && averagePlanned <= 70, `active planned utilization should remain demo-realistic, got ${averagePlanned.toFixed(1)}%`);
+assert.ok(governanceEmployees.some(employee => employee.employeeId === 'ADMIN-1'), 'admin should remain active but excluded from utilization capacity');
+assert.ok(governanceEmployees.some(employee => employee.employeeId === 'HR-1'), 'HR should remain active but excluded from utilization capacity');
+assert.ok(governanceEmployees.some(employee => employee.employeeId.startsWith('CD-')), 'Country Directors should remain active but excluded from utilization capacity');
+assert.ok(utilizationEligibleEmployees.every(employee => !employee.employeeId.startsWith('CD-')), 'Country Directors should not appear in utilization denominator');
+assert.ok(utilizationEligibleEmployees.some(employee => employee.employeeId.startsWith('PM-') && employee.plannedUtilization > 0), 'allocated PMs should count as utilization capacity');
 
 const sharedDirectorEmployee = employees.find(employee => employee.mappedCountryDirectorIds.length > 1);
 assert.ok(sharedDirectorEmployee, 'at least one employee should map to multiple Country Directors');
@@ -139,6 +147,8 @@ assert.equal(employeeWithApprovedTimesheet.actualUtilization, expectedActual, 'e
 
 const companyMetrics = getCompanyMetrics(employees, settings);
 assert.equal(companyMetrics.totalEmployees, activeEmployees.length, 'company metrics should count active employees once');
+assert.equal(companyMetrics.utilizationEligibleEmployees, utilizationEligibleEmployees.length, 'company metrics should expose utilization-eligible FTE separately');
+assert.equal(companyMetrics.governanceUsers, activeEmployees.length - utilizationEligibleEmployees.length, 'company metrics should expose governance users separately');
 
 const clientToRename = clients[0];
 const originalClientName = clientToRename.name;

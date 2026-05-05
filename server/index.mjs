@@ -317,6 +317,7 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
     country: z.string().min(1),
     primary_country_director_id: z.string().min(1),
     mapped_country_director_ids: z.array(z.string()).default([]),
+    utilization_eligible: z.boolean().optional(),
     roles: z.array(z.enum(['Employee', 'TeamLead', 'ProjectManager', 'CountryDirector', 'HR', 'Admin'])).optional(),
     initial_password: z.string().min(6).optional(),
     status: z.enum(['Active', 'On Leave', 'Exited']).default('Active'),
@@ -330,9 +331,24 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
   try {
     await client.query('begin');
     const previous = (await client.query('select * from employees where employee_id = $1', [parsed.data.employee_id])).rows[0];
+    const employeeCode = parsed.data.employee_id.toUpperCase();
+    const designation = parsed.data.designation.toLowerCase();
+    const department = parsed.data.department.toLowerCase();
+    const defaultUtilizationEligible = !(
+      employeeCode.startsWith('ADMIN-') ||
+      employeeCode.startsWith('HR-') ||
+      employeeCode.startsWith('CD-') ||
+      designation === 'country director' ||
+      designation === 'system administrator' ||
+      designation === 'hr manager' ||
+      department === 'regional leadership' ||
+      department === 'administration' ||
+      department === 'human resources'
+    );
+    const utilizationEligible = parsed.data.utilization_eligible ?? defaultUtilizationEligible;
     const employeeResult = await client.query(`
-      insert into employees (id, employee_id, name, email, designation, department, country, primary_country_director_id, status)
-      values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9)
+      insert into employees (id, employee_id, name, email, designation, department, country, primary_country_director_id, status, utilization_eligible)
+      values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9,$10)
       on conflict (employee_id) do update set
         name = excluded.name,
         email = excluded.email,
@@ -341,6 +357,7 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
         country = excluded.country,
         primary_country_director_id = excluded.primary_country_director_id,
         status = excluded.status,
+        utilization_eligible = excluded.utilization_eligible,
         updated_at = now()
       returning *
     `, [
@@ -353,6 +370,7 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
       parsed.data.country,
       parsed.data.primary_country_director_id,
       parsed.data.status,
+      utilizationEligible,
     ]);
     const employee = employeeResult.rows[0];
     const mappedIds = Array.from(new Set([parsed.data.primary_country_director_id, ...parsed.data.mapped_country_director_ids].filter(Boolean)));
@@ -386,7 +404,6 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
       passwordHash,
       parsed.data.status === 'Exited' ? 'Disabled' : 'Active',
     ]);
-    const employeeCode = parsed.data.employee_id.toUpperCase();
     const defaultRoleNames = employeeCode.startsWith('ADMIN-')
       ? ['Admin']
       : employeeCode.startsWith('HR-')

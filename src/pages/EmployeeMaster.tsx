@@ -35,6 +35,7 @@ import { authService } from '../services/authService';
 import { CapacityCard } from '../components/employee/CapacityCard';
 import { AllocationTimeline } from '../components/employee/AllocationTimeline';
 import { UtilizationHeatmap } from '../components/employee/UtilizationHeatmap';
+import { isUtilizationEligibleEmployee } from '../services/calculations';
 
 type EmployeeSortKey = 'employee' | 'designation' | 'director' | 'utilization' | 'projects' | 'status';
 type ViewMode = 'table' | 'cards' | 'timeline' | 'heatmap';
@@ -143,9 +144,10 @@ export const EmployeeMaster = () => {
         emp.mappedCountryDirectorIds.includes(cdFilter);
 
       let matchesUtil = true;
-      if (utilFilter === 'Over 100%') matchesUtil = emp.plannedUtilization > 100;
-      else if (utilFilter === '80-100%') matchesUtil = emp.plannedUtilization >= 80 && emp.plannedUtilization <= 100;
-      else if (utilFilter === 'Under 80%') matchesUtil = emp.plannedUtilization < 80;
+      const utilizationEligible = isUtilizationEligibleEmployee(emp, allocations);
+      if (utilFilter === 'Over 100%') matchesUtil = utilizationEligible && emp.plannedUtilization > 100;
+      else if (utilFilter === '80-100%') matchesUtil = utilizationEligible && emp.plannedUtilization >= 80 && emp.plannedUtilization <= 100;
+      else if (utilFilter === 'Under 80%') matchesUtil = utilizationEligible && emp.plannedUtilization < 80;
 
       return matchesSearch && matchesDept && matchesCountry && matchesStatus && matchesAssign && matchesCd && matchesUtil;
     });
@@ -157,7 +159,7 @@ export const EmployeeMaster = () => {
       projects: emp => emp.activeProjectCount,
       status: emp => emp.status,
     });
-  }, [employees, searchQuery, deptFilter, countryFilter, statusFilter, assignFilter, utilFilter, cdFilter, sortConfig, cds]);
+  }, [employees, allocations, searchQuery, deptFilter, countryFilter, statusFilter, assignFilter, utilFilter, cdFilter, sortConfig, cds]);
 
   const selectedDirector = cds.find(director => director.id === cdFilter);
 
@@ -194,6 +196,7 @@ export const EmployeeMaster = () => {
       primaryCountryDirector: getCDName(emp.primaryCountryDirectorId),
       mappedCountryDirectors: emp.mappedCountryDirectorIds.map(getCDName).join(' | '),
       status: emp.status,
+      utilizationEligible: isUtilizationEligibleEmployee(emp, allocations) ? 'Yes' : 'No',
       plannedUtilization: emp.plannedUtilization,
       actualUtilization: emp.actualUtilization,
       activeProjectCount: emp.activeProjectCount,

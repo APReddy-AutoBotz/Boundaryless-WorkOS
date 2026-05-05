@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { downloadCsv } from '../lib/csv';
+import { getUtilizationEligibleEmployees } from '../services/calculations';
 
 const COLORS = ['#EF7D00', '#1E293B', '#64748B', '#94A3B8', '#CBD5E1'];
 
@@ -66,7 +67,8 @@ export const PlannedUtilization = () => {
   }, []);
 
   const filteredEmployees = useMemo(() => {
-    return employees.filter(emp => {
+    const eligibleEmployees = getUtilizationEligibleEmployees(employees);
+    return eligibleEmployees.filter(emp => {
       const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesDept = deptFilter === 'All Departments' || emp.department === deptFilter;
@@ -87,7 +89,7 @@ export const PlannedUtilization = () => {
   const kpis = useMemo<KPIData[]>(() => {
     if (employees.length === 0) return [];
     
-    const active = employees.filter(e => e.status === 'Active');
+    const active = getUtilizationEligibleEmployees(employees);
     const totalPlanned = active.reduce((sum, e) => sum + e.plannedUtilization, 0);
     const avgPlanned = active.length > 0 ? (totalPlanned / active.length).toFixed(1) : 0;
     
@@ -101,14 +103,15 @@ export const PlannedUtilization = () => {
       { title: 'Underutilized', value: underUtilized, change: -3, changeType: 'decrease', icon: 'ArrowDownRight' },
       { title: 'Bench Count', value: bench, icon: 'Users' },
       { title: 'Overload Density', value: active.length > 0 ? (overAllocated / active.length * 100).toFixed(0) + '%' : '0%', icon: 'Activity' },
-      { title: 'Active Employees', value: active.length, icon: 'Users' }
+      { title: 'Utilization FTE', value: active.length, icon: 'Users' }
     ];
   }, [employees, settings]);
 
   const deptChartData = useMemo(() => {
-    const depts = Array.from(new Set(employees.map(e => e.department)));
+    const eligibleEmployees = getUtilizationEligibleEmployees(employees);
+    const depts = Array.from(new Set(eligibleEmployees.map(e => e.department)));
     return depts.map(dept => {
-      const deptEmps = employees.filter(e => e.department === dept && e.status === 'Active');
+      const deptEmps = eligibleEmployees.filter(e => e.department === dept);
       const avg = deptEmps.length > 0 
         ? deptEmps.reduce((sum, e) => sum + e.plannedUtilization, 0) / deptEmps.length 
         : 0;
@@ -117,8 +120,9 @@ export const PlannedUtilization = () => {
   }, [employees]);
 
   const cdChartData = useMemo(() => {
+    const eligibleEmployees = getUtilizationEligibleEmployees(employees);
     return directors.map(cd => {
-      const cdEmps = employees.filter(e => 
+      const cdEmps = eligibleEmployees.filter(e =>
         (e.primaryCountryDirectorId === cd.id || (e.mappedCountryDirectorIds && e.mappedCountryDirectorIds.includes(cd.id))) && 
         e.status === 'Active'
       );
@@ -130,7 +134,7 @@ export const PlannedUtilization = () => {
   }, [employees, directors]);
 
   const overAllocated = useMemo(() => {
-    return employees.filter(e => e.plannedUtilization > settings.utilizationThresholdHigh).sort((a,b) => b.plannedUtilization - a.plannedUtilization).slice(0, 4);
+    return getUtilizationEligibleEmployees(employees).filter(e => e.plannedUtilization > settings.utilizationThresholdHigh).sort((a,b) => b.plannedUtilization - a.plannedUtilization).slice(0, 4);
   }, [employees, settings]);
 
   const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
@@ -147,6 +151,7 @@ export const PlannedUtilization = () => {
       actualUtilization: emp.actualUtilization,
       activeProjectCount: emp.activeProjectCount,
       status: emp.status,
+      utilizationEligible: 'Yes',
     })));
     adminService.logAction('Export', 'Planned Utilization', `Exported ${filteredEmployees.length} planned utilization rows`);
   };

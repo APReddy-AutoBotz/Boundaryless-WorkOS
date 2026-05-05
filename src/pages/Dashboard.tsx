@@ -61,7 +61,7 @@ import {
   Info
 } from 'lucide-react';
 import { DataStorage } from '../services/storage';
-import { isProjectAvailableForPlanning, overlapsDateRange } from '../services/calculations';
+import { isProjectAvailableForPlanning, overlapsDateRange, getUtilizationEligibleEmployees } from '../services/calculations';
 
 const CHART_COLORS = ['#94A3B8', '#1E293B', '#EF4444', '#F59E0B', '#3B82F6'];
 
@@ -108,11 +108,12 @@ export const Dashboard = () => {
     if (!data) return null;
     
     const activeEmps = data.employees.filter(e => e.status === 'Active');
+    const utilizationEmps = getUtilizationEligibleEmployees(activeEmps, data.allocations, data.projects);
     
     // ROW 1: Global metrics (Always visible, non-filtered)
-    const globalOverloaded = activeEmps.filter(e => e.plannedUtilization > data.settings.utilizationThresholdHigh);
-    const globalUnderutilized = activeEmps.filter(e => e.plannedUtilization < data.settings.utilizationThresholdLow && e.plannedUtilization > data.settings.benchThreshold);
-    const globalBench = activeEmps.filter(e => e.plannedUtilization <= data.settings.benchThreshold);
+    const globalOverloaded = utilizationEmps.filter(e => e.plannedUtilization > data.settings.utilizationThresholdHigh);
+    const globalUnderutilized = utilizationEmps.filter(e => e.plannedUtilization < data.settings.utilizationThresholdLow && e.plannedUtilization > data.settings.benchThreshold);
+    const globalBench = utilizationEmps.filter(e => e.plannedUtilization <= data.settings.benchThreshold);
     const currentDate = new Date().toISOString().split('T')[0];
     const projectsById = new Map<string, Project>(data.projects.map(project => [project.id, project]));
     const currentStaffedProjectIds = new Set(data.allocations
@@ -129,12 +130,14 @@ export const Dashboard = () => {
       (p.status === 'Active' && isProjectAvailableForPlanning(p, currentDate, currentDate) && !currentStaffedProjectIds.has(p.id))
     );
     
-    const globalAvgPlanned = activeEmps.length > 0 
-      ? activeEmps.reduce((sum, e) => sum + e.plannedUtilization, 0) / activeEmps.length 
+    const globalAvgPlanned = utilizationEmps.length > 0
+      ? utilizationEmps.reduce((sum, e) => sum + e.plannedUtilization, 0) / utilizationEmps.length
       : 0;
 
     const globalStats = {
       totalEmployees: activeEmps.length,
+      utilizationEligibleEmployees: utilizationEmps.length,
+      governanceUsers: activeEmps.length - utilizationEmps.length,
       avgPlanned: globalAvgPlanned,
       overloadedCount: globalOverloaded.length,
       underutilizedCount: globalUnderutilized.length + globalBench.length,
@@ -143,10 +146,11 @@ export const Dashboard = () => {
     };
     // ROW 2: Region stats for overview Matrix
     const regionStats = data.directors.map(cd => {
-      const cdEmps = activeEmps.filter(e => 
+      const cdPeople = activeEmps.filter(e =>
         e.primaryCountryDirectorId === cd.id || 
         e.mappedCountryDirectorIds.includes(cd.id)
       );
+      const cdEmps = getUtilizationEligibleEmployees(cdPeople, data.allocations, data.projects, currentDate);
       const cdEmployeeIds = new Set(cdEmps.map(employee => employee.id));
       const cdProjectIds = new Set<string>();
       const cdClients = new Set<string>();
@@ -165,6 +169,8 @@ export const Dashboard = () => {
         name: cd.name,
         region: cd.region,
         teamSize: cdEmps.length,
+        totalPeople: cdPeople.length,
+        governanceUsers: cdPeople.length - cdEmps.length,
         avgUtil: Math.round(avgPlanned),
         avgActual: Math.round(avgActual),
         overCount: cdEmps.filter(e => e.plannedUtilization > data.settings.utilizationThresholdHigh).length,
@@ -175,7 +181,7 @@ export const Dashboard = () => {
     });
 
     // FILTERED VIEW: Row 3, 4, 5
-    let filteredEmployees = activeEmps;
+    let filteredEmployees = utilizationEmps;
     if (selectedCDId !== 'all') {
       filteredEmployees = filteredEmployees.filter(e => 
         e.primaryCountryDirectorId === selectedCDId || 
@@ -374,10 +380,11 @@ export const Dashboard = () => {
 
       {/* ROW 1 — GLOBAL COMPANY METRICS */}
       <section>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           {[
-            { label: 'Total Employees', value: stats.globalStats.totalEmployees, sub: 'Active FTEs', color: 'slate' },
-            { label: 'Avg Util %', value: `${stats.globalStats.avgPlanned.toFixed(1)}%`, sub: 'Global load', color: 'slate' },
+            { label: 'Total People', value: stats.globalStats.totalEmployees, sub: `${stats.globalStats.governanceUsers} governance`, color: 'slate' },
+            { label: 'Util FTE', value: stats.globalStats.utilizationEligibleEmployees, sub: 'Delivery capacity', color: 'slate' },
+            { label: 'Avg Util %', value: `${stats.globalStats.avgPlanned.toFixed(1)}%`, sub: 'Delivery load', color: 'slate' },
             { label: 'Overloaded', value: stats.globalStats.overloadedCount, sub: `>${data.settings.utilizationThresholdHigh}% capacity`, color: 'rose' },
             { label: 'Underutilized', value: stats.globalStats.underutilizedCount, sub: `<${data.settings.utilizationThresholdLow}% capacity`, color: 'orange' },
             { label: 'Pending Logs', value: stats.globalStats.pendingTimesheets, sub: 'Timesheets', color: 'slate' },
