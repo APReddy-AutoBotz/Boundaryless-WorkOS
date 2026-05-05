@@ -48,6 +48,31 @@ const buildSession = (account: UserAccount, role: UserRole): UserSession => {
   return session;
 };
 
+type ApiLoginResponse = {
+  id: string;
+  username: string;
+  employeeId: string;
+  employeeRecordId?: string;
+  countryDirectorId?: string;
+  email: string;
+  name?: string;
+  roles: UserRole[];
+  activeRole: UserRole;
+  token: string;
+};
+
+const buildApiSession = (data: ApiLoginResponse): UserSession => ({
+  id: data.employeeRecordId || data.employeeId || data.id,
+  userName: data.username,
+  employeeId: data.employeeId,
+  name: data.name || data.username,
+  email: data.email,
+  role: data.activeRole,
+  availableRoles: data.roles,
+  cdId: data.countryDirectorId,
+  lastLogin: new Date().toISOString(),
+});
+
 // ─── Session storage (works in both modes) ────────────────────────────────────
 const saveSession = (session: UserSession) =>
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -72,13 +97,14 @@ export const authService = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ userName: identifier, password, requestedRole }),
+          body: JSON.stringify({ username: identifier, password, requestedRole }),
         });
         if (!res.ok) return null;
-        const data = await res.json() as { token: string; session: UserSession };
+        const data = await res.json() as ApiLoginResponse;
+        const session = buildApiSession(data);
         storeToken(data.token);
-        saveSession(data.session);
-        return data.session;
+        saveSession(session);
+        return session;
       } catch { return null; }
     }
 
