@@ -103,7 +103,7 @@ const seed = async () => {
 
       await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
-        select $1,$2,$3,$4,$5,$6
+        select $1::text,$2::text,$3::text,$4::boolean,$5::timestamptz,$6::timestamptz
         where not exists (
           select 1 from catalog_items where id = $1 or (catalog_type = $2 and name = $3)
         )
