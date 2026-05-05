@@ -9,7 +9,7 @@
     "api:migrate": "node server/migrate.mjs",
     "api:seed:demo": "node --import tsx server/seed-demo.mjs",
     "build": "vite build",
-    "start": "node server/start-production.mjs",
+    "start": "node --import tsx server/start-production.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",

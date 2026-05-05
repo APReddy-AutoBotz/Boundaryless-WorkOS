@@ -87,6 +87,7 @@ Create a new Render Web Service:
 |---|---|
 | Repository | `APReddy-AutoBotz/Boundaryless-RUT` |
 | Runtime | Node |
+| Node Version | 22 |
 | Branch | `main` or your active deployment branch |
 | Build Command | `npm install && npm run build` |
 | Start Command | `npm start` |
