@@ -224,42 +224,47 @@ values
   ('blockOverAllocation', 'false')
 on conflict (key) do nothing;
 
+with default_catalog_items(id, catalog_type, name) as (
+  values
+    ('department-1', 'departments', 'Automation CoE'),
+    ('department-2', 'departments', 'Business Transformation'),
+    ('department-3', 'departments', 'Client Operations'),
+    ('department-4', 'departments', 'Data & Analytics'),
+    ('department-5', 'departments', 'Delivery Management'),
+    ('department-6', 'departments', 'Engineering'),
+    ('department-7', 'departments', 'Managed Services'),
+    ('department-8', 'departments', 'Operations Excellence'),
+    ('department-9', 'departments', 'Quality Engineering'),
+    ('department-10', 'departments', 'Support Operations'),
+    ('country-1', 'countries', 'Australia'),
+    ('country-2', 'countries', 'Belgium'),
+    ('country-3', 'countries', 'Canada'),
+    ('country-4', 'countries', 'France'),
+    ('country-5', 'countries', 'Germany'),
+    ('country-6', 'countries', 'India'),
+    ('country-7', 'countries', 'Netherlands'),
+    ('country-8', 'countries', 'Singapore'),
+    ('country-9', 'countries', 'Switzerland'),
+    ('country-10', 'countries', 'United Kingdom'),
+    ('country-11', 'countries', 'United States'),
+    ('industry-1', 'industries', 'Banking'),
+    ('industry-2', 'industries', 'Insurance'),
+    ('industry-3', 'industries', 'Healthcare'),
+    ('industry-4', 'industries', 'Retail'),
+    ('industry-5', 'industries', 'Manufacturing'),
+    ('industry-6', 'industries', 'Logistics'),
+    ('industry-7', 'industries', 'Technology'),
+    ('industry-8', 'industries', 'Telecom'),
+    ('industry-9', 'industries', 'Energy'),
+    ('industry-10', 'industries', 'Public Sector'),
+    ('industry-11', 'industries', 'Professional Services')
+)
 insert into catalog_items(id, catalog_type, name)
-values
-  ('department-1', 'departments', 'Automation CoE'),
-  ('department-2', 'departments', 'Business Transformation'),
-  ('department-3', 'departments', 'Client Operations'),
-  ('department-4', 'departments', 'Data & Analytics'),
-  ('department-5', 'departments', 'Delivery Management'),
-  ('department-6', 'departments', 'Engineering'),
-  ('department-7', 'departments', 'Managed Services'),
-  ('department-8', 'departments', 'Operations Excellence'),
-  ('department-9', 'departments', 'Quality Engineering'),
-  ('department-10', 'departments', 'Support Operations'),
-  ('country-1', 'countries', 'Australia'),
-  ('country-2', 'countries', 'Belgium'),
-  ('country-3', 'countries', 'Canada'),
-  ('country-4', 'countries', 'France'),
-  ('country-5', 'countries', 'Germany'),
-  ('country-6', 'countries', 'India'),
-  ('country-7', 'countries', 'Netherlands'),
-  ('country-8', 'countries', 'Singapore'),
-  ('country-9', 'countries', 'Switzerland'),
-  ('country-10', 'countries', 'United Kingdom'),
-  ('country-11', 'countries', 'United States'),
-  ('industry-1', 'industries', 'Banking'),
-  ('industry-2', 'industries', 'Insurance'),
-  ('industry-3', 'industries', 'Healthcare'),
-  ('industry-4', 'industries', 'Retail'),
-  ('industry-5', 'industries', 'Manufacturing'),
-  ('industry-6', 'industries', 'Logistics'),
-  ('industry-7', 'industries', 'Technology'),
-  ('industry-8', 'industries', 'Telecom'),
-  ('industry-9', 'industries', 'Energy'),
-  ('industry-10', 'industries', 'Public Sector'),
-  ('industry-11', 'industries', 'Professional Services')
-on conflict (id) do update set
-  catalog_type = excluded.catalog_type,
-  name = excluded.name,
-  active = catalog_items.active,
-  updated_at = now();
+select defaults.id, defaults.catalog_type, defaults.name
+from default_catalog_items defaults
+where not exists (
+  select 1
+  from catalog_items existing
+  where existing.id = defaults.id
+     or (existing.catalog_type = defaults.catalog_type and existing.name = defaults.name)
+);
