@@ -94,7 +94,8 @@ const seed = async () => {
       await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
         values ($1,$2,$3,$4,$5,$6)
-        on conflict (id) do update set
+        on conflict (catalog_type, name) do update set
+          id = excluded.id,
           catalog_type = excluded.catalog_type,
           name = excluded.name,
           active = excluded.active,
