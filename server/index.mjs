@@ -1284,8 +1284,23 @@ app.use('/api', (_req, res) => {
 
 if (isProduction || process.env.SERVE_STATIC === 'true') {
   if (existsSync(distDir)) {
-    app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
+    app.use('/assets', express.static(join(distDir, 'assets'), {
+      immutable: true,
+      maxAge: '1y',
+    }));
+    app.use(express.static(distDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-store');
+        }
+      },
+    }));
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/assets/')) {
+        res.status(404).send('Asset not found');
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store');
       res.sendFile(join(distDir, 'index.html'));
     });
   } else if (isProduction) {
