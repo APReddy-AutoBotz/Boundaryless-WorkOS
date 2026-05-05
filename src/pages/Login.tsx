@@ -2,10 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { authService } from '../services/authService';
-import { employeeService } from '../services/api';
 import { UserAccount, UserRole } from '../types';
 import { LogIn, Users, Shield, Briefcase, Globe, Info, UserCheck, LockKeyhole, Database, Clock3 } from 'lucide-react';
-import { DataStorage } from '../services/storage';
+import { DataStorage, STORAGE_KEYS } from '../services/storage';
 import { NoticeBanner } from '../components/ui/NoticeBanner';
 
 const roles: { role: UserRole; icon: any; color: string; desc: string }[] = [
@@ -28,16 +27,10 @@ export const Login = () => {
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-    let mounted = true;
+    // Login is a public route. Do not call protected employee APIs here, because
+    // production/API mode correctly returns 401 before authentication.
     DataStorage.initialize();
-    employeeService.getAll()
-      .then(data => {
-        if (mounted) setEmployees(data);
-      })
-      .catch(() => {
-        if (mounted) setEmployees([]);
-      });
-    return () => { mounted = false; };
+    setEmployees(DataStorage.get(STORAGE_KEYS.EMPLOYEES, []));
   }, []);
 
   useEffect(() => {
