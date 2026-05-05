@@ -82,6 +82,14 @@ const seed = async () => {
       on conflict (name) do nothing
     `);
 
+    await query(client, `
+      delete from catalog_items a
+      using catalog_items b
+      where a.catalog_type = b.catalog_type
+        and lower(a.name) = lower(b.name)
+        and a.id > b.id
+    `);
+
     for (const director of dataset.countryDirectors) {
       await query(client, `
         insert into country_directors (id, name, region)
@@ -98,14 +106,17 @@ const seed = async () => {
             active = $4,
             updated_at = $5
         where id = $1
-           or (catalog_type = $2 and name = $3)
+           or lower(catalog_type) = lower($2)
+           and lower(name) = lower($3)
       `, [item.id, item.catalogType, item.name, item.active, item.updatedAt || item.createdAt]);
 
       await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
         select $1::text,$2::text,$3::text,$4::boolean,$5::timestamptz,$6::timestamptz
         where not exists (
-          select 1 from catalog_items where id = $1 or (catalog_type = $2 and name = $3)
+          select 1 from catalog_items
+          where id = $1
+             or (lower(catalog_type) = lower($2) and lower(name) = lower($3))
         )
       `, [item.id, item.catalogType, item.name, item.active, item.createdAt, item.updatedAt || item.createdAt]);
     }
