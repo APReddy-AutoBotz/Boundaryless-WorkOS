@@ -92,14 +92,21 @@ const seed = async () => {
 
     for (const item of catalogItems) {
       await query(client, `
+        update catalog_items
+        set catalog_type = $2,
+            name = $3,
+            active = $4,
+            updated_at = $6
+        where id = $1
+           or (catalog_type = $2 and name = $3)
+      `, [item.id, item.catalogType, item.name, item.active, item.createdAt, item.updatedAt || item.createdAt]);
+
+      await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
-        values ($1,$2,$3,$4,$5,$6)
-        on conflict (catalog_type, name) do update set
-          id = excluded.id,
-          catalog_type = excluded.catalog_type,
-          name = excluded.name,
-          active = excluded.active,
-          updated_at = excluded.updated_at
+        select $1,$2,$3,$4,$5,$6
+        where not exists (
+          select 1 from catalog_items where id = $1 or (catalog_type = $2 and name = $3)
+        )
       `, [item.id, item.catalogType, item.name, item.active, item.createdAt, item.updatedAt || item.createdAt]);
     }
 
