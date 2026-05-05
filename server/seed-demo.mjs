@@ -100,24 +100,20 @@ const seed = async () => {
 
     for (const item of catalogItems) {
       await query(client, `
-        update catalog_items
-        set catalog_type = $2,
-            name = $3,
-            active = $4,
-            updated_at = $5
-        where id = $1
-           or lower(catalog_type) = lower($2)
-           and lower(name) = lower($3)
-      `, [item.id, item.catalogType, item.name, item.active, item.updatedAt || item.createdAt]);
+        delete from catalog_items
+        where id <> $1
+          and lower(catalog_type) = lower($2)
+          and lower(name) = lower($3)
+      `, [item.id, item.catalogType, item.name]);
 
       await query(client, `
         insert into catalog_items (id, catalog_type, name, active, created_at, updated_at)
-        select $1::text,$2::text,$3::text,$4::boolean,$5::timestamptz,$6::timestamptz
-        where not exists (
-          select 1 from catalog_items
-          where id = $1
-             or (lower(catalog_type) = lower($2) and lower(name) = lower($3))
-        )
+        values ($1,$2,$3,$4,$5,$6)
+        on conflict (id) do update set
+          catalog_type = excluded.catalog_type,
+          name = excluded.name,
+          active = excluded.active,
+          updated_at = excluded.updated_at
       `, [item.id, item.catalogType, item.name, item.active, item.createdAt, item.updatedAt || item.createdAt]);
     }
 
