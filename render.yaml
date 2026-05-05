@@ -15,6 +15,12 @@ services:
         value: require
       - key: LOGIN_RATE_LIMIT
         value: "8"
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: AUTO_SEED_DEMO
+        value: "true"
+      - key: DEMO_SEED_PASSWORD
+        value: demo123
       - key: DATABASE_URL
         sync: false
       - key: API_SESSION_SECRET

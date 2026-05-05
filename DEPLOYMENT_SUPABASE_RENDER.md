@@ -54,9 +54,18 @@ In Render, add these variables to the Web Service:
 | `API_SESSION_SECRET` | Long random secret value |
 | `NODE_ENV` | `production` |
 | `LOGIN_RATE_LIMIT` | `8` |
+| `AUTO_MIGRATE` | `true` for first Render deployment |
+| `AUTO_SEED_DEMO` | `true` for first Render deployment/demo |
+| `DEMO_SEED_PASSWORD` | `demo123` or your chosen demo password |
 | `APP_URL` | Render app URL, for example `https://boundaryless-rut.onrender.com` |
 
 Render provides `PORT` automatically. Do not manually set `PORT` unless Render asks you to.
+
+For the first deployment on Render Free, keep `AUTO_MIGRATE=true` and `AUTO_SEED_DEMO=true`. This lets the app create the Supabase schema and seed demo users during startup because Render Free does not provide a convenient interactive shell.
+
+After the demo database is seeded and you start making real changes, set `AUTO_SEED_DEMO=false` so startup does not refresh demo records on every deploy. Keeping `AUTO_MIGRATE=true` is safe because migrations are idempotent.
+
+If your Supabase password contains special characters, URL-encode it in `DATABASE_URL`. For example, `@` inside the password must become `%40`.
 
 ## 5. How to Create `API_SESSION_SECRET`
 
