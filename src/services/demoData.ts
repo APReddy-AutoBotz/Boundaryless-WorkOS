@@ -11,11 +11,12 @@ import {
   CatalogItem,
 } from '../types';
 
-export const DEMO_DATA_VERSION = 'demo-120-people-60-processes-v5';
+export const DEMO_DATA_VERSION = 'demo-120-people-60-processes-v6';
 
 const isoDate = (date: Date) => date.toISOString().split('T')[0];
 const pad = (value: number) => value.toString().padStart(2, '0');
 const pick = <T,>(items: T[], index: number) => items[index % items.length];
+const round1 = (value: number) => Math.round(value * 10) / 10;
 
 const roleNames = [
   ['Solution Architect', 'Architecture', 'Owns solution design, integration patterns, and technical fit.'],
@@ -150,12 +151,64 @@ const makeEmployee = (
 });
 
 const weekDaysForEnding = (weekEnding: string) => {
-  const friday = new Date(`${weekEnding}T00:00:00`);
+  const [year, month, day] = weekEnding.split('-').map(Number);
+  const friday = new Date(Date.UTC(year, month - 1, day));
   return Array.from({ length: 5 }, (_, index) => {
     const date = new Date(friday);
     date.setDate(friday.getDate() - (4 - index));
     return isoDate(date);
   });
+};
+
+const buildTimesheetEntries = (
+  employee: Employee,
+  allocations: Allocation[],
+  weekEnding: string,
+  weekIndex: number,
+  totalHours: number,
+  status: TimesheetSummary['status']
+): TimesheetEntry[] => {
+  const days = weekDaysForEnding(weekEnding);
+  const totalTenths = Math.round(totalHours * 10);
+  const entryCount = days.length * allocations.length;
+  const baseTenths = Math.floor(totalTenths / entryCount);
+  const remainderTenths = totalTenths % entryCount;
+
+  return days.flatMap((date, dayIndex) =>
+    allocations.map((allocation, allocationIndex) => {
+      const entryOrdinal = dayIndex * allocations.length + allocationIndex;
+      const hours = round1((baseTenths + (entryOrdinal < remainderTenths ? 1 : 0)) / 10);
+
+      return {
+        id: `ts-entry-${employee.employeeId.toLowerCase()}-${weekIndex + 1}-${dayIndex + 1}-${allocationIndex + 1}`,
+        employeeId: employee.id,
+        projectId: allocation.projectId,
+        projectName: allocation.projectName,
+        workType: 'Project Work',
+        date,
+        hours,
+        remark: `${allocation.roleOnProject || employee.designation} delivery for ${allocation.projectName}`,
+        status,
+        billable: true,
+        weekEnding,
+      };
+    })
+  );
+};
+
+const validateTimesheets = (timesheets: TimesheetSummary[]) => {
+  for (const timesheet of timesheets) {
+    const entryTotal = round1(timesheet.entries.reduce((sum, entry) => sum + entry.hours, 0));
+    const expectedTotal = round1(timesheet.totalHours);
+    if (entryTotal !== expectedTotal) {
+      throw new Error(`Invalid demo timesheet ${timesheet.employeeId}/${timesheet.weekEnding}: entry total ${entryTotal} does not match ${expectedTotal}`);
+    }
+
+    const invalidEntry = timesheet.entries.find(entry => entry.hours < 0 || entry.hours > 24);
+    if (invalidEntry) {
+      throw new Error(`Invalid demo timesheet entry ${invalidEntry.id}: ${invalidEntry.hours} hours is outside 0-24`);
+    }
+  }
 };
 
 export const generateDemoDataset = () => {
@@ -381,23 +434,7 @@ export const generateDemoDataset = () => {
             ? 'Draft'
             : 'Approved';
       const totalHours = status === 'Draft' ? 24 + ((employeeIndex + weekIndex) % 3) * 4 : 40;
-      const days = weekDaysForEnding(weekEnding);
-      const entryHours = Math.max(1, Math.round(totalHours / activeAllocations.length));
-      const entries: TimesheetEntry[] = activeAllocations.map((allocation, allocationIndex) => ({
-        id: `ts-entry-${employee.employeeId.toLowerCase()}-${weekIndex + 1}-${allocationIndex + 1}`,
-        employeeId: employee.id,
-        projectId: allocation.projectId,
-        projectName: allocation.projectName,
-        workType: 'Project Work',
-        date: days[allocationIndex % days.length],
-        hours: allocationIndex === activeAllocations.length - 1
-          ? totalHours - entryHours * (activeAllocations.length - 1)
-          : entryHours,
-        remark: `${allocation.roleOnProject || employee.designation} delivery for ${allocation.projectName}`,
-        status,
-        billable: true,
-        weekEnding,
-      }));
+      const entries = buildTimesheetEntries(employee, activeAllocations, weekEnding, weekIndex, totalHours, status);
       const billableHours = entries
         .filter(entry => activeAllocations.find(allocation => allocation.projectId === entry.projectId)?.billable)
         .reduce((sum, entry) => sum + entry.hours, 0);
@@ -420,6 +457,8 @@ export const generateDemoDataset = () => {
       });
     });
   });
+
+  validateTimesheets(timesheets);
 
   const auditLogs: AuditLog[] = [
     {
