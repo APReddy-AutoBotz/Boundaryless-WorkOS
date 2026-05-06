@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { KPIStrip } from '../components/ui/KPIStrip';
 import { Badge } from '../components/ui/Badge';
-import { employeeService, projectService, allocationService, adminService } from '../services/api';
+import { employeeService, projectService, allocationService, adminService, utilizationReportService } from '../services/api';
 import { Allocation, Employee, Project, KPIData } from '../types';
 import { 
   XAxis, 
@@ -46,6 +46,7 @@ export const ForecastUtilization = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [forecastReportEmployees, setForecastReportEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<any>({ utilizationThresholdHigh: 100, utilizationThresholdLow: 70 });
   const [loading, setLoading] = useState(true);
   const [horizon, setHorizon] = useState('3 Months');
@@ -100,6 +101,23 @@ export const ForecastUtilization = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const fetchForecastReport = async () => {
+      try {
+        const report = await utilizationReportService.getForecast(horizonMonths);
+        setForecastReportEmployees(report.rows);
+      } catch (error) {
+        console.error(error);
+        setForecastReportEmployees([]);
+      }
+    };
+    fetchForecastReport();
+  }, [horizonMonths]);
+
+  const forecastReportByEmployeeId = useMemo(() => {
+    return new Map(forecastReportEmployees.map(employee => [employee.id, employee]));
+  }, [forecastReportEmployees]);
+
   const supplyDemandData = useMemo(() => {
     if (employees.length === 0) return [];
     const employeeById = new Map<string, Employee>(employees.map(employee => [employee.id, employee]));
@@ -137,7 +155,7 @@ export const ForecastUtilization = () => {
           load: getEmployeeForecastAt(emp.id, point.iso),
         }));
         const futureSnapshots = snapshots.slice(1);
-        const horizonLoad = snapshots.at(-1)?.load || 0;
+        const horizonLoad = forecastReportByEmployeeId.get(emp.id)?.plannedUtilization ?? snapshots.at(-1)?.load ?? 0;
         const peakLoad = Math.max(...snapshots.map(snapshot => snapshot.load), 0);
         const averageLoad = futureSnapshots.length
           ? futureSnapshots.reduce((sum, snapshot) => sum + snapshot.load, 0) / futureSnapshots.length
@@ -158,7 +176,7 @@ export const ForecastUtilization = () => {
                 : 'Stable',
         };
       });
-  }, [employees, forecastPoints, allocations, projects, settings]);
+  }, [employees, forecastPoints, allocations, projects, settings, forecastReportByEmployeeId]);
 
   const filteredFuture = useMemo(() => {
     return forecastRows.filter(row => {

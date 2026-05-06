@@ -75,11 +75,21 @@ Implemented starter routes:
 - `GET /api/timesheets`
 - `POST /api/timesheets`
 - `PATCH /api/timesheets/:id/status`
+- `GET /api/reports/planned-utilization`
+- `GET /api/reports/actual-utilization`
+- `GET /api/reports/forecast-utilization`
 - `GET /api/settings`
 - `GET /api/catalogs/:catalogType`
 - `POST /api/catalogs/:catalogType`
 - `DELETE /api/catalogs/:catalogType/:id`
 - `GET /api/audit-logs`
+- `GET /api/import-export-logs`
+- `POST /api/import-export-logs`
+- `POST /api/imports/employees/apply`
+- `POST /api/imports/clients/apply`
+- `POST /api/imports/projects/apply`
+- `POST /api/imports/allocations/apply`
+- `POST /api/imports/timesheets/apply`
 
 User passwords are stored as `scrypt$salt$hexKey` in the `users.password_hash` column. Login returns a signed session token and also sets an HTTP-only `rut_session` cookie. Protected API routes require either the cookie or an `Authorization: Bearer <token>` header.
 
@@ -101,6 +111,8 @@ The write endpoints include starter production guardrails:
 - Timesheets cannot be saved or submitted for future weeks or future-dated entries.
 - Employees can submit only their own timesheets and cannot directly approve them.
 - Timesheet approval/rejection requires submitted status; rejection requires a reason.
+- Utilization report endpoints apply the same backend employee visibility scope as role-based employee/project access and return server-side planned, actual, and forecast rows with KPI summaries.
+- Employee import apply runs as a backend transaction, validates Country Director references, upserts employee records and mappings, provisions/updates the login account, audits each row, and writes import history.
 - Employee deactivation is soft, disables the linked login account, and completes active allocations.
 - Country Director and role definition deletes are guarded when scope mappings, employees, or allocations still reference them.
 - Department, country, and industry catalogs are PostgreSQL-backed, audited, and blocked from deactivation while referenced by employees, roles, or clients.

@@ -136,18 +136,19 @@ export const EmployeeMaster = () => {
       const matchesStatus = statusFilter === 'All Statuses' || emp.status === statusFilter;
       
       let matchesAssign = true;
-      if (assignFilter === 'Assigned') matchesAssign = emp.activeProjectCount > 0;
-      else if (assignFilter === 'Bench') matchesAssign = emp.activeProjectCount === 0;
+      const utilizationEligible = isUtilizationEligibleEmployee(emp, allocations);
+      if (assignFilter === 'Assigned') matchesAssign = utilizationEligible && emp.activeProjectCount > 0;
+      else if (assignFilter === 'Bench') matchesAssign = utilizationEligible && emp.activeProjectCount === 0;
 
       const matchesCd = cdFilter === 'All Directors' || 
         emp.primaryCountryDirectorId === cdFilter || 
         emp.mappedCountryDirectorIds.includes(cdFilter);
 
       let matchesUtil = true;
-      const utilizationEligible = isUtilizationEligibleEmployee(emp, allocations);
       if (utilFilter === 'Over 100%') matchesUtil = utilizationEligible && emp.plannedUtilization > 100;
       else if (utilFilter === '80-100%') matchesUtil = utilizationEligible && emp.plannedUtilization >= 80 && emp.plannedUtilization <= 100;
       else if (utilFilter === 'Under 80%') matchesUtil = utilizationEligible && emp.plannedUtilization < 80;
+      else if (utilFilter === 'Excluded') matchesUtil = !utilizationEligible;
 
       return matchesSearch && matchesDept && matchesCountry && matchesStatus && matchesAssign && matchesCd && matchesUtil;
     });
@@ -155,7 +156,7 @@ export const EmployeeMaster = () => {
       employee: emp => emp.name,
       designation: emp => `${emp.designation} ${emp.department}`,
       director: emp => getCDName(emp.primaryCountryDirectorId),
-      utilization: emp => emp.plannedUtilization,
+      utilization: emp => isUtilizationEligibleEmployee(emp, allocations) ? emp.plannedUtilization : -1,
       projects: emp => emp.activeProjectCount,
       status: emp => emp.status,
     });
@@ -379,6 +380,7 @@ export const EmployeeMaster = () => {
                 <option>Over 100%</option>
                 <option>80-100%</option>
                 <option>Under 80%</option>
+                <option>Excluded</option>
               </select>
             </div>
             <div className="space-y-1.5 font-bold">
@@ -449,6 +451,7 @@ export const EmployeeMaster = () => {
               allocations={allocations}
               cds={cds}
               settings={settings}
+              utilizationEligible={isUtilizationEligibleEmployee(emp, allocations)}
               onEdit={handleEdit}
             />
           ))}
@@ -457,7 +460,7 @@ export const EmployeeMaster = () => {
 
       {view === 'timeline' && (
         <AllocationTimeline
-          employees={filteredEmployees}
+          employees={filteredEmployees.filter(emp => isUtilizationEligibleEmployee(emp, allocations))}
           allocations={allocations}
           settings={settings}
           onEditAllocation={(alloc) => setEditAllocation(alloc)}
@@ -466,7 +469,7 @@ export const EmployeeMaster = () => {
 
       {view === 'heatmap' && (
         <UtilizationHeatmap
-          employees={filteredEmployees}
+          employees={filteredEmployees.filter(emp => isUtilizationEligibleEmployee(emp, allocations))}
           allocations={allocations}
           settings={settings}
         />
@@ -485,7 +488,9 @@ export const EmployeeMaster = () => {
             </tr>
           )}
         >
-              {filteredEmployees.map((emp) => (
+              {filteredEmployees.map((emp) => {
+                const utilizationEligible = isUtilizationEligibleEmployee(emp, allocations);
+                return (
                 <tr key={emp.id} className="hover:bg-bg-secondary transition-colors group">
                   <td className="py-5 px-6">
                     <div className="flex items-center gap-4">
@@ -521,18 +526,26 @@ export const EmployeeMaster = () => {
                   </td>
                   <td className="py-5 px-6">
                     <div className="flex flex-col items-center gap-1">
-                      <span className={cn(
-                        "text-xs font-bold transition-all tabular-nums",
-                        emp.plannedUtilization > 100 ? "text-danger" : "text-heading"
-                      )}>
-                        {emp.plannedUtilization}%
-                      </span>
-                      <div className="w-20 bg-gray-100 h-1 rounded-full overflow-hidden">
-                        <div 
-                          className={cn("h-full transition-all duration-500", emp.plannedUtilization > 100 ? "bg-danger" : "bg-primary")}
-                          style={{ width: `${Math.min(emp.plannedUtilization, 100)}%` }}
-                        />
-                      </div>
+                      {utilizationEligible ? (
+                        <>
+                          <span className={cn(
+                            "text-xs font-bold transition-all tabular-nums",
+                            emp.plannedUtilization > 100 ? "text-danger" : "text-heading"
+                          )}>
+                            {emp.plannedUtilization}%
+                          </span>
+                          <div className="w-20 bg-gray-100 h-1 rounded-full overflow-hidden">
+                            <div
+                              className={cn("h-full transition-all duration-500", emp.plannedUtilization > 100 ? "bg-danger" : "bg-primary")}
+                              style={{ width: `${Math.min(emp.plannedUtilization, 100)}%` }}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <span className="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Excluded
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-5 px-6">
@@ -546,7 +559,9 @@ export const EmployeeMaster = () => {
                         ))
                       }
                       {allocations.filter(a => a.employeeId === emp.id && a.status === 'Active').length === 0 && (
-                        <span className="text-[10px] text-gray-400 font-medium italic">No active projects</span>
+                        <span className="text-[10px] text-gray-400 font-medium italic">
+                          {utilizationEligible ? 'No active projects' : 'Not capacity-tracked'}
+                        </span>
                       )}
                     </div>
                   </td>
@@ -578,7 +593,7 @@ export const EmployeeMaster = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
         </DataTable>
       )}
     </div>

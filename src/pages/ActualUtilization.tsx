@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { KPIStrip } from '../components/ui/KPIStrip';
 import { Badge } from '../components/ui/Badge';
-import { timesheetService, employeeService, adminService } from '../services/api';
+import { timesheetService, adminService, utilizationReportService } from '../services/api';
 import { Employee, TimesheetSummary, KPIData } from '../types';
 import { 
   Download, 
@@ -31,11 +31,11 @@ export const ActualUtilization = () => {
     const fetchData = async () => {
       try {
         const [empData, tsData, setts] = await Promise.all([
-          employeeService.getAll(),
+          utilizationReportService.getActual(),
           timesheetService.getAll(),
           adminService.getSettings(),
         ]);
-        setEmployees(empData);
+        setEmployees(empData.rows);
         setTimesheets(tsData);
         setSettings(setts);
       } catch (error) {

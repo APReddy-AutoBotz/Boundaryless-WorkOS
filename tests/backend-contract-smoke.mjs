@@ -29,7 +29,16 @@ assert.match(schema, /create table if not exists import_export_logs/, 'import/ex
 assert.match(server, /app\.post\('\/api\/settings'/, 'settings save route must exist');
 assert.match(server, /app\.get\('\/api\/import-export-logs'/, 'import/export history GET route must exist');
 assert.match(server, /app\.post\('\/api\/import-export-logs'/, 'import/export history POST route must exist');
+assert.match(server, /app\.post\('\/api\/imports\/employees\/apply'/, 'employee import apply route must exist');
+assert.match(server, /app\.post\('\/api\/imports\/clients\/apply'/, 'client import apply route must exist');
+assert.match(server, /app\.post\('\/api\/imports\/projects\/apply'/, 'project import apply route must exist');
+assert.match(server, /app\.post\('\/api\/imports\/allocations\/apply'/, 'allocation import apply route must exist');
+assert.match(server, /app\.post\('\/api\/imports\/timesheets\/apply'/, 'timesheet import apply route must exist');
 assert.match(server, /json_agg\(json_build_object/, 'timesheet API must include entries');
+assert.match(server, /app\.get\('\/api\/reports\/planned-utilization'/, 'planned utilization report route must exist');
+assert.match(server, /app\.get\('\/api\/reports\/actual-utilization'/, 'actual utilization report route must exist');
+assert.match(server, /app\.get\('\/api\/reports\/forecast-utilization'/, 'forecast utilization report route must exist');
+assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
   status: 'passed',
@@ -37,4 +46,10 @@ console.log(JSON.stringify({
   productionStaticServing: true,
   loginRateLimit: true,
   demoSeed: true,
+  reportRoutes: true,
+  employeeImportApply: true,
+  clientImportApply: true,
+  projectImportApply: true,
+  allocationImportApply: true,
+  timesheetImportApply: true,
 }, null, 2));

@@ -1,6 +1,6 @@
 # Resource Utilization Tracker - Technical Status and Production Readiness
 
-**Last Updated:** 5 May 2026
+**Last Updated:** 6 May 2026
 **Audience:** Engineering, QA, technical reviewers, implementation partners, and production-readiness reviewers  
 **Purpose:** Summarize what is implemented, what is pending, what is blocked by user/company input, and the recommended next implementation order.
 
@@ -51,10 +51,10 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 |---|---|---|---|
 | TypeScript / lint | `npm run lint` | Passing | `tsc --noEmit` succeeds |
 | Production build | `npm run build` | Passing | Vite build succeeds |
-| Backend contract smoke | `npm run test:backend` | Passing after current hardening | Confirms backend scaffold, catalog/settings/import-export/timesheet contract, static serving guardrails, rate-limit guardrail, and seed script presence |
+| Backend contract smoke | `npm run test:backend` | Passing after current hardening | Confirms backend scaffold, catalog/settings/import-export/timesheet/report/import-apply contracts, static serving guardrails, rate-limit guardrail, and seed script presence |
 | Access-control smoke | `npm run test:access` | Passing after current hardening | Node browser storage mocks added and async service usage reconciled |
-| Requirements smoke | `npm run test:requirements` | Passing after current hardening | Demo version v7, async services, cascading rename, guarded deletes, timesheet validation, and utilization eligibility reconciled |
-| Backend API smoke | `npm run test:backend-api` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; can validate deployed API login and core reads |
+| Requirements smoke | `npm run test:requirements` | Passing after current hardening | Demo version v7, async services, cascading rename, guarded deletes, timesheet validation, utilization eligibility, and dual-mode report service reconciled |
+| Backend API smoke | `npm run test:backend-api` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; can validate deployed API login, core reads, and utilization report reads |
 
 ---
 
@@ -64,19 +64,19 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 |---|---|---|
 | Login/logout | Partial | Username/password login works in local and backend mode. Production password reset/change, expiry, and lockout are pending. |
 | Role-based navigation | Done for frontend demo | Sidebar and route access are role-filtered. Backend route-level role checks exist. |
-| Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. |
-| Employee Detail | Done for demo | Shows allocation, utilization, project participation, and related navigation. |
+| Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. Admin, HR, and Country Director records remain visible as directory/governance users but are labeled as excluded from utilization capacity. |
+| Employee Detail | Done for demo | Shows allocation, utilization, project participation, and related navigation. Non-utilization governance users show an explicit excluded-capacity state instead of Bench/0% utilization. |
 | Client Portfolio | Done for demo | Client master, industry, CD scope, client/project/resource views, and dependency guardrails exist in frontend. |
 | Project Master | Done for demo | Add/edit/status/filter/sort/detail flows exist. Project manager ownership is represented. |
 | Project Detail | Done for demo | Assigned consultants, allocation percent, actual project contribution, CD mapping, and allocation entry points exist. |
 | Allocation Control | Partial | Frontend allocation create/edit/soft-end works. Backend validation and concurrency hardening are pending. |
 | Timesheet Self-Log | Done for demo | Draft/submit flow exists; future-dated submission blocking has been addressed in business logic. |
 | Timesheet Governance | Needs UAT | Approval/rejection, rejection reason, filtered exports, and scoped review behavior exist but need role-by-role browser UAT. |
-| Planned Utilization | Done for demo | Uses active allocations and relevant dates/statuses. Backend parity pending. |
-| Actual Utilization | Done for demo | Uses approved timesheets. Backend parity pending. |
-| Forecast Utilization | Done for demo | Uses future allocation outlooks. Backend parity pending. |
+| Planned Utilization | Done for demo; backend report API adopted | Uses active allocations and relevant dates/statuses. Planned page now consumes the dual-mode utilization report service. |
+| Actual Utilization | Done for demo; backend report API adopted | Uses approved timesheets. Actual page now consumes report rows for employee planned/actual values while keeping timesheet-led period views. |
+| Forecast Utilization | Done for demo; backend report API partially adopted | Uses future allocation outlooks. Forecast page uses backend forecast report rows for the selected horizon while retaining client-side monthly snapshots. |
 | Dashboard | Done for demo | Company KPIs, utilization-eligible FTE, governance-user separation, CD portfolio cards, client/project/resource drilldowns, and route-aware navigation exist. |
-| Import/Export | Partial | CSV import/export, validation reports, and backend import/export history persistence exist. Server-side import apply jobs and XLSX/PDF are pending. |
+| Import/Export | Partial | CSV import/export, validation reports, backend import/export history persistence, and backend apply transactions for Employee Master, Client Master, Project Master, Allocation Control, and Timesheet Import exist. XLSX/PDF are pending. |
 | Audit Trail | Partial | Frontend/local audit is visible/exportable, and backend audit exists for major writes. Immutable full server-side audit coverage is pending. |
 | Governance Settings | Partial | Roles, CDs, departments, countries, industries, thresholds, settings write API, and guarded deletes exist. Full browser UAT pending. |
 | Global Search | Done for demo | Routes to employees, projects, clients, and relevant records; outside-click behavior is handled. |
@@ -97,8 +97,10 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Async form crash fix | Done | Employee, Project, and Allocation forms now await async catalog loads/saves and no longer crash on async catalog arrays. |
 | Backend schema | Partial | Starter relational schema exists with users, roles, employees, clients, projects, allocations, timesheets, settings, catalogs, and audit tables. |
 | Backend seed | Partial | Demo seed script exists; real-data migration process is pending. |
-| Utilization eligibility | Done for demo/backend schema | `utilizationEligible` / `utilization_eligible` exists; Admin, HR, and Country Directors are excluded from delivery utilization by default, while allocated PMs are included. Dedicated admin override UI is optional future polish. |
+| Utilization eligibility | Done for demo/backend schema/UI | `utilizationEligible` / `utilization_eligible` exists; Admin, HR, and Country Directors are excluded from delivery utilization by default, while allocated PMs are included. Employee Master/Detail now label non-utilization users instead of presenting them as Bench capacity. Dedicated admin override UI is optional future polish. |
 | Backend health check | Done | `/api/health` reports server and DB status. |
+| Backend utilization reports | Added | `/api/reports/planned-utilization`, `/api/reports/actual-utilization`, and `/api/reports/forecast-utilization` return scoped server-side rows and summaries. |
+| Frontend report service | Added | `utilizationReportService` calls backend report endpoints when connected and computes equivalent local fallback reports in demo mode. |
 | Production static serving | Done | Built frontend can be served by the Express server in production mode. |
 | Render deployment scaffold | Done | `render.yaml` and `DEPLOYMENT_SUPABASE_RENDER.md` document Render + Supabase deployment with secrets kept in environment variables. |
 
@@ -120,12 +122,12 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Priority | Item | Required Action | User Input Needed |
 |---:|---|---|---|
 | P0 | Company PostgreSQL connection | Replace personal Supabase credentials with company-owned PostgreSQL/Supabase credentials, run migrations, seed/load data, verify `database: connected`. | Yes |
-| P0 | API parity | Core parity improved for settings, scoped reads, timesheet IDs/entries, employee provisioning, and import/export history. Remaining parity: server-side imports, report endpoints, complete browser UAT, and final edge cases. | No |
+| P0 | API parity | Core parity improved for settings, scoped reads, timesheet IDs/entries, employee provisioning, import/export history, CSV import apply, utilization report reads, and report-page frontend adoption. Remaining parity: complete browser UAT and final edge cases. | No |
 | P0 | Backend data-level authorization | Initial scoped reads exist for Employee, PM, CD, HR/Admin. Finish write-scope and report/export scoping sign-off. | Yes, final business rules |
-| P0 | Backend calculation parity | Move/report calculation logic to tested backend endpoints. | No |
+| P0 | Backend calculation parity | Initial utilization report endpoints exist, are contract/API-smoke covered, and are consumed by report pages through a dual-mode service. Remaining work: add DB-backed calculation fixtures and deeper backend-mode browser checks. | No |
 | P0 | Utilization eligibility data quality | During real-data load, classify Admin/HR/Country Director governance users as non-utilization capacity and keep Project Managers allocation-driven. | Yes, real employee role mapping |
 | P0 | Production auth lifecycle | Password policy, reset process, lockout behavior, disabled-user behavior, session expiry. | Yes |
-| P1 | Import/export backend jobs | Server-side validation, duplicate handling, apply transactions, audit records, optional XLSX/PDF. History persistence now exists. | Yes, file/report formats |
+| P1 | Import/export backend jobs | CSV backend apply transactions now exist for employees, clients, projects, allocations, and timesheets. Remaining work: duplicate handling refinements and optional XLSX/PDF. | Yes, file/report formats |
 | P1 | Real data load | Cleanse and load real employee/client/project/allocation data. | Yes |
 
 ---
@@ -153,7 +155,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 4. Replace personal Supabase/Render values with company-owned environment variables.
 5. Load real catalogs, Country Directors, employees/users, clients, projects, allocations, and optional historical timesheets.
 6. Validate utilization eligibility on real data: governance users excluded, delivery users included, Project Managers included only when allocated.
-7. Complete remaining backend import/report APIs and browser-test backend mode.
+7. Browser-test backend-mode import flows, including error reports and apply logs.
 8. Finalize data-level authorization rules for Team Lead and Project Manager visibility.
 9. Add production password lifecycle, monitoring, backup/restore, and release runbook.
 

@@ -53,6 +53,12 @@ const [employees, projects, clients, allocations, timesheets, settings] = await 
   request('/api/settings'),
 ]);
 
+const [plannedReport, actualReport, forecastReport] = await Promise.all([
+  request('/api/reports/planned-utilization'),
+  request('/api/reports/actual-utilization'),
+  request('/api/reports/forecast-utilization?months=3'),
+]);
+
 assert.ok(employees.length > 0, 'employees endpoint should return seeded records');
 assert.ok(projects.length > 0, 'projects endpoint should return seeded records');
 assert.ok(clients.length > 0, 'clients endpoint should return seeded records');
@@ -60,6 +66,13 @@ assert.ok(allocations.length > 0, 'allocations endpoint should return seeded rec
 assert.ok(timesheets.length > 0, 'timesheets endpoint should return seeded records');
 assert.ok(Array.isArray(timesheets[0].entries), 'timesheets should include entries array');
 assert.ok(settings.some(row => row.key === 'expectedWeeklyHours'), 'settings endpoint should include expectedWeeklyHours');
+assert.equal(plannedReport.mode, 'planned', 'planned report should identify its mode');
+assert.equal(actualReport.mode, 'actual', 'actual report should identify its mode');
+assert.equal(forecastReport.mode, 'forecast', 'forecast report should identify its mode');
+assert.ok(Array.isArray(plannedReport.rows), 'planned report should include rows');
+assert.ok(Array.isArray(actualReport.rows), 'actual report should include rows');
+assert.ok(Array.isArray(forecastReport.rows), 'forecast report should include rows');
+assert.ok(plannedReport.summary.rows > 0, 'planned report should summarize utilization rows');
 
 if (allowMutations) {
   const settingsMap = Object.fromEntries(settings.map(row => [row.key, row.value]));
@@ -85,5 +98,6 @@ console.log(JSON.stringify({
   clients: clients.length,
   allocations: allocations.length,
   timesheets: timesheets.length,
+  reportRows: plannedReport.summary.rows,
   mutations: allowMutations,
 }, null, 2));

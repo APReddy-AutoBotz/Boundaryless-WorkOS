@@ -212,3 +212,27 @@ export interface UtilizationByGroup {
   name: string;
   value: number;
 }
+
+export type UtilizationReportMode = 'planned' | 'actual' | 'forecast';
+
+export interface UtilizationReport {
+  mode: UtilizationReportMode;
+  asOfDate: string;
+  sourceDate: string;
+  forecastMonths: number | null;
+  expectedWeeklyHours: number;
+  thresholds: {
+    high: number;
+    low: number;
+    bench: number;
+  };
+  summary: {
+    rows: number;
+    averagePlanned: number;
+    averageActual: number;
+    overloaded: number;
+    underutilized: number;
+    bench: number;
+  };
+  rows: Employee[];
+}

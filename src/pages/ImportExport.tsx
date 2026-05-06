@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { allocationService, clientService, employeeService, projectService, timesheetService, adminService } from '../services/api';
-import { Employee, Project, Allocation, ImportExportLog, Client } from '../types';
+import { Employee, Project, Allocation, ImportExportLog, Client, TimesheetSummary, WorkType } from '../types';
 
 type ImportChannel = 'employees' | 'clients' | 'projects' | 'allocations' | 'timesheets';
 type CsvRow = Record<string, string>;
@@ -38,7 +38,7 @@ const importOptions: Array<{ id: ImportChannel; title: string; description: stri
   { id: 'clients', title: 'Client Master', description: 'Bulk create or update clients, industries, and director scope.', icon: FileText },
   { id: 'projects', title: 'Project Master', description: 'Batch create projects, managers, clients, and timelines.', icon: FileText },
   { id: 'allocations', title: 'Allocation Control', description: 'Validate assignment matrix and percentage loads.', icon: FileText },
-  { id: 'timesheets', title: 'Timesheet Import', description: 'Blocked until backend validation is available.', icon: FileText },
+  { id: 'timesheets', title: 'Timesheet Import', description: 'Bulk load weekly time entries with employee, project, and date validation.', icon: FileText },
 ];
 
 const exportOptions = [
@@ -55,6 +55,8 @@ const employeeStatuses: Employee['status'][] = ['Active', 'On Leave', 'Exited'];
 const projectStatuses: Project['status'][] = ['Proposed', 'Active', 'On Hold', 'Completed'];
 const allocationStatuses: Allocation['status'][] = ['Active', 'Paused', 'Completed'];
 const clientStatuses: Client['status'][] = ['Active', 'Inactive'];
+const timesheetStatuses: TimesheetSummary['status'][] = ['Draft', 'Submitted', 'Approved', 'Rejected'];
+const workTypes: WorkType[] = ['Project Work', 'Client Misc Task'];
 
 const isValidDate = (value: string) => !Number.isNaN(new Date(value).getTime());
 const isDateOrderValid = (startDate: string, endDate: string) => isValidDate(startDate) && isValidDate(endDate) && new Date(endDate) >= new Date(startDate);
@@ -205,7 +207,27 @@ export const ImportExport = () => {
       }
 
       if (id === 'timesheets') {
-        addError(errors, rowNumber, 'timesheets', 'Timesheet import is blocked until backend validation is available.');
+        if (!row.employeeId) addError(errors, rowNumber, 'employeeId', 'Employee ID is required.');
+        if (row.employeeId && !employeeIds.has(row.employeeId)) addError(errors, rowNumber, 'employeeId', 'Employee does not exist.');
+        if (!row.weekEnding || !isValidDate(row.weekEnding)) addError(errors, rowNumber, 'weekEnding', 'Valid week ending date is required.');
+        if (!row.date || !isValidDate(row.date)) addError(errors, rowNumber, 'date', 'Valid work date is required.');
+        const hours = Number(row.hours);
+        if (!row.hours || Number.isNaN(hours) || hours < 0 || hours > 24) {
+          addError(errors, rowNumber, 'hours', 'Hours must be a number between 0 and 24.');
+        }
+        if (!row.workType || !workTypes.includes(row.workType as WorkType)) {
+          addError(errors, rowNumber, 'workType', `Work type must be one of: ${workTypes.join(', ')}.`);
+        }
+        if (row.workType === 'Project Work') {
+          if (!row.projectId) addError(errors, rowNumber, 'projectId', 'Project Work entries require a project.');
+          if (row.projectId && !projectIds.has(row.projectId)) addError(errors, rowNumber, 'projectId', 'Project does not exist.');
+        }
+        if (row.workType === 'Client Misc Task' && !row.clientName) {
+          addError(errors, rowNumber, 'clientName', 'Client Misc Task entries require a client name.');
+        }
+        if (row.status && !timesheetStatuses.includes(row.status as TimesheetSummary['status'])) {
+          addError(errors, rowNumber, 'status', `Status must be one of: ${timesheetStatuses.join(', ')}.`);
+        }
       }
 
       if (errors.length > before) rowsWithErrors.add(rowNumber);
@@ -250,9 +272,9 @@ export const ImportExport = () => {
     const rows = parseCsv(await file.text());
     const option = importOptions.find(item => item.id === id);
     const { validRows, errors } = await validateRows(id, rows);
-    const status: ImportExportLog['status'] = id === 'timesheets' || validRows.length === 0 ? 'Failed' : 'Dry Run';
+    const status: ImportExportLog['status'] = validRows.length === 0 ? 'Failed' : 'Dry Run';
 
-    setPendingImport(id === 'timesheets' ? null : { id, title: option?.title || id, fileName: file.name, rows, validRows, errors });
+    setPendingImport({ id, title: option?.title || id, fileName: file.name, rows, validRows, errors });
     setLastResult(
       status === 'Failed'
         ? `${option?.title || id} validation failed for ${file.name}. Download the error report and correct the file.`
@@ -274,6 +296,56 @@ export const ImportExport = () => {
   const applyPendingImport = async () => {
     if (!pendingImport) return;
     let saved = 0;
+
+    if (pendingImport.id === 'employees') {
+      const backendResult = await adminService.applyEmployeeImport(pendingImport.fileName, pendingImport.validRows, pendingImport.errors, pendingImport.rows.length);
+      if (backendResult) {
+        setLastResult(`Applied ${backendResult.validRows} valid ${pendingImport.title.toLowerCase()} rows from ${pendingImport.fileName}.`);
+        setPendingImport(null);
+        refreshHistory();
+        return;
+      }
+    }
+
+    if (pendingImport.id === 'clients') {
+      const backendResult = await adminService.applyClientImport(pendingImport.fileName, pendingImport.validRows, pendingImport.errors, pendingImport.rows.length);
+      if (backendResult) {
+        setLastResult(`Applied ${backendResult.validRows} valid ${pendingImport.title.toLowerCase()} rows from ${pendingImport.fileName}.`);
+        setPendingImport(null);
+        refreshHistory();
+        return;
+      }
+    }
+
+    if (pendingImport.id === 'projects') {
+      const backendResult = await adminService.applyProjectImport(pendingImport.fileName, pendingImport.validRows, pendingImport.errors, pendingImport.rows.length);
+      if (backendResult) {
+        setLastResult(`Applied ${backendResult.validRows} valid ${pendingImport.title.toLowerCase()} rows from ${pendingImport.fileName}.`);
+        setPendingImport(null);
+        refreshHistory();
+        return;
+      }
+    }
+
+    if (pendingImport.id === 'allocations') {
+      const backendResult = await adminService.applyAllocationImport(pendingImport.fileName, pendingImport.validRows, pendingImport.errors, pendingImport.rows.length);
+      if (backendResult) {
+        setLastResult(`Applied ${backendResult.validRows} valid ${pendingImport.title.toLowerCase()} rows from ${pendingImport.fileName}.`);
+        setPendingImport(null);
+        refreshHistory();
+        return;
+      }
+    }
+
+    if (pendingImport.id === 'timesheets') {
+      const backendResult = await adminService.applyTimesheetImport(pendingImport.fileName, pendingImport.validRows, pendingImport.errors, pendingImport.rows.length);
+      if (backendResult) {
+        setLastResult(`Applied ${backendResult.validRows} valid ${pendingImport.title.toLowerCase()} rows from ${pendingImport.fileName}.`);
+        setPendingImport(null);
+        refreshHistory();
+        return;
+      }
+    }
 
     if (pendingImport.id === 'employees') {
       const existing = await employeeService.getAll();
@@ -365,6 +437,52 @@ export const ImportExport = () => {
         };
         await allocationService.save(allocation);
         saved += 1;
+      }
+    }
+
+    if (pendingImport.id === 'timesheets') {
+      const [allEmployees, allProjects] = await Promise.all([employeeService.getAll(), projectService.getAll()]);
+      const groups = new Map<string, TimesheetSummary>();
+      for (const row of pendingImport.validRows) {
+        const employee = allEmployees.find(item => item.id === row.employeeId || item.employeeId === row.employeeId);
+        const project = allProjects.find(item => item.id === row.projectId || item.projectCode === row.projectId);
+        if (!employee) continue;
+        const status = (row.status as TimesheetSummary['status']) || 'Submitted';
+        const key = `${employee.id}:${row.weekEnding}`;
+        const current = groups.get(key) || {
+          employeeId: employee.id,
+          employeeName: employee.name,
+          weekEnding: row.weekEnding,
+          totalHours: 0,
+          billableHours: 0,
+          status,
+          rejectionReason: row.rejectionReason,
+          entries: [],
+        };
+        const billable = row.billable ? row.billable === 'true' : row.workType === 'Project Work';
+        const hours = Number(row.hours);
+        current.totalHours += hours;
+        current.billableHours += billable ? hours : 0;
+        current.entries.push({
+          id: row.id || `ts-entry-${Date.now()}-${saved}`,
+          employeeId: employee.id,
+          projectId: project?.id,
+          projectName: project?.name,
+          workType: row.workType as WorkType,
+          clientName: row.clientName,
+          category: row.category,
+          date: row.date,
+          hours,
+          remark: row.remark,
+          status,
+          billable: true,
+          weekEnding: row.weekEnding,
+        });
+        groups.set(key, current);
+        saved += 1;
+      }
+      for (const timesheet of groups.values()) {
+        await timesheetService.save(timesheet);
       }
     }
 
@@ -523,8 +641,8 @@ export const ImportExport = () => {
                             <p className="text-xs text-body/60 mt-1">{option.description}</p>
                          </div>
                       </div>
-                      <Badge variant={option.id === 'timesheets' ? 'warning' : 'neutral'} className="text-[9px] font-mono">
-                        {option.id === 'timesheets' ? 'BACKEND' : 'READY'}
+                      <Badge variant="neutral" className="text-[9px] font-mono">
+                        READY
                       </Badge>
                    </div>
 

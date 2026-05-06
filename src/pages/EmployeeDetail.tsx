@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { EmployeeForm } from '../components/forms/EmployeeForm';
+import { isUtilizationEligibleEmployee } from '../services/calculations';
 
 export const EmployeeDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -84,6 +85,7 @@ export const EmployeeDetail = () => {
   }
 
   const getCDName = (cdId: string) => cds.find(c => c.id === cdId)?.name || cdId;
+  const utilizationEligible = isUtilizationEligibleEmployee(employee, allocations);
   const submittedTimesheets = timesheets.filter(timesheet => timesheet.status !== 'Draft');
   const approvedTimesheets = timesheets.filter(timesheet => timesheet.status === 'Approved');
   const pendingTimesheets = timesheets.filter(timesheet => timesheet.status === 'Submitted');
@@ -169,12 +171,13 @@ export const EmployeeDetail = () => {
         const isOverloaded = plannedUtil > 100;
         const isUnder = plannedUtil > 0 && plannedUtil < 60;
         const isBench = plannedUtil === 0;
-        const statusLabel = isOverloaded ? 'Overloaded' : isBench ? 'Bench' : isUnder ? 'Underutilized' : 'Balanced';
-        const statusBg = isOverloaded ? 'bg-danger-bg border-danger/20 text-danger'
+        const statusLabel = !utilizationEligible ? 'Not in Utilization' : isOverloaded ? 'Overloaded' : isBench ? 'Bench' : isUnder ? 'Underutilized' : 'Balanced';
+        const statusBg = !utilizationEligible ? 'bg-slate-100 border-slate-200 text-slate-500'
+          : isOverloaded ? 'bg-danger-bg border-danger/20 text-danger'
           : isBench ? 'bg-gray-100 border-gray-200 text-gray-400'
           : isUnder ? 'bg-warning-bg border-warning/20 text-warning'
           : 'bg-success-bg border-success/20 text-success';
-        const ringColor = isOverloaded ? '#EF4444' : isBench ? '#9CA3AF' : isUnder ? '#D97706' : '#059669';
+        const ringColor = !utilizationEligible ? '#CBD5E1' : isOverloaded ? '#EF4444' : isBench ? '#9CA3AF' : isUnder ? '#D97706' : '#059669';
 
         // Timesheet health
         const totalTs = timesheets.length;
@@ -217,7 +220,7 @@ export const EmployeeDetail = () => {
                     transform={`rotate(-90 ${size/2} ${size/2})`}
                     style={{ transition: 'stroke-dasharray 0.5s ease' }}
                   />
-                  <text x={size/2} y={size/2+4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#003761">{plannedUtil}%</text>
+                  <text x={size/2} y={size/2+4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#003761">{utilizationEligible ? `${plannedUtil}%` : 'N/A'}</text>
                 </svg>
                 <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-bold border', statusBg)}>{statusLabel}</span>
                 <p className="text-[9px] text-gray-400 text-center">Planned Util.</p>
@@ -227,18 +230,18 @@ export const EmployeeDetail = () => {
               <div className="col-span-1 space-y-3">
                 <div>
                   <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    <span>Planned</span><span>{plannedUtil}%</span>
+                    <span>Planned</span><span>{utilizationEligible ? `${plannedUtil}%` : 'Excluded'}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-heading/70 transition-all" style={{ width: `${Math.min(plannedUtil, 100)}%` }} />
+                    <div className="h-full rounded-full bg-heading/70 transition-all" style={{ width: utilizationEligible ? `${Math.min(plannedUtil, 100)}%` : '0%' }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    <span>Actual</span><span>{actualUtil}%</span>
+                    <span>Actual</span><span>{utilizationEligible ? `${actualUtil}%` : 'Excluded'}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(actualUtil, 100)}%` }} />
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: utilizationEligible ? `${Math.min(actualUtil, 100)}%` : '0%' }} />
                   </div>
                 </div>
               </div>
@@ -313,6 +316,7 @@ export const EmployeeDetail = () => {
               <p className="text-xs font-bold text-primary uppercase tracking-widest mt-1">{employee.designation}</p>
               <div className="flex items-center gap-2 mt-4">
                  <Badge variant={employee.status === 'Active' ? 'success' : 'warning'}>{employee.status}</Badge>
+                 {!utilizationEligible && <Badge variant="neutral">Excluded from Utilization</Badge>}
                  <span className="text-[10px] font-mono text-gray-400">{employee.employeeId}</span>
               </div>
             </div>
@@ -343,19 +347,28 @@ export const EmployeeDetail = () => {
 
             <div className="mt-8 pt-6 border-t border-gray-50">
                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Current Utilization</p>
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border-light">
-                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Planned</p>
-                     <p className={cn(
-                       "text-xl font-bold",
-                       employee.plannedUtilization > 100 ? "text-danger" : "text-heading"
-                     )}>{employee.plannedUtilization}%</p>
-                  </div>
-                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border-light text-right">
-                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Actual (avg)</p>
-                     <p className="text-xl font-bold text-primary">{employee.actualUtilization}%</p>
-                  </div>
-               </div>
+               {utilizationEligible ? (
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-bg-secondary p-4 rounded-2xl border border-border-light">
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Planned</p>
+                       <p className={cn(
+                         "text-xl font-bold",
+                         employee.plannedUtilization > 100 ? "text-danger" : "text-heading"
+                       )}>{employee.plannedUtilization}%</p>
+                    </div>
+                    <div className="bg-bg-secondary p-4 rounded-2xl border border-border-light text-right">
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Actual (avg)</p>
+                       <p className="text-xl font-bold text-primary">{employee.actualUtilization}%</p>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                   <p className="text-xs font-bold text-heading">Excluded from utilization capacity</p>
+                   <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                     Governance users remain searchable in Employee Master but are not counted in planned, actual, or forecast utilization denominators.
+                   </p>
+                 </div>
+               )}
             </div>
           </Card>
 

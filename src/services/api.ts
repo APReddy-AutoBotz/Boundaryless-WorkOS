@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -11,11 +11,25 @@ import {
   normalizeEmployee, normalizeProject, normalizeAllocation,
   normalizeClient, normalizeTimesheetSummary, normalizeAuditLog,
   normalizeSettings, normalizeCatalogItem, normalizeRoleDefinition,
-  normalizeCountryDirector, normalizeImportExportLog,
+  normalizeCountryDirector, normalizeImportExportLog, normalizeUtilizationReport,
 } from './apiClient';
-import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible } from './calculations';
+import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
+type CsvImportRow = Record<string, string>;
+type ImportApplyError = {
+  rowNumber: number;
+  field?: string;
+  message: string;
+};
+type ImportApplyResult = {
+  status: ImportExportLog['status'];
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  errors: ImportApplyError[];
+  log?: ImportExportLog;
+};
 
 const actor = () => {
   const s = authService.getCurrentUser();
@@ -382,6 +396,91 @@ export const adminService = {
     DataStorage.set(STORAGE_KEYS.IMPORT_EXPORT_LOGS, [nextLog, ...logs].slice(0, 100));
     return nextLog;
   },
+  applyEmployeeImport: async (fileName: string, rows: CsvImportRow[], clientErrors: ImportApplyError[] = [], totalRows = rows.length): Promise<ImportApplyResult | null> => {
+    if (!(await checkBackend())) return null;
+    const raw = await api.post<Record<string, unknown>>('/api/imports/employees/apply', {
+      fileName,
+      rows,
+      totalRows,
+      clientErrors,
+    });
+    return {
+      status: raw.status as ImportExportLog['status'],
+      totalRows: Number(raw.totalRows ?? rows.length),
+      validRows: Number(raw.validRows ?? 0),
+      errorRows: Number(raw.errorRows ?? 0),
+      errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
+      log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
+    };
+  },
+  applyClientImport: async (fileName: string, rows: CsvImportRow[], clientErrors: ImportApplyError[] = [], totalRows = rows.length): Promise<ImportApplyResult | null> => {
+    if (!(await checkBackend())) return null;
+    const raw = await api.post<Record<string, unknown>>('/api/imports/clients/apply', {
+      fileName,
+      rows,
+      totalRows,
+      clientErrors,
+    });
+    return {
+      status: raw.status as ImportExportLog['status'],
+      totalRows: Number(raw.totalRows ?? rows.length),
+      validRows: Number(raw.validRows ?? 0),
+      errorRows: Number(raw.errorRows ?? 0),
+      errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
+      log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
+    };
+  },
+  applyProjectImport: async (fileName: string, rows: CsvImportRow[], clientErrors: ImportApplyError[] = [], totalRows = rows.length): Promise<ImportApplyResult | null> => {
+    if (!(await checkBackend())) return null;
+    const raw = await api.post<Record<string, unknown>>('/api/imports/projects/apply', {
+      fileName,
+      rows,
+      totalRows,
+      clientErrors,
+    });
+    return {
+      status: raw.status as ImportExportLog['status'],
+      totalRows: Number(raw.totalRows ?? rows.length),
+      validRows: Number(raw.validRows ?? 0),
+      errorRows: Number(raw.errorRows ?? 0),
+      errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
+      log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
+    };
+  },
+  applyAllocationImport: async (fileName: string, rows: CsvImportRow[], clientErrors: ImportApplyError[] = [], totalRows = rows.length): Promise<ImportApplyResult | null> => {
+    if (!(await checkBackend())) return null;
+    const raw = await api.post<Record<string, unknown>>('/api/imports/allocations/apply', {
+      fileName,
+      rows,
+      totalRows,
+      clientErrors,
+    });
+    return {
+      status: raw.status as ImportExportLog['status'],
+      totalRows: Number(raw.totalRows ?? rows.length),
+      validRows: Number(raw.validRows ?? 0),
+      errorRows: Number(raw.errorRows ?? 0),
+      errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
+      log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
+    };
+  },
+  applyTimesheetImport: async (fileName: string, rows: CsvImportRow[], clientErrors: ImportApplyError[] = [], totalRows = rows.length): Promise<ImportApplyResult | null> => {
+    if (!(await checkBackend())) return null;
+    const raw = await api.post<Record<string, unknown>>('/api/imports/timesheets/apply', {
+      fileName,
+      rows,
+      totalRows,
+      clientErrors,
+    });
+    return {
+      status: raw.status as ImportExportLog['status'],
+      totalRows: Number(raw.totalRows ?? rows.length),
+      validRows: Number(raw.validRows ?? 0),
+      errorRows: Number(raw.errorRows ?? 0),
+      errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
+      log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
+    };
+  },
   getSettings: async (): Promise<SystemSettings> => {
     if (await checkBackend()) {
       const raw = await api.get<Array<{ key: string; value: unknown }>>('/api/settings');
@@ -531,6 +630,69 @@ export const adminService = {
     if (await checkBackend()) return; // backend auto-audits mutations
     const s = authService.getCurrentUser();
     DataStorage.logAction(s?.id || 'sys', s?.name || 'System', s?.role || 'Admin', action, module, details);
+  },
+};
+
+const buildLocalUtilizationReport = async (mode: UtilizationReportMode, months = 3): Promise<UtilizationReport> => {
+  const [employees, allocations, projects, timesheets, settings] = await Promise.all([
+    employeeService.getAll(),
+    allocationService.getAll(),
+    projectService.getAll(),
+    timesheetService.getAll(),
+    adminService.getSettings(),
+  ]);
+  const sourceDate = todayIso();
+  const targetDate = new Date(`${sourceDate}T00:00:00`);
+  if (mode === 'forecast') targetDate.setMonth(targetDate.getMonth() + months);
+  const asOfDate = targetDate.toISOString().slice(0, 10);
+  const includeProposed = mode === 'forecast';
+  const rows = getUtilizationEligibleEmployees(employees, allocations, projects, asOfDate, includeProposed).map(employee => ({
+    ...employee,
+    plannedUtilization: getAllocationLoad(employee.id, allocations, projects, asOfDate, asOfDate, includeProposed),
+    actualUtilization: getLatestApprovedActualUtilization(employee.id, timesheets, settings),
+    activeProjectCount: getActiveAllocationsForEmployee(employee.id, allocations, projects, asOfDate, asOfDate, includeProposed).length,
+  }));
+  return {
+    mode,
+    asOfDate,
+    sourceDate,
+    forecastMonths: mode === 'forecast' ? months : null,
+    expectedWeeklyHours: settings.expectedWeeklyHours,
+    thresholds: {
+      high: settings.utilizationThresholdHigh,
+      low: settings.utilizationThresholdLow,
+      bench: settings.benchThreshold,
+    },
+    summary: {
+      rows: rows.length,
+      averagePlanned: rows.length ? Number((rows.reduce((sum, row) => sum + row.plannedUtilization, 0) / rows.length).toFixed(1)) : 0,
+      averageActual: rows.length ? Number((rows.reduce((sum, row) => sum + row.actualUtilization, 0) / rows.length).toFixed(1)) : 0,
+      overloaded: rows.filter(row => row.plannedUtilization > settings.utilizationThresholdHigh).length,
+      underutilized: rows.filter(row => row.plannedUtilization < settings.utilizationThresholdLow && row.plannedUtilization > settings.benchThreshold).length,
+      bench: rows.filter(row => row.plannedUtilization <= settings.benchThreshold).length,
+    },
+    rows,
+  };
+};
+
+const getBackendUtilizationReport = async (path: string): Promise<UtilizationReport | null> => {
+  if (!(await checkBackend())) return null;
+  const raw = await api.get<Record<string, unknown>>(path);
+  return normalizeUtilizationReport(raw);
+};
+
+export const utilizationReportService = {
+  getPlanned: async (): Promise<UtilizationReport> => {
+    return (await getBackendUtilizationReport('/api/reports/planned-utilization'))
+      ?? buildLocalUtilizationReport('planned');
+  },
+  getActual: async (): Promise<UtilizationReport> => {
+    return (await getBackendUtilizationReport('/api/reports/actual-utilization'))
+      ?? buildLocalUtilizationReport('actual');
+  },
+  getForecast: async (months = 3): Promise<UtilizationReport> => {
+    return (await getBackendUtilizationReport(`/api/reports/forecast-utilization?months=${encodeURIComponent(String(months))}`))
+      ?? buildLocalUtilizationReport('forecast', months);
   },
 };
 

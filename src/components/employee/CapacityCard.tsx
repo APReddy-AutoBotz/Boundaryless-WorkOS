@@ -10,6 +10,7 @@ interface CapacityCardProps {
   allocations: Allocation[];
   cds: CountryDirector[];
   settings: SystemSettings;
+  utilizationEligible?: boolean;
   onEdit: (emp: Employee) => void;
 }
 
@@ -47,17 +48,21 @@ function UtilRing({ value, color, size = 56 }: { value: number; color: string; s
   );
 }
 
-export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocations, cds, settings, onEdit }) => {
+export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocations, cds, settings, utilizationEligible = true, onEdit }) => {
   const activeAllocs = allocations.filter(a => a.employeeId === employee.id && a.status === 'Active');
   const planned = employee.plannedUtilization;
   const actual = employee.actualUtilization;
-  const status = getUtilStatus(planned, settings);
+  const status = utilizationEligible
+    ? getUtilStatus(planned, settings)
+    : { label: 'Not in Utilization', color: 'text-slate-500', bg: 'bg-slate-100 border border-slate-200', ring: '#CBD5E1', bar: 'bg-slate-300' };
 
   const getCDName = (id: string) => cds.find(c => c.id === id)?.name || id;
   const primaryCD = getCDName(employee.primaryCountryDirectorId);
   const extraCDs = employee.mappedCountryDirectorIds.filter(id => id !== employee.primaryCountryDirectorId);
 
-  const cardBorder = planned > settings.utilizationThresholdHigh
+  const cardBorder = !utilizationEligible
+    ? 'border-slate-200'
+    : planned > settings.utilizationThresholdHigh
     ? 'border-danger/30 shadow-[0_0_0_1px_theme(colors.danger/0.15)]'
     : planned === 0
     ? 'border-gray-200'
@@ -75,7 +80,9 @@ export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocation
         <div className="flex items-center gap-3 min-w-0">
           <div className={cn(
             'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors',
-            planned > settings.utilizationThresholdHigh
+            !utilizationEligible
+              ? 'bg-slate-100 text-slate-500'
+              : planned > settings.utilizationThresholdHigh
               ? 'bg-red-50 text-danger'
               : planned === 0
               ? 'bg-gray-50 text-gray-400'
@@ -104,22 +111,28 @@ export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocation
 
       {/* Utilization ring + bar side-by-side */}
       <div className="flex items-center gap-4">
-        <UtilRing value={planned} color={status.ring} />
+        {utilizationEligible ? (
+          <UtilRing value={planned} color={status.ring} />
+        ) : (
+          <div className="w-14 h-14 rounded-full border-4 border-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
+            N/A
+          </div>
+        )}
         <div className="flex-1 space-y-2 min-w-0">
           <div>
             <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-              <span>Planned</span><span>{planned}%</span>
+              <span>Planned</span><span>{utilizationEligible ? `${planned}%` : 'Excluded'}</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={cn('h-full rounded-full transition-all', status.bar)} style={{ width: `${Math.min(planned, 100)}%` }} />
+              <div className={cn('h-full rounded-full transition-all', status.bar)} style={{ width: utilizationEligible ? `${Math.min(planned, 100)}%` : '0%' }} />
             </div>
           </div>
           <div>
             <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-              <span>Actual</span><span>{actual}%</span>
+              <span>Actual</span><span>{utilizationEligible ? `${actual}%` : 'Excluded'}</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-heading/40 transition-all" style={{ width: `${Math.min(actual, 100)}%` }} />
+              <div className="h-full rounded-full bg-heading/40 transition-all" style={{ width: utilizationEligible ? `${Math.min(actual, 100)}%` : '0%' }} />
             </div>
           </div>
         </div>

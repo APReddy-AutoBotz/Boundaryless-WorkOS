@@ -20,7 +20,7 @@ globalThis.sessionStorage = {
 };
 
 const { DataStorage, STORAGE_KEYS } = await import('../src/services/storage.ts');
-const { employeeService, projectService, allocationService, timesheetService, adminService, clientService } = await import('../src/services/api.ts');
+const { employeeService, projectService, allocationService, timesheetService, adminService, clientService, utilizationReportService } = await import('../src/services/api.ts');
 const { authService } = await import('../src/services/authService.ts');
 const {
   getAllocationLoad,
@@ -137,6 +137,15 @@ oneMonthOut.setMonth(oneMonthOut.getMonth() + 1);
 const oneMonthIso = oneMonthOut.toISOString().split('T')[0];
 const expectedOneMonthForecast = getAllocationLoad(sampleEmployee.id, allocations, projects, oneMonthIso, oneMonthIso, true);
 assert.ok(Number.isFinite(expectedOneMonthForecast), 'one-month forecast should calculate from allocation/project date ranges');
+
+const plannedReport = await utilizationReportService.getPlanned();
+const actualReport = await utilizationReportService.getActual();
+const forecastReport = await utilizationReportService.getForecast(1);
+assert.equal(plannedReport.mode, 'planned', 'planned utilization report service should return planned mode');
+assert.equal(actualReport.mode, 'actual', 'actual utilization report service should return actual mode');
+assert.equal(forecastReport.mode, 'forecast', 'forecast utilization report service should return forecast mode');
+assert.ok(plannedReport.rows.some(employee => employee.id === sampleEmployee.id && employee.plannedUtilization === expectedPlanned), 'planned report rows should expose calculated planned utilization');
+assert.ok(forecastReport.rows.some(employee => employee.id === sampleEmployee.id && employee.plannedUtilization === expectedOneMonthForecast), 'forecast report rows should expose calculated horizon utilization');
 
 const approvedTimesheet = timesheets.find(timesheet => timesheet.status === 'Approved');
 assert.ok(approvedTimesheet, 'test requires an approved timesheet');

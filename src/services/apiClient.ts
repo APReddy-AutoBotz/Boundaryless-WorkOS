@@ -8,6 +8,7 @@ import type {
   Employee, Project, Allocation, Client, CountryDirector,
   TimesheetSummary, TimesheetEntry, AuditLog, SystemSettings,
   RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
+  UtilizationReport,
 } from '../types';
 
 // ─── Backend availability detection ──────────────────────────────────────────
@@ -118,6 +119,52 @@ export const normalizeEmployee = (r: Record<string, unknown>): Employee => ({
   actualUtilization: 0,
   activeProjectCount: 0,
 });
+
+export const normalizeUtilizationReportEmployee = (r: Record<string, unknown>): Employee => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id),
+  name: String(r.name),
+  email: String(r.email),
+  designation: String(r.designation),
+  department: String(r.department),
+  country: String(r.country),
+  primaryCountryDirectorId: String(r.primary_country_director_id),
+  mappedCountryDirectorIds: Array.isArray(r.mapped_country_director_ids)
+    ? (r.mapped_country_director_ids as string[])
+    : [],
+  status: r.status as Employee['status'],
+  utilizationEligible: r.utilization_eligible === undefined ? true : Boolean(r.utilization_eligible),
+  plannedUtilization: Number(r.planned_utilization ?? 0),
+  actualUtilization: Number(r.actual_utilization ?? 0),
+  activeProjectCount: Number(r.active_project_count ?? 0),
+});
+
+export const normalizeUtilizationReport = (r: Record<string, unknown>): UtilizationReport => {
+  const thresholds = r.thresholds as Record<string, unknown> | undefined;
+  const summary = r.summary as Record<string, unknown> | undefined;
+  const rows = Array.isArray(r.rows) ? (r.rows as Record<string, unknown>[]) : [];
+  return {
+    mode: r.mode as UtilizationReport['mode'],
+    asOfDate: String(r.asOfDate),
+    sourceDate: String(r.sourceDate),
+    forecastMonths: r.forecastMonths === null || r.forecastMonths === undefined ? null : Number(r.forecastMonths),
+    expectedWeeklyHours: Number(r.expectedWeeklyHours ?? 40),
+    thresholds: {
+      high: Number(thresholds?.high ?? 100),
+      low: Number(thresholds?.low ?? 80),
+      bench: Number(thresholds?.bench ?? 20),
+    },
+    summary: {
+      rows: Number(summary?.rows ?? rows.length),
+      averagePlanned: Number(summary?.averagePlanned ?? 0),
+      averageActual: Number(summary?.averageActual ?? 0),
+      overloaded: Number(summary?.overloaded ?? 0),
+      underutilized: Number(summary?.underutilized ?? 0),
+      bench: Number(summary?.bench ?? 0),
+    },
+    rows: rows.map(normalizeUtilizationReportEmployee),
+  };
+};
 
 export const normalizeProject = (r: Record<string, unknown>): Project => ({
   id: String(r.id),

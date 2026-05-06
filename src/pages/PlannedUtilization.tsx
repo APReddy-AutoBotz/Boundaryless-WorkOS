@@ -3,7 +3,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Link } from 'react-router-dom';
 import { KPIStrip } from '../components/ui/KPIStrip';
 import { Badge } from '../components/ui/Badge';
-import { employeeService, adminService } from '../services/api';
+import { adminService, utilizationReportService } from '../services/api';
 import { Employee, CountryDirector, KPIData } from '../types';
 import { 
   BarChart, 
@@ -50,11 +50,11 @@ export const PlannedUtilization = () => {
     const fetchData = async () => {
       try {
         const [empData, cdData, setts] = await Promise.all([
-          employeeService.getAll(),
+          utilizationReportService.getPlanned(),
           adminService.getCountryDirectors(),
           adminService.getSettings(),
         ]);
-        setEmployees(empData);
+        setEmployees(empData.rows);
         setDirectors(cdData);
         setSettings(setts);
       } catch (error) {
