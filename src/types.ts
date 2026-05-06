@@ -10,6 +10,7 @@ export interface UserSession {
   availableRoles: UserRole[];
   cdId?: string; // ID from CountryDirector object
   avatar?: string;
+  mustChangePassword?: boolean;
   lastLogin: string;
 }
 

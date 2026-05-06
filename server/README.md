@@ -63,6 +63,8 @@ Implemented starter routes:
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/health`
+- `POST /api/auth/change-password`
+- `POST /api/users/:id/password-reset`
 - `GET /api/employees`
 - `POST /api/employees`
 - `DELETE /api/employees/:id`
@@ -91,7 +93,7 @@ Implemented starter routes:
 - `POST /api/imports/allocations/apply`
 - `POST /api/imports/timesheets/apply`
 
-User passwords are stored as `scrypt$salt$hexKey` in the `users.password_hash` column. Login returns a signed session token and also sets an HTTP-only `rut_session` cookie. Protected API routes require either the cookie or an `Authorization: Bearer <token>` header.
+User passwords are stored as `scrypt$salt$hexKey` in the `users.password_hash` column. Login returns a signed session token and also sets an HTTP-only `rut_session` cookie. Protected API routes require either the cookie or an `Authorization: Bearer <token>` header. Users can change their own password, and Admin/HR can reset a user's password with a one-time temporary value through the backend password lifecycle endpoints.
 
 The server now enforces starter role checks:
 
@@ -113,6 +115,7 @@ The write endpoints include starter production guardrails:
 - Timesheet approval/rejection requires submitted status; rejection requires a reason.
 - Utilization report endpoints apply the same backend employee visibility scope as role-based employee/project access and return server-side planned, actual, and forecast rows with KPI summaries.
 - Employee import apply runs as a backend transaction, validates Country Director references, upserts employee records and mappings, provisions/updates the login account, audits each row, and writes import history.
+- Password change/reset uses the same scrypt hashing path as login, supports a configurable `PASSWORD_MIN_LENGTH`, marks reset accounts for password change, and writes audit records.
 - Employee deactivation is soft, disables the linked login account, and completes active allocations.
 - Country Director and role definition deletes are guarded when scope mappings, employees, or allocations still reference them.
 - Department, country, and industry catalogs are PostgreSQL-backed, audited, and blocked from deactivation while referenced by employees, roles, or clients.

@@ -16,6 +16,10 @@ assert.match(server, /app\.delete\('\/api\/catalogs\/:catalogType\/:id'/, 'catal
 assert.match(server, /getCatalogUsage/, 'catalog delete usage guard must exist');
 
 assert.match(server, /loginRateLimit/, 'login rate limiter must exist');
+assert.match(server, /getPasswordMinLength/, 'password policy helper must exist');
+assert.match(server, /app\.post\('\/api\/auth\/change-password'/, 'self-service password change route must exist');
+assert.match(server, /app\.post\('\/api\/users\/:id\/password-reset'/, 'admin password reset route must exist');
+assert.match(server, /must_change_password/, 'user password lifecycle flag must be persisted');
 assert.match(server, /Production startup blocked/, 'production env validation must exist');
 assert.match(server, /app\.use\(express\.static\(distDir/, 'server must serve built frontend in production');
 assert.match(server, /app\.use\('\/assets', express\.static\(join\(distDir, 'assets'\)/, 'server must serve hashed assets with immutable caching');
@@ -45,6 +49,7 @@ console.log(JSON.stringify({
   catalogRoutes: true,
   productionStaticServing: true,
   loginRateLimit: true,
+  passwordLifecycle: true,
   demoSeed: true,
   reportRoutes: true,
   employeeImportApply: true,

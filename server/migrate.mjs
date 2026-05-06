@@ -7,7 +7,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const serverDir = dirname(fileURLToPath(import.meta.url));
-const migrationId = '004_utilization_eligibility';
+const migrationId = '005_auth_lifecycle';
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required to run database migrations.');

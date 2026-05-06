@@ -51,7 +51,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 |---|---|---|---|
 | TypeScript / lint | `npm run lint` | Passing | `tsc --noEmit` succeeds |
 | Production build | `npm run build` | Passing | Vite build succeeds |
-| Backend contract smoke | `npm run test:backend` | Passing after current hardening | Confirms backend scaffold, catalog/settings/import-export/timesheet/report/import-apply contracts, static serving guardrails, rate-limit guardrail, and seed script presence |
+| Backend contract smoke | `npm run test:backend` | Passing after current hardening | Confirms backend scaffold, catalog/settings/import-export/timesheet/report/import-apply/password-lifecycle contracts, static serving guardrails, rate-limit guardrail, and seed script presence |
 | Access-control smoke | `npm run test:access` | Passing after current hardening | Node browser storage mocks added and async service usage reconciled |
 | Requirements smoke | `npm run test:requirements` | Passing after current hardening | Demo version v7, async services, cascading rename, guarded deletes, timesheet validation, utilization eligibility, and dual-mode report service reconciled |
 | Backend API smoke | `npm run test:backend-api` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; can validate deployed API login, core reads, and utilization report reads |
@@ -62,7 +62,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 
 | Area | Status | Notes |
 |---|---|---|
-| Login/logout | Partial | Username/password login works in local and backend mode. Production password reset/change, expiry, and lockout are pending. |
+| Login/logout | Partial | Username/password login works in local and backend mode. Self-service password change and Admin/HR reset endpoints exist. Remaining production work: final password policy, expiry, lockout persistence, reset delivery channel, and browser UI. |
 | Role-based navigation | Done for frontend demo | Sidebar and route access are role-filtered. Backend route-level role checks exist. |
 | Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. Admin, HR, and Country Director records remain visible as directory/governance users but are labeled as excluded from utilization capacity. |
 | Employee Detail | Done for demo | Shows allocation, utilization, project participation, and related navigation. Non-utilization governance users show an explicit excluded-capacity state instead of Bench/0% utilization. |
@@ -101,6 +101,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Backend health check | Done | `/api/health` reports server and DB status. |
 | Backend utilization reports | Added | `/api/reports/planned-utilization`, `/api/reports/actual-utilization`, and `/api/reports/forecast-utilization` return scoped server-side rows and summaries. |
 | Frontend report service | Added | `utilizationReportService` calls backend report endpoints when connected and computes equivalent local fallback reports in demo mode. |
+| Password lifecycle foundation | Added | `/api/auth/change-password` and `/api/users/:id/password-reset` use scrypt hashing, configurable minimum length, reset-to-change flag, Admin/HR authorization, and audit logging. |
 | Production static serving | Done | Built frontend can be served by the Express server in production mode. |
 | Render deployment scaffold | Done | `render.yaml` and `DEPLOYMENT_SUPABASE_RENDER.md` document Render + Supabase deployment with secrets kept in environment variables. |
 
@@ -126,7 +127,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | P0 | Backend data-level authorization | Initial scoped reads exist for Employee, PM, CD, HR/Admin. Finish write-scope and report/export scoping sign-off. | Yes, final business rules |
 | P0 | Backend calculation parity | Initial utilization report endpoints exist, are contract/API-smoke covered, and are consumed by report pages through a dual-mode service. Remaining work: add DB-backed calculation fixtures and deeper backend-mode browser checks. | No |
 | P0 | Utilization eligibility data quality | During real-data load, classify Admin/HR/Country Director governance users as non-utilization capacity and keep Project Managers allocation-driven. | Yes, real employee role mapping |
-| P0 | Production auth lifecycle | Password policy, reset process, lockout behavior, disabled-user behavior, session expiry. | Yes |
+| P0 | Production auth lifecycle | Password change/reset endpoints exist. Remaining: company password policy, reset delivery channel, browser UI, persistent lockout behavior, disabled-user UAT, and session expiry/refresh policy. | Yes |
 | P1 | Import/export backend jobs | CSV backend apply transactions now exist for employees, clients, projects, allocations, and timesheets. Remaining work: duplicate handling refinements and optional XLSX/PDF. | Yes, file/report formats |
 | P1 | Real data load | Cleanse and load real employee/client/project/allocation data. | Yes |
 

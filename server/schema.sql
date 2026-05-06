@@ -11,6 +11,7 @@ create table if not exists users (
   employee_id text unique,
   email text not null unique,
   password_hash text,
+  must_change_password boolean not null default false,
   status text not null default 'Active',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -200,6 +201,8 @@ create index if not exists idx_timesheets_employee_week on timesheets(employee_i
 create index if not exists idx_timesheets_status on timesheets(status);
 create index if not exists idx_audit_logs_created_at on audit_logs(created_at desc);
 create index if not exists idx_import_export_logs_created_at on import_export_logs(created_at desc);
+
+alter table users add column if not exists must_change_password boolean not null default false;
 
 alter table employees add column if not exists utilization_eligible boolean not null default true;
 

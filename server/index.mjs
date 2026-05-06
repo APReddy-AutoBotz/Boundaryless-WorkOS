@@ -133,6 +133,29 @@ const scryptHash = async (value) => {
   return `scrypt$${salt}$${key}`;
 };
 
+const getPasswordMinLength = () => {
+  const configured = Number(process.env.PASSWORD_MIN_LENGTH || 6);
+  return Number.isFinite(configured) && configured >= 6 ? configured : 6;
+};
+
+const validateNewPassword = (password, identityValues = []) => {
+  const minLength = getPasswordMinLength();
+  if (typeof password !== 'string' || password.length < minLength) {
+    return `Password must be at least ${minLength} characters.`;
+  }
+  const normalized = password.toLowerCase();
+  const identityHit = identityValues
+    .filter(Boolean)
+    .map(value => String(value).toLowerCase())
+    .some(value => value.length >= 3 && normalized.includes(value));
+  if (identityHit) return 'Password must not contain the username, employee ID, or email.';
+  return null;
+};
+
+const generateTemporaryPassword = () => {
+  return `RUT-${crypto.randomBytes(9).toString('base64url')}`;
+};
+
 const isGlobalRole = (req) => ['Admin', 'HR'].includes(req.user?.activeRole);
 
 const requireDatabase = (req, res, next) => {
@@ -252,7 +275,7 @@ app.post('/api/auth/login', loginRateLimit, requireDatabase, async (req, res) =>
 
   try {
     const result = await pool.query(`
-      select u.id, u.username, u.employee_id, u.email, u.password_hash, u.status, e.id as employee_record_id, e.name, cd.id as country_director_id,
+      select u.id, u.username, u.employee_id, u.email, u.password_hash, u.must_change_password, u.status, e.id as employee_record_id, e.name, cd.id as country_director_id,
         coalesce(json_agg(r.name) filter (where r.name is not null), '[]') as roles
       from users u
       left join employees e on e.employee_id = u.employee_id
@@ -292,6 +315,7 @@ app.post('/api/auth/login', loginRateLimit, requireDatabase, async (req, res) =>
       name: user.name,
       roles: user.roles,
       activeRole,
+      mustChangePassword: Boolean(user.must_change_password),
       token,
     });
   } catch (error) {
@@ -307,6 +331,127 @@ app.post('/api/auth/logout', (_req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(req.user);
+});
+
+app.post('/api/auth/change-password', requireDatabase, requireAuth, async (req, res) => {
+  const schema = z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(1),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const user = (await client.query(
+      'select id, username, employee_id, email, password_hash, status, must_change_password from users where id = $1 for update',
+      [req.user.sub]
+    )).rows[0];
+    if (!user || user.status !== 'Active') {
+      await client.query('rollback');
+      res.status(404).json({ error: 'Active user was not found' });
+      return;
+    }
+    if (!(await verifyPassword(parsed.data.currentPassword, user.password_hash))) {
+      await client.query('rollback');
+      res.status(401).json({ error: 'Current password is incorrect' });
+      return;
+    }
+    const passwordError = validateNewPassword(parsed.data.newPassword, [user.username, user.employee_id, user.email]);
+    if (passwordError) {
+      await client.query('rollback');
+      res.status(400).json({ error: passwordError });
+      return;
+    }
+    const passwordHash = await scryptHash(parsed.data.newPassword);
+    await client.query(
+      'update users set password_hash = $1, must_change_password = false, updated_at = now() where id = $2',
+      [passwordHash, user.id]
+    );
+    await audit(client, req, {
+      module: 'Auth',
+      action: 'Change Password',
+      entityType: 'User',
+      entityId: user.id,
+      details: `Changed password for ${user.username}`,
+    });
+    await client.query('commit');
+    res.json({ status: 'ok', mustChangePassword: false });
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Password change failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/users/:id/password-reset', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    newPassword: z.string().optional(),
+    mustChangePassword: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const user = (await client.query(`
+      select id, username, employee_id, email, status, must_change_password
+      from users
+      where id::text = $1 or lower(username) = lower($1) or lower(employee_id) = lower($1) or lower(email) = lower($1)
+      for update
+      limit 1
+    `, [req.params.id])).rows[0];
+    if (!user) {
+      await client.query('rollback');
+      res.status(404).json({ error: 'User was not found' });
+      return;
+    }
+    const temporaryPassword = parsed.data.newPassword || generateTemporaryPassword();
+    const passwordError = validateNewPassword(temporaryPassword, [user.username, user.employee_id, user.email]);
+    if (passwordError) {
+      await client.query('rollback');
+      res.status(400).json({ error: passwordError });
+      return;
+    }
+    const passwordHash = await scryptHash(temporaryPassword);
+    const mustChangePassword = parsed.data.mustChangePassword ?? true;
+    await client.query(
+      'update users set password_hash = $1, must_change_password = $2, updated_at = now() where id = $3',
+      [passwordHash, mustChangePassword, user.id]
+    );
+    await audit(client, req, {
+      module: 'Admin',
+      action: 'Reset Password',
+      entityType: 'User',
+      entityId: user.id,
+      details: `Reset password for ${user.username}`,
+      newValue: { mustChangePassword },
+    });
+    await client.query('commit');
+    res.json({
+      status: 'ok',
+      userId: user.id,
+      userName: user.username,
+      mustChangePassword,
+      temporaryPassword: parsed.data.newPassword ? undefined : temporaryPassword,
+    });
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Password reset failed' });
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'TeamLead', 'ProjectManager', 'Employee'), async (req, res) => {

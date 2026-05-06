@@ -58,6 +58,7 @@ type ApiLoginResponse = {
   name?: string;
   roles: UserRole[];
   activeRole: UserRole;
+  mustChangePassword?: boolean;
   token: string;
 };
 
@@ -70,6 +71,7 @@ const buildApiSession = (data: ApiLoginResponse): UserSession => ({
   role: data.activeRole,
   availableRoles: data.roles,
   cdId: data.countryDirectorId,
+  mustChangePassword: data.mustChangePassword,
   lastLogin: new Date().toISOString(),
 });
 
@@ -168,4 +170,49 @@ export const authService = {
   },
 
   getDemoPassword: () => DEMO_PASSWORD,
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    if (await checkBackend()) {
+      try {
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+        if (!res.ok) return false;
+        const session = authService.getCurrentUser();
+        if (session) {
+          const next = { ...session, mustChangePassword: false };
+          saveSession(next);
+          DataStorage.set(STORAGE_KEYS.AUTH, next);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    DataStorage.ensureUserAccounts();
+    const session = authService.getCurrentUser();
+    if (!session) return false;
+    const account = findAccount(session.userName);
+    if (!account || account.status !== 'Active') return false;
+    const expectedHash = account.passwordHash.replace(/^sha256:/, '');
+    const suppliedHash = await sha256(currentPassword);
+    if (suppliedHash !== expectedHash) return false;
+    const accounts = DataStorage.get<UserAccount[]>(STORAGE_KEYS.USER_ACCOUNTS, []);
+    const nextHash = `sha256:${await sha256(newPassword)}`;
+    DataStorage.set(STORAGE_KEYS.USER_ACCOUNTS, accounts.map(item =>
+      item.id === account.id ? { ...item, passwordHash: nextHash, mustChangePassword: false } : item
+    ));
+    const nextSession = { ...session, mustChangePassword: false };
+    saveSession(nextSession);
+    DataStorage.set(STORAGE_KEYS.AUTH, nextSession);
+    DataStorage.logAction(session.id, session.name, session.role, 'Change Password', 'Auth', 'Changed own password');
+    return true;
+  },
 };

@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -16,6 +16,12 @@ import {
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
+const sha256 = async (value: string) => {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+const generateTemporaryPassword = () => `RUT-${crypto.randomUUID().slice(0, 8)}`;
 type CsvImportRow = Record<string, string>;
 type ImportApplyError = {
   rowNumber: number;
@@ -480,6 +486,36 @@ export const adminService = {
       errors: Array.isArray(raw.errors) ? raw.errors as ImportApplyError[] : [],
       log: raw.log && typeof raw.log === 'object' ? normalizeImportExportLog(raw.log as Record<string, unknown>) : undefined,
     };
+  },
+  resetUserPassword: async (identifier: string, newPassword?: string): Promise<{ temporaryPassword?: string; mustChangePassword: boolean } | null> => {
+    if (await checkBackend()) {
+      const raw = await api.post<Record<string, unknown>>(`/api/users/${encodeURIComponent(identifier)}/password-reset`, {
+        newPassword,
+        mustChangePassword: true,
+      });
+      return {
+        temporaryPassword: raw.temporaryPassword ? String(raw.temporaryPassword) : undefined,
+        mustChangePassword: Boolean(raw.mustChangePassword),
+      };
+    }
+    DataStorage.ensureUserAccounts();
+    const accounts = DataStorage.get<UserAccount[]>(STORAGE_KEYS.USER_ACCOUNTS, []);
+    const lookup = identifier.trim().toLowerCase();
+    const index = accounts.findIndex(account =>
+      account.id === identifier ||
+      account.employeeRecordId === identifier ||
+      account.userName.toLowerCase() === lookup ||
+      account.employeeId.toLowerCase() === lookup ||
+      account.email.toLowerCase() === lookup
+    );
+    if (index < 0) return null;
+    const temporaryPassword = newPassword || generateTemporaryPassword();
+    const nextHash = `sha256:${await sha256(temporaryPassword)}`;
+    accounts[index] = { ...accounts[index], passwordHash: nextHash, mustChangePassword: true };
+    DataStorage.set(STORAGE_KEYS.USER_ACCOUNTS, accounts);
+    const u = actor();
+    DataStorage.logAction(u.id, u.name, u.role, 'Reset Password', 'Admin', `Reset password for ${accounts[index].displayName}`, { entityType: 'User', entityId: accounts[index].id });
+    return { temporaryPassword: newPassword ? undefined : temporaryPassword, mustChangePassword: true };
   },
   getSettings: async (): Promise<SystemSettings> => {
     if (await checkBackend()) {

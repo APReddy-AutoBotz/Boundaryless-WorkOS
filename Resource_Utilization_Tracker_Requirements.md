@@ -1061,6 +1061,8 @@ Future Node.js backend should expose APIs similar to:
 - POST /api/auth/login
 - POST /api/auth/logout
 - GET /api/auth/me
+- POST /api/auth/change-password
+- POST /api/users/:id/password-reset
 
 ### Employees
 
@@ -1146,6 +1148,8 @@ Production implementation must include:
 - Secure authentication
 - Role-based access control on backend
 - Password hashing if individual login is used
+- Self-service password change for authenticated users
+- Admin/HR password reset or temporary password generation
 - No hardcoded secrets
 - HTTPS
 - Input validation
@@ -1458,7 +1462,7 @@ The current application should be described as a strong near-production frontend
 | Backend | Starter Node API auth middleware and route-level role checks | P0 | Done | Protected API routes now require signed token/cookie authentication and role authorization. |
 | Backend | Starter PostgreSQL relational schema | P0 | Done | `server/schema.sql` includes users, roles, employees, clients, client-CD map, Country Directors, role definitions, projects, allocations, timesheets, entries, settings, audit logs, foreign keys, checks, and indexes. |
 | Backend | Baseline PostgreSQL migration runner | P0 | Done | `npm run api:migrate` applies the baseline schema and records `001_initial_schema` in `schema_migrations` for version tracking. |
-| Backend | Starter API routes for auth and core reads/writes | P0 | Partial | Auth, health, employee upsert/deactivate, client catalog, project create/status update, allocation create/update/soft-end, timesheet save/approve/reject, settings/CD/role/audit reads, guarded catalog writes, utilization report reads, and import apply endpoints exist. Full browser UAT, complete data-level scoping, and deeper DB-backed fixtures remain pending. |
+| Backend | Starter API routes for auth and core reads/writes | P0 | Partial | Auth, health, password change/reset, employee upsert/deactivate, client catalog, project create/status update, allocation create/update/soft-end, timesheet save/approve/reject, settings/CD/role/audit reads, guarded catalog writes, utilization report reads, and import apply endpoints exist. Full browser UAT, complete data-level scoping, and deeper DB-backed fixtures remain pending. |
 | Backend | Utilization report APIs | P0 | Done | Planned, actual, and forecast utilization report endpoints return scoped server-side rows and summaries for frontend report pages. |
 | Backend | Starter server-side business validation for write paths | P0 | Done | Project, allocation, employee deactivate, timesheet save/approval, and guarded catalog APIs now enforce active references, date ranges, project close allocation completion, login disable, future-timesheet blocking, rejection reasons, PM/CD write scoping, and optional over-allocation blocking. |
 | Testing | Requirements smoke test for demo data, auth, client master cascade, planned utilization, actual utilization, forecast snapshots, PM allocations, future timesheet blocking, and company metrics | P0 | Done | Added `npm run test:requirements` for fast regression coverage without a new test framework. |
@@ -1489,6 +1493,7 @@ The current application should be described as a strong near-production frontend
 | Backend catalog parity | Department, country, and industry catalogs persisted in PostgreSQL | P0 | Done | Added `catalog_items` schema, seeded production catalogs, authenticated catalog read routes, guarded Admin/HR create/update/deactivate routes, audit logging, and dependency blocking for in-use catalog values. |
 | Deployment | Single-process production startup serves API and built frontend | P0 | Done | Added `npm start`, production env validation, and Express static serving for `dist` with SPA fallback after API routes. |
 | Security | Login rate limiting and production secret guardrails | P0 | Done | Backend login now has an in-memory brute-force throttle and production startup blocks unsafe/missing `DATABASE_URL` or `API_SESSION_SECRET`. |
+| Security | Password lifecycle API foundation | P0 | Partial | Backend self-service password change and Admin/HR reset endpoints exist with scrypt hashing, configurable minimum length, reset-to-change flag, and audit logging. Remaining work: final company policy, reset delivery channel, browser UI, and persistent lockout/session-expiry rules. |
 | Backend seed | PostgreSQL demo seed/provisioning for multi-user UAT | P0 | Done | Added `npm run api:seed:demo` with optional `-- --reset` to seed Country Directors, clients, employees, projects, allocations, timesheets, catalogs, role definitions, users, and user-role mappings from the canonical demo dataset. |
 | Testing | Backend contract smoke test for catalog/API deployment guardrails | P0 | Done | Added `npm run test:backend` to verify catalog schema/routes, static serving, start script, demo seed script, and login-rate-limit guardrails exist. |
 
@@ -1496,7 +1501,7 @@ The current application should be described as a strong near-production frontend
 
 | Requirement Area | Priority | Status | Implementation Notes / Pending Work |
 |---|---:|---|---|
-| Login/logout | P0 | Partial | Username/password demo login works in local mode. Backend login supports scrypt password hashes, signed token/cookie sessions, and frontend token storage. Remaining work: production password lifecycle, user provisioning, reliable backend-mode role switching, and test harness support for sessionStorage. |
+| Login/logout | P0 | Partial | Username/password demo login works in local mode. Backend login supports scrypt password hashes, signed token/cookie sessions, self-service password change, Admin/HR password reset, reset-to-change flag, and frontend token storage. Remaining work: browser UI, company password policy, persistent account lockout, session expiry/refresh, reset delivery channel, and full backend-mode UAT. |
 | Frontend role navigation | P0 | Partial | Route guards, role-specific navigation, centralized route-role rules, and route/access smoke coverage exist for Admin, HR, Country Director, Project Manager, Team Lead, and Employee. Full multi-role browser UAT is still required. |
 | Backend-enforced RBAC | P0 | Partial | Starter Node API routes enforce signed-token authentication and route-level role checks. Data-level scoping, write-path authorization, and full frontend API integration are pending. |
 | Employee Master | P1 | Done | Add/edit/deactivate/search/filter/sort, catalog-backed department/country filters, CD scope filtering, CSV export, and employee detail flows are implemented for demo. Needs backend validation parity later. |
@@ -1567,7 +1572,7 @@ The current application should be described as a strong near-production frontend
 - Managed database migrations, seed scripts, production data import, rollback process, and backup/restore.
 - Data-level RBAC and authorization for Country Director, PM, Team Lead, HR, and Employee scopes.
 - Immutable server-side audit for all critical writes.
-- Secure production auth lifecycle: password policy, password reset/change, account lockout, session expiry, HTTPS-only cookies, and secret rotation.
+- Secure production auth lifecycle: password policy finalization, browser UI for password reset/change, account lockout, session expiry, HTTPS-only cookies, and secret rotation.
 - Production deployment configuration, monitoring, logging, HTTPS, environment secrets, and operational runbook.
 
 ### 24.4 Production Blockers
@@ -1576,7 +1581,7 @@ These items must be completed before the application is considered production-re
 
 1. Replace frontend localStorage service calls with Node.js API calls backed by PostgreSQL.
 2. Extend the baseline PostgreSQL migration runner with incremental migration files, seed scripts, rollback strategy, and production data-load process.
-3. Complete secure username/password production authentication: password hashing policy, reset/change password, account lockout, cookie/session settings, and user provisioning.
+3. Complete secure username/password production authentication: final password policy, reset/change password UI, account lockout, cookie/session settings, and user provisioning.
 4. Enforce backend RBAC and data-level scoping for every read/write API, including Country Director, PM, Team Lead, HR, and Employee scopes.
 5. Move critical validation server-side, especially client/project dependency guardrails, allocation overlap/threshold rules, future timesheet blocking, approval routing, imports, admin settings, and catalog delete guardrails.
 6. Add immutable server-side audit logging with actor, role, entity type, entity ID, old value, new value, reason, and timestamp for every critical write.
@@ -1663,12 +1668,12 @@ This section reflects the 6 May 2026 codebase review after Render/Supabase deplo
 | P0 | Environment/secrets | Personal/demo secret values are not final. | Set company-owned `API_SESSION_SECRET`, `NODE_ENV=production`, `LOGIN_RATE_LIMIT`, cookie/security settings, secret rotation, and `AUTO_SEED_DEMO=false` before real edits. | **Yes:** secret management approach and deployment environment. |
 | P0 | Smoke test repair | Repaired in current hardening batch. | Continue running `lint`, `build`, `test:backend`, `test:access`, `test:requirements`, and optional backend API smoke before each deploy. | No. |
 | P1 | Async form hardening | Employee, Project, and Allocation forms now await the main async catalog loads/saves; broader API-backed saving/error states are still not standardized across every page. | Add consistent saving/error UI, prevent close before save completes, and refresh parent state after resolved writes across all remaining async workflows. | No. |
-| P0 | API route parity | Settings write, scoped core reads, backend timesheet ID/entries, and import/export history are implemented. Remaining gaps are server-side import apply jobs, scoped report endpoints, and browser UAT edge cases. | Complete report/import endpoints and run role-by-role backend browser UAT. | No, unless settings approval rules differ. |
+| P0 | API route parity | Settings write, scoped core reads, backend timesheet ID/entries, import/export history, server-side import apply, password lifecycle, and utilization report endpoints are implemented. Remaining gaps are browser UAT edge cases and final role-scoped write/report sign-off. | Run role-by-role backend browser UAT and close final endpoint edge cases found during testing. | No, unless settings approval rules differ. |
 | P0 | Backend data-level RBAC | Initial row scoping exists for Employee, PM, CD, HR/Admin reads and critical allocation/timesheet writes. | Finish report/export scoping, Team Lead rules, and PM approval visibility after business confirmation. | **Yes:** final Team Lead and PM rules. |
-| P0 | Authentication lifecycle | Username/password exists and employee saves synchronize login status/roles. | Add password change/reset, password policy, account lockout, session expiry/refresh, admin user management UI, and initial password workflow. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
+| P0 | Authentication lifecycle | Username/password exists, employee saves synchronize login status/roles, and backend password change/reset endpoints exist. | Add browser UI, final password policy, account lockout, session expiry/refresh, admin user management UI, and reset delivery/initial password workflow. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
 | P0 | Audit immutability | Frontend/local audit exists; backend audit exists for many writes but not all production operations. | Make server-side audit mandatory and immutable for every create/update/deactivate/import/export/approval/settings action. | **Yes:** audit retention period and who can export audit data. |
 | P0 | Deployment | No final target environment is defined. | Prepare production start, reverse proxy/HTTPS, static serving, environment variables, process manager/container setup, logging, monitoring, backup/restore, rollback. | **Yes:** hosting target, domain/internal URL, HTTPS certificate approach, log/monitoring tool. |
-| P1 | Backend calculation parity | Frontend calculates many KPIs locally; backend scoped report/calculation APIs are incomplete. | Move/duplicate calculation logic into tested backend report endpoints for dashboard, planned, actual, forecast, client/CD scopes. | No, unless reporting definitions change. |
+| P1 | Backend calculation parity | Planned, actual, and forecast report endpoints exist; some dashboard/client/CD analytics still rely on frontend composition. | Extend tested backend report endpoints for dashboard, client, and CD scope summaries after UAT confirms final reporting definitions. | No, unless reporting definitions change. |
 | P1 | Import/export hardening | CSV local import/export works and backend history persistence exists; server-side apply jobs and XLSX/PDF are pending. | Backend import jobs, duplicate resolution, validation reports, export APIs, optional XLSX/PDF. | **Yes:** accepted file templates and whether XLSX/PDF are required for go-live. |
 | P1 | Browser workflow automation | No Playwright suite exists. | Add browser tests for login, role routing, employee/project/client CRUD, allocation edit, timesheet submit/approve/reject, reports, import/export, global search. | No. |
 | P1 | Real data migration | Demo data is ready, but real employee/client/project data is not loaded. | Define import templates, cleanse data, load into PostgreSQL, reconcile IDs, validate calculations. | **Yes:** real master data files and mapping rules. |
