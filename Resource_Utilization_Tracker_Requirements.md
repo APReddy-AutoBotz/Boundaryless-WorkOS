@@ -3,9 +3,9 @@
 **Document Owner:** AP  
 **Application:** Resource Utilization Tracker  
 **Target Stack:** React + TypeScript + Tailwind CSS frontend, Node.js API backend, PostgreSQL database  
-**Current State:** Near-production internal product build with local demo mode, Render/Supabase backend deployment, dual-mode async service layer, PostgreSQL schema/migrations/seed, scoped backend APIs, backend settings/timesheet/import-export history support, and handover documentation
-**Last Reconciled:** 5 May 2026
-**Next Step:** Disable demo reseeding before real data edits, run browser UAT by role, replace personal Supabase/Render with company-owned infrastructure, complete remaining backend import/report parity, harden password lifecycle/operations, and load real data
+**Current State:** Near-production internal product build with local demo mode, Render/Supabase backend deployment, dual-mode async service layer, PostgreSQL schema/migrations/seed, scoped backend APIs, backend settings/timesheet/import-export history support, backend utilization report endpoints, backend CSV import apply endpoints, and handover documentation
+**Last Reconciled:** 6 May 2026
+**Next Step:** Disable demo reseeding before real data edits, run browser UAT by role, replace personal Supabase/Render with company-owned infrastructure, validate backend-mode report/import flows end to end, harden password lifecycle/operations, and load real data
 
 ---
 
@@ -821,6 +821,8 @@ Must show:
 - Underutilized employees
 - Bench employees
 - Filters
+- Backend/API mode should use the server-side planned utilization report endpoint where available.
+- Local demo mode should produce equivalent rows through the same frontend report service fallback.
 
 ### 12.10 Actual Utilization
 
@@ -833,6 +835,8 @@ Must show:
 - Pending/rejected timesheet indicators
 - Approved client misc hours if applicable
 - Filters
+- Backend/API mode should use the server-side actual utilization report endpoint where available.
+- Non-utilization governance users should appear as directory/governance records, not as 0% bench delivery capacity.
 
 ### 12.11 Forecast Utilization
 
@@ -846,6 +850,8 @@ Must show:
 - Employees rolling off projects
 - Projects with upcoming staffing pressure
 - Filters
+- Backend/API mode should use the server-side forecast utilization report endpoint for selected horizons where available.
+- Client-side monthly snapshots may remain as UI analysis helpers until backend snapshot/report parity is fully expanded.
 
 ### 12.12 Import / Export
 
@@ -866,6 +872,8 @@ Import can be phased:
 
 - CSV import first if feasible
 - Excel/XLSX import later if required
+- Backend CSV apply transactions should exist for Employee Master, Client Master, Project Master, Allocation Control, and Timesheet Import before production UAT.
+- Import history should be persisted server-side in backend mode.
 
 Validation should include:
 
@@ -873,6 +881,8 @@ Validation should include:
 - Duplicate checks
 - Invalid dates
 - Missing employee/project references
+- Timesheet entry hours must be 0-24 per date/project row.
+- Timesheet imports must validate employee, project, work type, week ending, work date, status, and future-date rules.
 
 ### 12.13 Audit Trail
 
@@ -1099,6 +1109,16 @@ Future Node.js backend should expose APIs similar to:
 - GET /api/reports/planned-utilization
 - GET /api/reports/actual-utilization
 - GET /api/reports/forecast-utilization
+
+### Import / Export
+
+- GET /api/import-export-logs
+- POST /api/import-export-logs
+- POST /api/imports/employees/apply
+- POST /api/imports/clients/apply
+- POST /api/imports/projects/apply
+- POST /api/imports/allocations/apply
+- POST /api/imports/timesheets/apply
 
 ### Admin
 
@@ -1382,12 +1402,12 @@ The current application should be described as a strong near-production frontend
 
 - The frontend service layer has moved from purely synchronous localStorage access to a dual-mode async pattern. `src/services/apiClient.ts` detects backend availability, stores API tokens, wraps fetch calls, and normalizes backend snake_case rows into frontend camelCase models.
 - `src/services/api.ts` now attempts to use the backend when `/api/health` reports `database: connected`, then falls back to `DataStorage`/localStorage for demo mode.
-- The backend provides a real Node/Express/PostgreSQL foundation with login, protected routes, catalog APIs, core write guardrails, demo seeding, production static serving, and backend contract smoke coverage.
-- Production readiness now requires stabilizing the async service migration, completing missing backend route parity, fixing test harness compatibility with browser-only session storage, and proving the whole app in backend mode against a real PostgreSQL database.
+- The backend provides a real Node/Express/PostgreSQL foundation with login, protected routes, catalog APIs, utilization report APIs, CSV import apply APIs, core write guardrails, demo seeding, production static serving, and backend contract smoke coverage.
+- Production readiness now requires browser-proving the whole app in backend mode against a real PostgreSQL database, validating backend report/import flows with realistic company files, and completing company-specific security/operations hardening.
 - Admin/HR users can manage operational catalogs that legitimately change over time: job roles, Country Directors, departments, countries, and industries.
 - Core lifecycle statuses should remain fixed workflow enums. Employee, project, allocation, timesheet, client, and account status keys drive calculations, permissions, and lifecycle side effects, so they should not be user-editable in production. If business users need wording changes, implement display labels without changing the underlying keys.
 - Redundancy has been reduced through shared UI primitives, but a full DRY pass is still pending. `PageHeader`, `KPIStrip`, `FilterBar`, `SortableHeader`, and `DataTable` exist; `DataTable` is currently adopted in Employee Master and Project Master and should be expanded carefully to other table-heavy pages after workflow UAT.
-- Latest QA state as of 1 May 2026: `npm run lint`, `npm run build`, and `npm run test:backend` pass. `npm run test:access` currently fails because the Node test harness does not define browser `sessionStorage`. `npm run test:requirements` currently fails on the demo-user coverage assertion and needs to be reconciled with the current seeded/local user model.
+- Latest QA state as of 6 May 2026: smoke coverage has been updated for backend report/import contracts and utilization eligibility. `npm run lint`, `npm run build`, `npm run test:backend`, `npm run test:access`, and `npm run test:requirements` are expected to pass before push/deploy. Backend API smoke remains optional unless `BACKEND_SMOKE_BASE_URL` is set.
 
 ### 24.1 Product Enhancements Added
 
@@ -1395,7 +1415,7 @@ The current application should be described as a strong near-production frontend
 |---|---|---:|---|---|
 | Demo data | 100+ employee-scale demo data with PMs, CDs, HR, Admin, clients, projects, allocations, and timesheets | P1 | Done | Current demo data is suitable for feature-by-feature testing. |
 | Demo data | 60 projects/processes across 12-15 clients, including completed projects | P1 | Done | Supports client, project, allocation, and forecast demos. |
-| Demo data | Overall active planned utilization around 60-70% | P1 | Done | Current demo target supports realistic dashboard review. |
+| Demo data | Overall utilization-eligible planned utilization around 60-70% | P1 | Done | Current demo target supports realistic dashboard review without Admin/HR/CD governance users diluting delivery capacity. |
 | Roles | Role catalog add/delete | P1 | Done | Useful for Admin/HR setup demos. |
 | Master data | Department, country, and industry catalogs with add/retire guardrails | P1 | Done | Admin Settings now manages these catalogs; deletes are blocked while employees, roles, or clients still reference values. Core workflow statuses remain fixed enums. |
 | Master data | Approved Admin/HR catalog governance | P1 | Done | Admin/HR can add or retire job roles, Country Directors, departments, countries, and industries. These are the master-data areas expected to change operationally. |
@@ -1427,14 +1447,19 @@ The current application should be described as a strong near-production frontend
 | Timesheets | Timesheet Approval rejection modal, bulk approve, CSV ops export, and PM project-ID scoping | P1 | Done | Replaces prompt/alert behavior and removes decorative approval actions. |
 | Forecast | Point-in-time 1M/2M/3M utilization snapshots | P1 | Done | Forecast page now uses monthly checkpoints from allocation/project date ranges instead of broad horizon overlap totals. |
 | Forecast | Dynamic pressure, roll-off, and bench analysis | P1 | Done | Removed static forecast assumptions and replaced them with peak pressure, horizon roll-offs, future bench, and date-driven ledger values. |
+| Utilization eligibility | Delivery-only denominator with governance users excluded | P0 | Done | Admin, HR, and Country Directors stay visible for directory/governance workflows but are excluded from planned, actual, and forecast utilization denominators. Allocated PMs remain counted. |
+| Utilization UI | Excluded-capacity users labeled clearly | P1 | Done | Employee Master, Employee Detail, and capacity cards show governance users as excluded from utilization instead of Bench/0% delivery capacity. |
+| Utilization reports | Dual-mode frontend report service | P0 | Done | Planned, Actual, and Forecast pages consume `utilizationReportService`, which calls backend report endpoints in API mode and computes equivalent local fallback reports in demo mode. |
 | Audit | Audit Trail should read persisted audit logs, not static mock data | P1 | Done | Audit page now uses stored logs. |
 | Import/export | CSV export for main entities and reports | P1 | Done | CSV export exists for employees, clients, projects, utilization, timesheet logs, allocation matrix, and audit logs. |
-| Import/export | Dry-run CSV import with row-level validation report and live import/export history | P1 | Done | Employee, client, project, and allocation imports validate before writing, apply only valid rows on confirmation, and replace placeholder import history with persisted operation logs. |
+| Import/export | Dry-run CSV import with row-level validation report and live import/export history | P1 | Done | Employee, client, project, allocation, and timesheet imports validate before writing, apply only valid rows on confirmation, and replace placeholder import history with persisted operation logs. |
+| Import/export | Backend CSV apply transactions | P0 | Done | Backend apply endpoints exist for Employee Master, Client Master, Project Master, Allocation Control, and Timesheet Import. Remaining production work is realistic file UAT, duplicate-handling refinements, and optional XLSX/PDF. |
 | Logo/brand | Replace weak text logo with original Boundaryless logo asset | P2 | Done | SVG assets added under public assets. |
 | Backend | Starter Node API auth middleware and route-level role checks | P0 | Done | Protected API routes now require signed token/cookie authentication and role authorization. |
 | Backend | Starter PostgreSQL relational schema | P0 | Done | `server/schema.sql` includes users, roles, employees, clients, client-CD map, Country Directors, role definitions, projects, allocations, timesheets, entries, settings, audit logs, foreign keys, checks, and indexes. |
 | Backend | Baseline PostgreSQL migration runner | P0 | Done | `npm run api:migrate` applies the baseline schema and records `001_initial_schema` in `schema_migrations` for version tracking. |
-| Backend | Starter API routes for auth and core reads/writes | P0 | Partial | Auth, health, employee upsert/deactivate, client catalog, project create/status update, allocation create/update/soft-end, timesheet save/approve/reject, settings/CD/role/audit reads, and guarded catalog writes exist. Full CRUD, frontend integration, complete data-level scoping, and migration-backed persistence remain pending. |
+| Backend | Starter API routes for auth and core reads/writes | P0 | Partial | Auth, health, employee upsert/deactivate, client catalog, project create/status update, allocation create/update/soft-end, timesheet save/approve/reject, settings/CD/role/audit reads, guarded catalog writes, utilization report reads, and import apply endpoints exist. Full browser UAT, complete data-level scoping, and deeper DB-backed fixtures remain pending. |
+| Backend | Utilization report APIs | P0 | Done | Planned, actual, and forecast utilization report endpoints return scoped server-side rows and summaries for frontend report pages. |
 | Backend | Starter server-side business validation for write paths | P0 | Done | Project, allocation, employee deactivate, timesheet save/approval, and guarded catalog APIs now enforce active references, date ranges, project close allocation completion, login disable, future-timesheet blocking, rejection reasons, PM/CD write scoping, and optional over-allocation blocking. |
 | Testing | Requirements smoke test for demo data, auth, client master cascade, planned utilization, actual utilization, forecast snapshots, PM allocations, future timesheet blocking, and company metrics | P0 | Done | Added `npm run test:requirements` for fast regression coverage without a new test framework. |
 | Testing | Frontend route/access smoke test for Admin, HR, PM, CD, and Employee flows | P0 | Done | Added `npm run test:access` to protect role-scoped route visibility and employee/project detail access rules. |
@@ -1456,8 +1481,8 @@ The current application should be described as a strong near-production frontend
 | Maintainability | Reduce utilization/report page duplication | P2 | Pending | Planned, Actual, and Forecast pages still share similar filtering, KPI, and report-card patterns. Extract shared report components only after calculation UAT to avoid hiding domain differences. |
 | Maintainability | Frontend service adapter for backend migration | P0 | Partial | `apiClient.ts` now provides backend detection, token storage, fetch wrapper, and response normalizers. Remaining work: route parity, async form await fixes, backend-mode UAT, and environment-controlled mode selection. |
 | Backend migration | Dual-mode frontend services | P0 | Partial | `api.ts` now prefers REST APIs when PostgreSQL is connected and falls back to local demo storage. This is a good migration direction, but API mode is not yet production-proven. |
-| Backend migration | Backend route parity for current frontend calls | P0 | Failing | Current frontend calls include `POST /api/settings`, but backend currently exposes only `GET /api/settings`. Timesheet approval also passes `employeeId:weekEnding` while backend status route expects the database timesheet ID. |
-| QA | Smoke tests after async service migration | P0 | Failing | `npm run lint`, `npm run build`, and `npm run test:backend` pass. `npm run test:access` fails on missing Node `sessionStorage`; `npm run test:requirements` fails because test data/service usage has not been updated for async services. |
+| Backend migration | Backend route parity for current frontend calls | P0 | Partial | Settings write, backend timesheet IDs/entries, utilization report reads, and import apply endpoints exist. Remaining work is browser UAT across every route plus final edge-case parity for reports, imports, and role-scoped writes. |
+| QA | Smoke tests after async service migration | P0 | Passing | `npm run lint`, `npm run build`, `npm run test:backend`, `npm run test:access`, and `npm run test:requirements` have been reconciled for async services, demo v7, utilization eligibility, and report/import contracts. |
 | UX hardening | Replace browser alerts/confirms with in-app confirmation and notice patterns | P2 | Done | Login errors, timesheet messages, allocation validation, employee deactivation, project close, allocation end, dashboard reminders, and Admin Settings guardrails now use app UI. |
 | Admin Settings | Replace dead governance CTAs with clear behavior | P2 | Done | Recalculate Bounds now saves/refreshed settings; unavailable invite/branding actions show explicit product notices instead of silent no-ops. |
 | Audit Trail | Filtered audit exports, quick event filters, detail export, and entity navigation | P2 | Done | Audit export now respects current filters, quick filters cover today's events and critical governance actions, and detail drawer actions are wired. |
@@ -1482,23 +1507,23 @@ The current application should be described as a strong near-production frontend
 | Allocation Management | P0 | Partial | Create/edit/soft-end allocation works in frontend with scoped views and return-to-origin routing. Server-side validation, permissions, and concurrency handling are pending. |
 | Operational catalogs | P1 | Done | Admin/HR management exists for role definitions, Country Directors, departments, countries, and industries with guarded delete/deactivate behavior. Backend catalog APIs exist for departments/countries/industries; frontend still needs API cutover for production persistence. |
 | Workflow statuses | P0 | Done | Status keys are intentionally fixed enums and centralized in shared constants. Do not expose raw lifecycle status creation/deletion to users; add configurable display labels later only if needed. |
-| Planned utilization | P0 | Done | Uses active allocations, project status, project dates, and allocation date ranges in frontend demo. Backend parity tests are still needed after API migration. |
-| Actual utilization | P0 | Done | Uses approved client-related timesheets only in frontend demo. Backend parity tests are still needed after API migration. |
-| Forecast utilization | P1 | Done | Uses allocation/project date ranges for point-in-time 1M/2M/3M snapshots, dynamic roll-offs, future bench, peak demand pressure, and CSV export. |
+| Planned utilization | P0 | Done | Uses active allocations, project status, project dates, allocation date ranges, and utilization eligibility. Planned report page consumes the dual-mode report service. |
+| Actual utilization | P0 | Done | Uses approved client-related timesheets only, excludes governance users from delivery capacity, and consumes report rows through the dual-mode report service. |
+| Forecast utilization | P1 | Done | Uses allocation/project date ranges for point-in-time 1M/2M/3M snapshots, dynamic roll-offs, future bench, peak demand pressure, CSV export, and backend forecast rows where available. |
 | My Timesheet | P1 | Partial | Draft/submit flows exist and future-week submissions are blocked in UI and service logic. Needs full UAT for rejected correction/resubmit and week edge cases. |
 | Timesheet Approval | P1 | Needs UAT | Rejection modal, mandatory reason, filtered Ops CSV export, filtered Admin bulk approve, and PM scoping by project ID are implemented. Final role-based UAT is pending. |
 | Dashboard | P1 | Done | Company KPIs, CD portfolio, attention queue, and value-added operational views are implemented for demo. |
 | Country Director scope | P1 | Partial | Multi-CD mapping and scoped portfolio exist. Needs CD role UAT for all drilldowns. |
 | Client Portfolio | P1 | Done | Supports client master cards, CD/client/project/resource drilldown, active project/resource coverage, and client master maintenance for Admin/HR. |
-| Import/export | P1 | Partial | CSV export, dry-run import, apply-valid-rows workflow, row-level validation report, and live operation history are implemented for employee/client/project/allocation data. XLSX/PDF exports, timesheet import, and server-side import validation remain pending. |
+| Import/export | P1 | Partial | CSV export, dry-run import, apply-valid-rows workflow, row-level validation report, live operation history, and backend apply endpoints are implemented for employee/client/project/allocation/timesheet data. XLSX/PDF exports, deeper duplicate resolution, and realistic-file UAT remain pending. |
 | Audit Trail | P0 | Partial | UI reads persisted logs, supports filtered exports/detail review, and service-owned actions include structured metadata. Production immutable server-side audit is still pending. |
 | Admin Settings | P1 | Partial | Thresholds, settings, role catalog, department catalog, country catalog, industry catalog, CD catalog, guarded delete flows, and demo reset are available. PostgreSQL-backed catalog APIs now exist; frontend still needs HTTP service migration for production persistence. |
 | Not-found route | P2 | Done | Invalid routes render a branded not-found view with navigation back to the dashboard. |
 | Empty/error states and dead actions | P2 | Partial | Export CTAs and major action feedback are functional and audited; browser alert/confirm flows were replaced with app-native notices/modals. Remaining work: finish consistent empty states across every report table and edge workflow. |
 | Search/header global search | P2 | Done | Header search is wired to live employees, projects, clients, Country Directors, and navigation pages with role-scoped results. |
 | Shared table/filter components | P2 | Partial | Sortable headers and `DataTable` are adopted in Employee Master and Project Master. `PageHeader`, `KPIStrip`, and `FilterBar` exist, but table/filter standardization across all remaining pages is still pending. |
-| Automated tests | P0 | Failing | `npm run lint`, `npm run build`, and `npm run test:backend` pass. `npm run test:access` fails because `authService` now uses browser `sessionStorage` in a Node test. `npm run test:requirements` fails on the current demo-user coverage assertion. Formal unit/API/Playwright suites are still pending. |
-| Backend/API | P0 | Partial | Node.js API scaffold, PostgreSQL schema, scrypt login, signed token/cookie session, protected starter routes, client catalog endpoints, employee/project/allocation/timesheet write guardrails, approval/rejection endpoint, guarded role/CD/catalog writes, production static serving, demo seed/provisioning, login throttling, and frontend normalizers exist. Remaining work: route parity, API-mode UAT, backend response IDs for timesheets, settings write route, data-level authorization, and API parity tests against a real database. |
+| Automated tests | P0 | Passing smoke level | `npm run lint`, `npm run build`, `npm run test:backend`, `npm run test:access`, and `npm run test:requirements` are reconciled. Formal unit/API/Playwright suites and backend-mode browser UAT are still pending. |
+| Backend/API | P0 | Partial | Node.js API scaffold, PostgreSQL schema, scrypt login, signed token/cookie session, protected starter routes, client catalog endpoints, employee/project/allocation/timesheet write guardrails, approval/rejection endpoint, guarded role/CD/catalog writes, utilization report endpoints, import apply endpoints, production static serving, demo seed/provisioning, login throttling, and frontend normalizers exist. Remaining work: backend-mode browser UAT, complete data-level authorization, real-file import UAT, and company security/ops hardening. |
 | PostgreSQL schema | P0 | Partial | Starter relational schema and migration runner exist with tables, foreign keys, checks, indexes, clients, client-CD mapping, production catalog items, and demo seed data loading. Remaining work: incremental migration files instead of full-schema replay, seed scripts for real company data, row-level policies, migration rollback, and production data load process. |
 | Security hardening | P0 | Partial | Backend now blocks unsafe production startup and throttles login attempts. Remaining work: HTTPS/proxy deployment verification, password policy/reset, CSRF strategy for cookie sessions, complete input validation coverage, data-level authorization, backup/restore, and production logging. |
 | Bundle optimization | P2 | Done | Route-level lazy loading and targeted shared icon imports removed the production large-chunk warning. |
@@ -1507,32 +1532,32 @@ The current application should be described as a strong near-production frontend
 
 #### Done in the Current Frontend Demo
 
-- Demo dataset: 120 total people, 116 active employees, 60 projects/processes, 262 allocations, 320 timesheets, 8 Country Directors, 15 explicit client master records, active/proposed/on-hold/completed project mix, PM allocations, multi-CD mappings, and 60-70% active planned utilization.
+- Demo dataset: 120 total people, 116 active people, 60 projects/processes, 262 allocations, 320 timesheets, 8 Country Directors, 15 explicit client master records, active/proposed/on-hold/completed project mix, PM allocations, multi-CD mappings, and 60-70% planned utilization across utilization-eligible delivery capacity.
 - Authentication demo: username/password login, assigned-role selection, logout, generated user accounts, disabled login for exited employees, and demo shortcuts.
 - Role-aware frontend: protected routes, role-based navigation, Admin/HR/CD/PM/Team Lead/Employee access paths, and scoped views where implemented.
-- Employee workflows: add, edit, deactivate, filter, search, CD-scope filtering, detail page, mapped directors, active projects, utilization, and CSV export.
+- Employee workflows: add, edit, deactivate, filter, search, CD-scope filtering, detail page, mapped directors, active projects, utilization, excluded-governance labeling, and CSV export.
 - Client workflows: add, edit, guarded deactivate, industry metadata, CD-scope mapping, active client cards, client-scoped project/resource drilldown, CSV import/export, and project rename cascade.
 - Project workflows: add, edit, close, filter, search, active client master selection, CD/client scope filtering, allocation-derived resource display, detail page, PM ownership, resource percentages, and CSV export.
 - Allocation workflows: create, edit, soft-end, scoped by role, return-to-origin routing from employee/project detail, allocation validation notices, and CSV export.
 - Timesheet self-log: assigned project entries, client miscellaneous entries, mandatory remarks for client misc work, save draft, submit, rejected correction view, future-week blocking, and service-level future-date guard.
 - Timesheet governance: approval/rejection modal, mandatory rejection reason, bulk approve for filtered Admin scope, PM project-ID scoping, filtered Ops CSV export, and approved-only actual utilization.
-- Utilization reports: planned utilization, actual utilization, forecast utilization, forecast snapshots, dynamic roll-offs, future bench, peak pressure, and CSV exports.
+- Utilization reports: planned utilization, actual utilization, forecast utilization, backend report endpoints, dual-mode frontend report service, delivery-only utilization eligibility, forecast snapshots, dynamic roll-offs, future bench, peak pressure, and CSV exports.
 - Dashboard and drilldowns: global KPIs, compact Country Director portfolio, FTE/project/client drilldowns, client distribution/deployment, attention queue, scoped Client Portfolio backed by client master data, and project health.
 - Audit and governance: persisted audit log UI, structured metadata for service-owned actions, filtered audit exports, detail drawer export, quick filters, role/CD catalog, guarded delete flows, system thresholds, and demo reset.
 - UX hardening and maintainability: Boundaryless logo asset, internal-system login page with subtle workspace background layer, current color/font direction preserved, global search with outside-click close, route-aware scroll restoration, app-native notices/modals, route-level lazy loading, branded not-found route, centralized fixed status constants, high-contrast sortable headers, shared page/KPI/filter/table primitives, reusable DataTable shell for master tables, and initial dual-mode API client normalizers.
-- Starter backend: Node/Express API, PostgreSQL schema including clients, client-CD mapping, catalog items, scrypt password verification, signed token/cookie sessions, route-level role checks, core read/write endpoints, guarded catalog writes, health check, production static serving, demo seed/provisioning script, and server README.
-- Current passing checks: `npm run lint`, `npm run build`, and `npm run test:backend`.
+- Starter backend: Node/Express API, PostgreSQL schema including clients, client-CD mapping, catalog items, scrypt password verification, signed token/cookie sessions, route-level role checks, core read/write endpoints, guarded catalog writes, utilization report endpoints, CSV import apply endpoints, health check, production static serving, demo seed/provisioning script, and server README.
+- Current passing checks: `npm run lint`, `npm run build`, `npm run test:backend`, `npm run test:access`, and `npm run test:requirements`.
 
 #### Partial / Needs UAT
 
 - Frontend role navigation and role scoping need browser UAT across Admin, HR, Country Director, Project Manager, Team Lead, and Employee users.
-- Allocation, client master, timesheet approval, import/export, audit, and admin settings are frontend-functional but need backend validation, backend permissions, and multi-user concurrency handling.
+- Allocation, client master, timesheet approval, import/export, audit, and admin settings are frontend-functional and have partial backend support, but still need backend-mode browser UAT, permission sign-off, and multi-user concurrency validation.
 - My Timesheet needs role-user UAT for rejected correction/resubmit, partial week behavior, no-assignment cases, and historical week edge cases.
-- Import/export supports CSV and dry-run validation for employee/client/project/allocation data, but XLSX/PDF, server-side validation, duplicate resolution, and timesheet import are not production-ready.
+- Import/export supports CSV and dry-run validation for employee/client/project/allocation/timesheet data with backend apply endpoints, but XLSX/PDF, deeper duplicate resolution, and realistic company-file UAT are not production-ready.
 - Empty states are improved in several places, but consistent report/table empty states still need a final pass.
 - Shared UI components exist, but consistent adoption across every table/filter-heavy page is still partial. This should be handled as a low-risk refactor after role workflow UAT.
-- Automated tests are smoke-level and currently need repair after the async service migration and demo-user model updates. `test:access` and `test:requirements` must be updated before demo sign-off.
-- Backend API mode has an adapter and normalizers, but it has not been validated end to end with a real PostgreSQL connection.
+- Automated tests are smoke-level and passing after the async service/report/import updates. Formal browser automation and deeper API fixtures are still pending.
+- Backend API mode has an adapter and normalizers, but still needs full browser UAT against the deployed PostgreSQL-backed Render environment.
 
 #### Pending for Production
 
@@ -1576,15 +1601,15 @@ These are not required for the current demo, but they are recommended for a prod
 
 | Enhancement | Priority | Proposed Status | Rationale |
 |---|---:|---|---|
-| API service adapter with demo/backend mode flag | P0 | Proposed | Introduce a clean adapter so the app can run in local demo mode or production API mode without rewriting every page at once. |
-| Backend response mappers | P0 | Proposed | Normalize PostgreSQL snake_case fields into existing frontend camelCase models and keep UI code stable during backend cutover. |
+| API service adapter with demo/backend mode flag | P0 | In progress | Dual-mode services now exist for core entities and utilization reports; continue expanding loading/error states and backend-mode UAT. |
+| Backend response mappers | P0 | In progress | PostgreSQL snake_case normalizers exist for core models, import/export logs, and utilization reports; continue hardening as endpoints expand. |
 | Async data hooks for major entities | P0 | Proposed | Replace synchronous localStorage reads with loading/error/success states for employees, clients, projects, allocations, timesheets, catalogs, and audit logs. |
 | API parity tests against a real PostgreSQL database | P0 | Proposed | Protect calculations, write guardrails, role scoping, catalog dependency checks, and migration behavior before multi-user UAT. |
 | Playwright workflow suite | P0/P1 | Proposed | Browser-test Admin, HR, Country Director, Project Manager, Team Lead, and Employee journeys, including routing, scroll position, allocation edits, timesheet submit/approval, imports, and exports. |
 | Expand `DataTable` adoption | P2 | Proposed | Standardize sorting, empty states, dense layout, and accessibility for Audit Trail, Timesheet Governance, Allocation Control, Import/Export history, and report tables. |
 | Shared `FilterBar` adoption | P2 | Proposed | Reduce repeated search/filter/export controls and make filter behavior consistent across master data and report screens. |
 | Utilization report component extraction | P2 | Proposed | Planned, Actual, and Forecast share structural patterns, but extraction should happen only after final calculation UAT because each page has different business semantics. |
-| Server-side import jobs | P1 | Proposed | Move CSV/XLSX import validation and apply workflows to backend transactions with duplicate resolution, job history, and audit records. |
+| Server-side import jobs | P1 | In progress | CSV backend apply endpoints exist for employees, clients, projects, allocations, and timesheets. Remaining roadmap: duplicate-resolution refinements, XLSX support if required, realistic-file UAT, and job-style async processing if files become large. |
 | Production user lifecycle | P0 | Proposed | Add admin-managed user provisioning, password reset/change, password policy, session expiry, and account lockout. |
 | Configurable display labels for fixed statuses | P3 | Proposed | If leadership wants different wording, allow label overrides while preserving underlying enum keys used by calculations and workflow logic. |
 | Operational runbook | P0 | Proposed | Document environment variables, deployment, migrations, seed/load process, backup/restore, logging, monitoring, and support procedures. |
@@ -1593,7 +1618,7 @@ These are not required for the current demo, but they are recommended for a prod
 
 ## 25. Version 2 Production Readiness Plan
 
-This section reflects the 5 May 2026 codebase review after Render/Supabase deployment, demo seed repair, scoped backend API hardening, timesheet backend contract repair, settings API parity, import/export history persistence, and production handover documentation updates.
+This section reflects the 6 May 2026 codebase review after Render/Supabase deployment, demo seed repair, scoped backend API hardening, timesheet backend contract repair, settings API parity, import/export history persistence, utilization report APIs, backend CSV import apply endpoints, utilization eligibility UI updates, and production handover documentation updates.
 
 ### 25.1 QA Readiness Summary
 
@@ -1603,8 +1628,8 @@ This section reflects the 5 May 2026 codebase review after Render/Supabase deplo
 | Production frontend bundle | Ready | `npm run build` passes and produces route-split bundles in `dist`. | Safe to package for a frontend demo. |
 | Backend contract scaffold | Ready as foundation | `npm run test:backend` covers schema, static serving, start script, settings route, import/export history route, and timesheet entries contract. | Backend foundation is credible for controlled UAT; remaining work is deeper API/browser coverage. |
 | Local demo mode | Ready for guided demo | Rich demo data, local persistence, role flows, dashboards, allocations, timesheets, imports/exports, and reports are implemented. | Suitable for leadership walkthrough after smoke suite passes and quick browser sanity check. |
-| Automated regression suite | Improved | `test:backend`, `test:access`, `test:requirements`, and optional `test:backend-api` are aligned with async services and demo data v6. | Run on every handover hardening change. |
-| Backend/PostgreSQL mode | Controlled UAT ready | Render/Supabase deployment has logged in successfully; backend APIs now cover scoped reads, settings writes, timesheet IDs/entries, and import/export history. | Requires browser UAT by role before company production handover. |
+| Automated regression suite | Improved | `test:backend`, `test:access`, `test:requirements`, and optional `test:backend-api` are aligned with async services, demo data v7, utilization eligibility, report service behavior, and import contracts. | Run on every handover hardening change. |
+| Backend/PostgreSQL mode | Controlled UAT ready | Render/Supabase deployment has logged in successfully; backend APIs now cover scoped reads, settings writes, timesheet IDs/entries, import/export history, utilization report reads, and CSV import apply endpoints. | Requires browser UAT by role before company production handover. |
 | Production go-live | Not ready | Company-owned infrastructure, real data migration, password lifecycle, monitoring, backups, and final security sign-off are pending. | Treat as a production handover candidate, not final go-live. |
 
 **Estimated readiness:**
@@ -1612,7 +1637,7 @@ This section reflects the 5 May 2026 codebase review after Render/Supabase deplo
 | Release Target | Readiness Estimate | Meaning |
 |---|---:|---|
 | Leadership demo using local or Render demo mode | 85-90% | Feature coverage is strong and deployment has loaded/logged in; run a quick role-based browser pass before stakeholders. |
-| Controlled internal UAT using Render/Supabase backend | 65-75% | Backend mode is usable for controlled testing, but role-by-role UAT and remaining import/report parity are still required. |
+| Controlled internal UAT using Render/Supabase backend | 70-80% | Backend mode is usable for controlled testing, with report/import parity improved. Role-by-role browser UAT and real-file import validation are still required. |
 | Company technical handover readiness | 60-70% | Handover docs, deployment path, and backend foundation exist; company-owned secrets/DB and real data load are still needed. |
 | Production go-live | 45-55% | Product scope is strong, but production auth lifecycle, operations, backups, monitoring, security review, and real-data UAT remain. |
 
