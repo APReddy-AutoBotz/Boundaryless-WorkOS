@@ -5,7 +5,7 @@
 **Target Stack:** React + TypeScript + Tailwind CSS frontend, Node.js API backend, PostgreSQL database  
 **Current State:** Near-production internal product build with local demo mode, Render/Supabase backend deployment, dual-mode async service layer, PostgreSQL schema/migrations/seed, scoped backend APIs, backend settings/timesheet/import-export history support, backend utilization report endpoints, backend CSV import apply endpoints, and handover documentation
 **Last Reconciled:** 6 May 2026
-**Next Step:** Disable demo reseeding before real data edits, run browser UAT by role, replace personal Supabase/Render with company-owned infrastructure, validate backend-mode report/import flows end to end, harden password lifecycle/operations, and load real data
+**Next Step:** Disable demo reseeding before real data edits, run browser UAT by role, replace personal Supabase/Render with company-owned infrastructure, validate backend-mode report/import/password flows end to end, finalize password policy/session operations, and load real data
 
 ---
 
@@ -1493,7 +1493,7 @@ The current application should be described as a strong near-production frontend
 | Backend catalog parity | Department, country, and industry catalogs persisted in PostgreSQL | P0 | Done | Added `catalog_items` schema, seeded production catalogs, authenticated catalog read routes, guarded Admin/HR create/update/deactivate routes, audit logging, and dependency blocking for in-use catalog values. |
 | Deployment | Single-process production startup serves API and built frontend | P0 | Done | Added `npm start`, production env validation, and Express static serving for `dist` with SPA fallback after API routes. |
 | Security | Login rate limiting and production secret guardrails | P0 | Done | Backend login now has an in-memory brute-force throttle and production startup blocks unsafe/missing `DATABASE_URL` or `API_SESSION_SECRET`. |
-| Security | Password lifecycle API foundation | P0 | Partial | Backend self-service password change and Admin/HR reset endpoints exist with scrypt hashing, configurable minimum length, reset-to-change flag, and audit logging. Remaining work: final company policy, reset delivery channel, browser UI, and persistent lockout/session-expiry rules. |
+| Security | Password lifecycle UI and API foundation | P0 | Partial | Backend self-service password change and Admin/HR reset endpoints exist with scrypt hashing, configurable minimum length, reset-to-change flag, and audit logging. Browser controls now exist in the header profile menu and Employee Detail. Remaining work: final company policy, reset delivery channel, persistent lockout/session-expiry rules, and production user-management UAT. |
 | Backend seed | PostgreSQL demo seed/provisioning for multi-user UAT | P0 | Done | Added `npm run api:seed:demo` with optional `-- --reset` to seed Country Directors, clients, employees, projects, allocations, timesheets, catalogs, role definitions, users, and user-role mappings from the canonical demo dataset. |
 | Testing | Backend contract smoke test for catalog/API deployment guardrails | P0 | Done | Added `npm run test:backend` to verify catalog schema/routes, static serving, start script, demo seed script, and login-rate-limit guardrails exist. |
 
@@ -1501,7 +1501,7 @@ The current application should be described as a strong near-production frontend
 
 | Requirement Area | Priority | Status | Implementation Notes / Pending Work |
 |---|---:|---|---|
-| Login/logout | P0 | Partial | Username/password demo login works in local mode. Backend login supports scrypt password hashes, signed token/cookie sessions, self-service password change, Admin/HR password reset, reset-to-change flag, and frontend token storage. Remaining work: browser UI, company password policy, persistent account lockout, session expiry/refresh, reset delivery channel, and full backend-mode UAT. |
+| Login/logout | P0 | Partial | Username/password demo login works in local mode. Backend login supports scrypt password hashes, signed token/cookie sessions, self-service password change, Admin/HR password reset, reset-to-change flag, frontend token storage, and browser controls for change/reset. Remaining work: company password policy, persistent account lockout, session expiry/refresh, reset delivery channel, and full backend-mode UAT. |
 | Frontend role navigation | P0 | Partial | Route guards, role-specific navigation, centralized route-role rules, and route/access smoke coverage exist for Admin, HR, Country Director, Project Manager, Team Lead, and Employee. Full multi-role browser UAT is still required. |
 | Backend-enforced RBAC | P0 | Partial | Starter Node API routes enforce signed-token authentication and route-level role checks. Data-level scoping, write-path authorization, and full frontend API integration are pending. |
 | Employee Master | P1 | Done | Add/edit/deactivate/search/filter/sort, catalog-backed department/country filters, CD scope filtering, CSV export, and employee detail flows are implemented for demo. Needs backend validation parity later. |
@@ -1572,7 +1572,7 @@ The current application should be described as a strong near-production frontend
 - Managed database migrations, seed scripts, production data import, rollback process, and backup/restore.
 - Data-level RBAC and authorization for Country Director, PM, Team Lead, HR, and Employee scopes.
 - Immutable server-side audit for all critical writes.
-- Secure production auth lifecycle: password policy finalization, browser UI for password reset/change, account lockout, session expiry, HTTPS-only cookies, and secret rotation.
+- Secure production auth lifecycle: password policy finalization, reset delivery channel, account lockout, session expiry, HTTPS-only cookies, and secret rotation.
 - Production deployment configuration, monitoring, logging, HTTPS, environment secrets, and operational runbook.
 
 ### 24.4 Production Blockers
@@ -1581,7 +1581,7 @@ These items must be completed before the application is considered production-re
 
 1. Replace frontend localStorage service calls with Node.js API calls backed by PostgreSQL.
 2. Extend the baseline PostgreSQL migration runner with incremental migration files, seed scripts, rollback strategy, and production data-load process.
-3. Complete secure username/password production authentication: final password policy, reset/change password UI, account lockout, cookie/session settings, and user provisioning.
+3. Complete secure username/password production authentication: final password policy, reset delivery channel, account lockout, cookie/session settings, and user provisioning UAT.
 4. Enforce backend RBAC and data-level scoping for every read/write API, including Country Director, PM, Team Lead, HR, and Employee scopes.
 5. Move critical validation server-side, especially client/project dependency guardrails, allocation overlap/threshold rules, future timesheet blocking, approval routing, imports, admin settings, and catalog delete guardrails.
 6. Add immutable server-side audit logging with actor, role, entity type, entity ID, old value, new value, reason, and timestamp for every critical write.
@@ -1615,7 +1615,7 @@ These are not required for the current demo, but they are recommended for a prod
 | Shared `FilterBar` adoption | P2 | Proposed | Reduce repeated search/filter/export controls and make filter behavior consistent across master data and report screens. |
 | Utilization report component extraction | P2 | Proposed | Planned, Actual, and Forecast share structural patterns, but extraction should happen only after final calculation UAT because each page has different business semantics. |
 | Server-side import jobs | P1 | In progress | CSV backend apply endpoints exist for employees, clients, projects, allocations, and timesheets. Remaining roadmap: duplicate-resolution refinements, XLSX support if required, realistic-file UAT, and job-style async processing if files become large. |
-| Production user lifecycle | P0 | Proposed | Add admin-managed user provisioning, password reset/change, password policy, session expiry, and account lockout. |
+| Production user lifecycle | P0 | In progress | Username/password login, employee login provisioning sync, password change/reset APIs, header change-password UI, and Employee Detail Admin/HR reset UI exist. Remaining work: final password policy, reset delivery channel, session expiry, account lockout, and full admin user-management UAT. |
 | Configurable display labels for fixed statuses | P3 | Proposed | If leadership wants different wording, allow label overrides while preserving underlying enum keys used by calculations and workflow logic. |
 | Operational runbook | P0 | Proposed | Document environment variables, deployment, migrations, seed/load process, backup/restore, logging, monitoring, and support procedures. |
 
@@ -1635,7 +1635,7 @@ This section reflects the 6 May 2026 codebase review after Render/Supabase deplo
 | Local demo mode | Ready for guided demo | Rich demo data, local persistence, role flows, dashboards, allocations, timesheets, imports/exports, and reports are implemented. | Suitable for leadership walkthrough after smoke suite passes and quick browser sanity check. |
 | Automated regression suite | Improved | `test:backend`, `test:access`, `test:requirements`, and optional `test:backend-api` are aligned with async services, demo data v7, utilization eligibility, report service behavior, and import contracts. | Run on every handover hardening change. |
 | Backend/PostgreSQL mode | Controlled UAT ready | Render/Supabase deployment has logged in successfully; backend APIs now cover scoped reads, settings writes, timesheet IDs/entries, import/export history, utilization report reads, and CSV import apply endpoints. | Requires browser UAT by role before company production handover. |
-| Production go-live | Not ready | Company-owned infrastructure, real data migration, password lifecycle, monitoring, backups, and final security sign-off are pending. | Treat as a production handover candidate, not final go-live. |
+| Production go-live | Not ready | Company-owned infrastructure, real data migration, final auth/session operations, monitoring, backups, and final security sign-off are pending. | Treat as a production handover candidate, not final go-live. |
 
 **Estimated readiness:**
 
@@ -1670,7 +1670,7 @@ This section reflects the 6 May 2026 codebase review after Render/Supabase deplo
 | P1 | Async form hardening | Employee, Project, and Allocation forms now await the main async catalog loads/saves; broader API-backed saving/error states are still not standardized across every page. | Add consistent saving/error UI, prevent close before save completes, and refresh parent state after resolved writes across all remaining async workflows. | No. |
 | P0 | API route parity | Settings write, scoped core reads, backend timesheet ID/entries, import/export history, server-side import apply, password lifecycle, and utilization report endpoints are implemented. Remaining gaps are browser UAT edge cases and final role-scoped write/report sign-off. | Run role-by-role backend browser UAT and close final endpoint edge cases found during testing. | No, unless settings approval rules differ. |
 | P0 | Backend data-level RBAC | Initial row scoping exists for Employee, PM, CD, HR/Admin reads and critical allocation/timesheet writes. | Finish report/export scoping, Team Lead rules, and PM approval visibility after business confirmation. | **Yes:** final Team Lead and PM rules. |
-| P0 | Authentication lifecycle | Username/password exists, employee saves synchronize login status/roles, and backend password change/reset endpoints exist. | Add browser UI, final password policy, account lockout, session expiry/refresh, admin user management UI, and reset delivery/initial password workflow. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
+| P0 | Authentication lifecycle | Username/password exists, employee saves synchronize login status/roles, backend password change/reset endpoints exist, and browser controls exist for self-service change plus Admin/HR reset. | Finalize password policy, account lockout, session expiry/refresh, admin user management workflow, and reset delivery/initial password process. | **Yes:** password policy, reset channel, initial admin users, whether email service is available. |
 | P0 | Audit immutability | Frontend/local audit exists; backend audit exists for many writes but not all production operations. | Make server-side audit mandatory and immutable for every create/update/deactivate/import/export/approval/settings action. | **Yes:** audit retention period and who can export audit data. |
 | P0 | Deployment | No final target environment is defined. | Prepare production start, reverse proxy/HTTPS, static serving, environment variables, process manager/container setup, logging, monitoring, backup/restore, rollback. | **Yes:** hosting target, domain/internal URL, HTTPS certificate approach, log/monitoring tool. |
 | P1 | Backend calculation parity | Planned, actual, and forecast report endpoints exist; some dashboard/client/CD analytics still rely on frontend composition. | Extend tested backend report endpoints for dashboard, client, and CD scope summaries after UAT confirms final reporting definitions. | No, unless reporting definitions change. |
@@ -1689,7 +1689,7 @@ This section reflects the 6 May 2026 codebase review after Render/Supabase deplo
 | 3 | Company infrastructure handover | Replace personal Supabase/Render values with company-owned DB, hosting, and secrets. | Company owns infrastructure and `/api/health` is connected. |
 | 4 | Real data load | Load catalogs, CDs, employees/users, clients, projects, allocations, and optional historical timesheets. | Dashboards/cards/lists update from real records with stable IDs. |
 | 5 | Complete API/report/import parity | Add remaining server-side import/report endpoints and finish backend browser UAT. | Production mode does not rely on localStorage-only features. |
-| 6 | Production auth and operations | Add password lifecycle, account management, secure cookies/session expiry, logging, monitoring, backup/restore, deployment runbook. | Security checklist and operations runbook approved. |
+| 6 | Production auth and operations | Finalize password policy, reset delivery, account management, secure cookies/session expiry, logging, monitoring, backup/restore, deployment runbook. | Security checklist and operations runbook approved. |
 | 7 | UAT and go-live hardening | Run multi-user UAT, fix edge cases, freeze release. | Signed UAT by Admin, HR, CD, PM, Team Lead, and Employee representatives. |
 
 ### 25.5 User Input Needed

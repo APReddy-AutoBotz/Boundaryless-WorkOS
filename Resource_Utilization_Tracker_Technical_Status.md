@@ -30,7 +30,7 @@ It includes:
 - Backend timesheet IDs and entries returned to the frontend
 - Delivery-only utilization eligibility policy excluding Admin/HR/Country Director governance users from utilization denominators
 
-The app is ready for guided leadership/demo walkthroughs and controlled backend-mode UAT on Render/Supabase. It is not yet final production because company-owned infrastructure, real-data import, browser UAT by role, password lifecycle, monitoring, backup/restore, and final security sign-off are still pending.
+The app is ready for guided leadership/demo walkthroughs and controlled backend-mode UAT on Render/Supabase. It is not yet final production because company-owned infrastructure, real-data import, browser UAT by role, final password policy/session operations, monitoring, backup/restore, and final security sign-off are still pending.
 
 ---
 
@@ -62,10 +62,10 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 
 | Area | Status | Notes |
 |---|---|---|
-| Login/logout | Partial | Username/password login works in local and backend mode. Self-service password change and Admin/HR reset endpoints exist. Remaining production work: final password policy, expiry, lockout persistence, reset delivery channel, and browser UI. |
+| Login/logout | Partial | Username/password login works in local and backend mode. Self-service password change is available from the header profile menu, and Admin/HR password reset is available from Employee Detail. Remaining production work: final password policy, expiry, lockout persistence, reset delivery channel, and production user-management UAT. |
 | Role-based navigation | Done for frontend demo | Sidebar and route access are role-filtered. Backend route-level role checks exist. |
 | Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. Admin, HR, and Country Director records remain visible as directory/governance users but are labeled as excluded from utilization capacity. |
-| Employee Detail | Done for demo | Shows allocation, utilization, project participation, and related navigation. Non-utilization governance users show an explicit excluded-capacity state instead of Bench/0% utilization. |
+| Employee Detail | Done for demo | Shows allocation, utilization, project participation, related navigation, and Admin/HR password reset. Non-utilization governance users show an explicit excluded-capacity state instead of Bench/0% utilization. |
 | Client Portfolio | Done for demo | Client master, industry, CD scope, client/project/resource views, and dependency guardrails exist in frontend. |
 | Project Master | Done for demo | Add/edit/status/filter/sort/detail flows exist. Project manager ownership is represented. |
 | Project Detail | Done for demo | Assigned consultants, allocation percent, actual project contribution, CD mapping, and allocation entry points exist. |
@@ -101,7 +101,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Backend health check | Done | `/api/health` reports server and DB status. |
 | Backend utilization reports | Added | `/api/reports/planned-utilization`, `/api/reports/actual-utilization`, and `/api/reports/forecast-utilization` return scoped server-side rows and summaries. |
 | Frontend report service | Added | `utilizationReportService` calls backend report endpoints when connected and computes equivalent local fallback reports in demo mode. |
-| Password lifecycle foundation | Added | `/api/auth/change-password` and `/api/users/:id/password-reset` use scrypt hashing, configurable minimum length, reset-to-change flag, Admin/HR authorization, and audit logging. |
+| Password lifecycle foundation | Added | `/api/auth/change-password` and `/api/users/:id/password-reset` use scrypt hashing, configurable minimum length, reset-to-change flag, Admin/HR authorization, and audit logging. Browser controls now exist for self-service password change and Admin/HR employee password reset. |
 | Production static serving | Done | Built frontend can be served by the Express server in production mode. |
 | Render deployment scaffold | Done | `render.yaml` and `DEPLOYMENT_SUPABASE_RENDER.md` document Render + Supabase deployment with secrets kept in environment variables. |
 
@@ -127,7 +127,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | P0 | Backend data-level authorization | Initial scoped reads exist for Employee, PM, CD, HR/Admin. Finish write-scope and report/export scoping sign-off. | Yes, final business rules |
 | P0 | Backend calculation parity | Initial utilization report endpoints exist, are contract/API-smoke covered, and are consumed by report pages through a dual-mode service. Remaining work: add DB-backed calculation fixtures and deeper backend-mode browser checks. | No |
 | P0 | Utilization eligibility data quality | During real-data load, classify Admin/HR/Country Director governance users as non-utilization capacity and keep Project Managers allocation-driven. | Yes, real employee role mapping |
-| P0 | Production auth lifecycle | Password change/reset endpoints exist. Remaining: company password policy, reset delivery channel, browser UI, persistent lockout behavior, disabled-user UAT, and session expiry/refresh policy. | Yes |
+| P0 | Production auth lifecycle | Password change/reset endpoints and browser controls exist. Remaining: company password policy, reset delivery channel, persistent lockout behavior, disabled-user UAT, session expiry/refresh policy, and final production user-management workflow. | Yes |
 | P1 | Import/export backend jobs | CSV backend apply transactions now exist for employees, clients, projects, allocations, and timesheets. Remaining work: duplicate handling refinements and optional XLSX/PDF. | Yes, file/report formats |
 | P1 | Real data load | Cleanse and load real employee/client/project/allocation data. | Yes |
 
@@ -158,7 +158,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 6. Validate utilization eligibility on real data: governance users excluded, delivery users included, Project Managers included only when allocated.
 7. Browser-test backend-mode import flows, including error reports and apply logs.
 8. Finalize data-level authorization rules for Team Lead and Project Manager visibility.
-9. Add production password lifecycle, monitoring, backup/restore, and release runbook.
+9. Finalize production password policy/session operations, monitoring, backup/restore, and release runbook.
 
 ---
 
@@ -197,4 +197,4 @@ Temporary deployment direction selected for handover preparation:
 | Company technical handover readiness | 60-70% |
 | Production go-live | 45-55% |
 
-The product is suitable for a guided business demo and controlled UAT with demo data. It should not yet be presented as final production until company-owned infrastructure, real data, complete browser UAT, password lifecycle, monitoring, backup/restore, and security sign-off are complete.
+The product is suitable for a guided business demo and controlled UAT with demo data. It should not yet be presented as final production until company-owned infrastructure, real data, complete browser UAT, final auth/session operations, monitoring, backup/restore, and security sign-off are complete.

@@ -1,4 +1,4 @@
-import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, type LucideIcon } from 'lucide-react';
+import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, KeyRound, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,12 @@ export const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordNotice, setPasswordNotice] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
 
@@ -172,8 +178,39 @@ export const Header = () => {
     }
   };
 
+  const resetPasswordForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordNotice(null);
+    setIsChangingPassword(false);
+  };
+
+  const submitPasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      setPasswordNotice({ type: 'danger', message: 'New password and confirmation do not match.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordNotice({ type: 'danger', message: 'New password must be at least 6 characters.' });
+      return;
+    }
+    setIsChangingPassword(true);
+    const ok = await authService.changePassword(currentPassword, newPassword);
+    setIsChangingPassword(false);
+    if (!ok) {
+      setPasswordNotice({ type: 'danger', message: 'Password change failed. Check your current password and policy requirements.' });
+      return;
+    }
+    setPasswordNotice({ type: 'success', message: 'Password changed successfully.' });
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   return (
-    <header className="h-16 bg-white border-b border-border-light flex items-center justify-between px-10 shrink-0 sticky top-0 z-10">
+    <>
+      <header className="h-16 bg-white border-b border-border-light flex items-center justify-between px-10 shrink-0 sticky top-0 z-10">
       <div className="flex items-center flex-1">
         <div
           className="relative group"
@@ -272,6 +309,16 @@ export const Header = () => {
               <button
                 onClick={() => {
                   setIsProfileOpen(false);
+                  resetPasswordForm();
+                  setIsPasswordOpen(true);
+                }}
+                className="w-full px-4 py-2 text-left text-xs text-heading hover:bg-bg-secondary flex items-center gap-2 transition-colors"
+              >
+                <KeyRound size={14} /> Change Password
+              </button>
+              <button
+                onClick={() => {
+                  setIsProfileOpen(false);
                   navigate('/admin');
                 }}
                 className="w-full px-4 py-2 text-left text-xs text-heading hover:bg-bg-secondary flex items-center gap-2 transition-colors"
@@ -288,7 +335,87 @@ export const Header = () => {
             </div>
           )}
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+      {isPasswordOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-dark/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-light bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-primary">
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-heading">Change Password</h3>
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">Update your account password. Your current session will remain active.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPasswordOpen(false)}
+                className="rounded-xl p-2 text-slate-300 transition-colors hover:bg-slate-50 hover:text-heading"
+                aria-label="Close change password"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              {passwordNotice && (
+                <div className={`rounded-2xl border px-4 py-3 text-xs font-bold ${passwordNotice.type === 'success' ? 'border-green-100 bg-green-50 text-green-800' : 'border-red-100 bg-red-50 text-red-800'}`}>
+                  {passwordNotice.message}
+                </div>
+              )}
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Current Password</span>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  className="w-full rounded-xl border border-border-light px-4 py-3 text-sm font-medium text-heading outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  autoComplete="current-password"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">New Password</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  className="w-full rounded-xl border border-border-light px-4 py-3 text-sm font-medium text-heading outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  autoComplete="new-password"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Confirm New Password</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="w-full rounded-xl border border-border-light px-4 py-3 text-sm font-medium text-heading outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  autoComplete="new-password"
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-end gap-3 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setIsPasswordOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-heading transition-colors hover:bg-slate-100"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={submitPasswordChange}
+                disabled={isChangingPassword}
+                className="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-orange-200 transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

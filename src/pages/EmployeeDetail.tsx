@@ -22,11 +22,14 @@ import {
   Plus,
   FileText,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  KeyRound,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { EmployeeForm } from '../components/forms/EmployeeForm';
 import { isUtilizationEligibleEmployee } from '../services/calculations';
+import { authService } from '../services/authService';
 
 export const EmployeeDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +38,12 @@ export const EmployeeDetail = () => {
   const [timesheets, setTimesheets] = useState<TimesheetSummary[]>([]);
   const [cds, setCds] = useState<CountryDirector[]>([]);
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [customPassword, setCustomPassword] = useState('');
+  const [resetNotice, setResetNotice] = useState<{ type: 'success' | 'danger'; message: string; temporaryPassword?: string } | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [loading, setLoading] = useState(true);
+  const currentUser = authService.getCurrentUser();
 
   const fetchEmployeeData = async () => {
     if (!id) return;
@@ -85,6 +93,7 @@ export const EmployeeDetail = () => {
   }
 
   const getCDName = (cdId: string) => cds.find(c => c.id === cdId)?.name || cdId;
+  const canResetPassword = !!currentUser && ['Admin', 'HR'].includes(currentUser.role);
   const utilizationEligible = isUtilizationEligibleEmployee(employee, allocations);
   const submittedTimesheets = timesheets.filter(timesheet => timesheet.status !== 'Draft');
   const approvedTimesheets = timesheets.filter(timesheet => timesheet.status === 'Approved');
@@ -103,6 +112,24 @@ export const EmployeeDetail = () => {
   const timesheetSubtitle = timesheets.length > 0
     ? `${submittedTimesheets.length} of ${timesheets.length} recorded weeks submitted or reviewed.`
     : 'No weekly timesheets have been recorded for this consultant.';
+
+  const handlePasswordReset = async () => {
+    setIsResettingPassword(true);
+    const result = await adminService.resetUserPassword(employee.employeeId, customPassword.trim() || undefined);
+    setIsResettingPassword(false);
+    if (!result) {
+      setResetNotice({ type: 'danger', message: 'Password reset failed. Confirm the employee has a linked active user account.' });
+      return;
+    }
+    setResetNotice({
+      type: 'success',
+      message: result.temporaryPassword
+        ? 'Temporary password generated. Share it securely and ask the user to change it on next login.'
+        : 'Password reset successfully. The user will be asked to change it.',
+      temporaryPassword: result.temporaryPassword,
+    });
+    setCustomPassword('');
+  };
 
   const allocationHistory = (() => {
     const now = new Date();
@@ -140,6 +167,78 @@ export const EmployeeDetail = () => {
         </div>
       )}
 
+      {isResetPasswordOpen && (
+        <div className="fixed inset-0 bg-slate-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-light bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-primary">
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-heading">Reset Password</h3>
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">Reset login access for {employee.name}. Leave the field blank to generate a temporary password.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsResetPasswordOpen(false)}
+                className="rounded-xl p-2 text-slate-300 transition-colors hover:bg-slate-50 hover:text-heading"
+                aria-label="Close reset password"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              {resetNotice && (
+                <div className={cn(
+                  'rounded-2xl border px-4 py-3 text-xs font-bold',
+                  resetNotice.type === 'success' ? 'border-green-100 bg-green-50 text-green-800' : 'border-red-100 bg-red-50 text-red-800'
+                )}>
+                  <p>{resetNotice.message}</p>
+                  {resetNotice.temporaryPassword && (
+                    <div className="mt-3 rounded-xl border border-green-200 bg-white px-3 py-2 font-mono text-sm text-heading">
+                      {resetNotice.temporaryPassword}
+                    </div>
+                  )}
+                </div>
+              )}
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Custom Password Optional</span>
+                <input
+                  type="text"
+                  value={customPassword}
+                  onChange={(event) => setCustomPassword(event.target.value)}
+                  placeholder="Leave blank to generate"
+                  className="w-full rounded-xl border border-border-light px-4 py-3 text-sm font-medium text-heading outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  autoComplete="off"
+                />
+              </label>
+              <p className="text-[10px] font-medium leading-relaxed text-slate-500">
+                Reset marks the account for password change. Share generated credentials only through an approved internal channel.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setIsResetPasswordOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-heading transition-colors hover:bg-slate-100"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={isResettingPassword}
+                className="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-orange-200 transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <Link to="/employees" className="flex items-center gap-2 text-xs font-bold text-primary hover:underline group">
            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back to Directory
@@ -158,6 +257,18 @@ export const EmployeeDetail = () => {
              <button onClick={() => setIsEmployeeFormOpen(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
                 <Edit2 size={14} /> Edit Consultant
              </button>
+             {canResetPassword && (
+               <button
+                 onClick={() => {
+                   setResetNotice(null);
+                   setCustomPassword('');
+                   setIsResetPasswordOpen(true);
+                 }}
+                 className="btn-secondary py-2 px-4 flex items-center gap-2"
+               >
+                 <KeyRound size={14} /> Reset Password
+               </button>
+             )}
           </div>
         }
       />
