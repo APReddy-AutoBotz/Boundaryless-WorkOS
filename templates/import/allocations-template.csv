@@ -1,0 +1,3 @@
+id,employeeId,projectId,roleOnProject,percentage,startDate,endDate,billable,status,comments
+alloc-example-1,EMP-9001,PRJ-9001,Consultant,80,2026-06-01,2026-12-31,true,Active,Primary delivery allocation
+alloc-example-2,PM-9001,PRJ-9001,Project Manager,20,2026-06-01,2026-12-31,true,Active,PM oversight allocation

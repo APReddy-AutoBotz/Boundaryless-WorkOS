@@ -1,6 +1,6 @@
 # Resource Utilization Tracker - Technical Status and Production Readiness
 
-**Last Updated:** 6 May 2026
+**Last Updated:** 12 May 2026
 **Audience:** Engineering, QA, technical reviewers, implementation partners, and production-readiness reviewers  
 **Purpose:** Summarize what is implemented, what is pending, what is blocked by user/company input, and the recommended next implementation order.
 
@@ -21,16 +21,17 @@ It includes:
 - PostgreSQL schema and migration runner
 - PostgreSQL demo seed script
 - Scrypt password verification and signed backend sessions/tokens
-- Backend route-level role middleware and initial row-scoped API reads
+- Backend route-level role middleware and row-scoped API reads
 - Backend health endpoint
 - Production static serving support for the built frontend
 - Render deployment scaffold with migration/demo seed startup support
+- Production runbook, real-data import guide, security operations checklist, role UAT checklist, and CSV import templates
 - Import/export history persistence in backend mode
 - Backend settings write endpoint
 - Backend timesheet IDs and entries returned to the frontend
 - Delivery-only utilization eligibility policy excluding Admin/HR/Country Director governance users from utilization denominators
 
-The app is ready for guided leadership/demo walkthroughs and controlled backend-mode UAT on Render/Supabase. It is not yet final production because company-owned infrastructure, real-data import, browser UAT by role, final password policy/session operations, monitoring, backup/restore, and final security sign-off are still pending.
+The app is ready for guided leadership/demo walkthroughs and controlled backend-mode UAT on Render/Supabase. Pre-production hardening that does not require real company data is now covered by runbooks, templates, and automated smoke checks. It is not yet final production because company-owned infrastructure, real-data import, browser UAT by role, final password policy/session operations, monitoring, backup/restore, and final security sign-off are still pending.
 
 ---
 
@@ -55,6 +56,9 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Access-control smoke | `npm run test:access` | Passing after current hardening | Node browser storage mocks added and async service usage reconciled |
 | Requirements smoke | `npm run test:requirements` | Passing after current hardening | Demo version v7, async services, cascading rename, guarded deletes, timesheet validation, utilization eligibility, and dual-mode report service reconciled |
 | Backend API smoke | `npm run test:backend-api` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; can validate deployed API login, core reads, and utilization report reads |
+| Backend role smoke | `npm run test:backend-roles` | Added | Skips unless `BACKEND_SMOKE_BASE_URL` is set; validates read-only role access, denied privileged routes, and password lifecycle login flags |
+| Import template smoke | `npm run test:import-templates` | Added | Confirms checked-in CSV templates match the current import contract |
+| Production readiness suite | `npm run test:prod-readiness` | Added | Runs lint, build, local smoke tests, template checks, and hosted backend smokes when `BACKEND_SMOKE_BASE_URL` is supplied |
 
 ---
 
@@ -62,7 +66,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 
 | Area | Status | Notes |
 |---|---|---|
-| Login/logout | Partial | Username/password login works in local and backend mode. Self-service password change is available from the header profile menu, and Admin/HR password reset is available from Employee Detail. Remaining production work: final password policy, expiry, lockout persistence, reset delivery channel, and production user-management UAT. |
+| Login/logout | Partial | Username/password login works in local and backend mode. Self-service password change is available from the header profile menu, required password changes are enforced in the UI, and Admin/HR password reset is available from Employee Detail. Remaining production work: final password policy, expiry, lockout persistence, reset delivery channel, and production user-management UAT. |
 | Role-based navigation | Done for frontend demo | Sidebar and route access are role-filtered. Backend route-level role checks exist. |
 | Employee Master | Done for demo | Add/edit/deactivate/search/filter/sort/detail flows exist. Catalog-backed departments/countries are supported. Admin, HR, and Country Director records remain visible as directory/governance users but are labeled as excluded from utilization capacity. |
 | Employee Detail | Done for demo | Shows allocation, utilization, project participation, related navigation, and Admin/HR password reset. Non-utilization governance users show an explicit excluded-capacity state instead of Bench/0% utilization. |
@@ -76,7 +80,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Actual Utilization | Done for demo; backend report API adopted | Uses approved timesheets. Actual page now consumes report rows for employee planned/actual values while keeping timesheet-led period views. |
 | Forecast Utilization | Done for demo; backend report API partially adopted | Uses future allocation outlooks. Forecast page uses backend forecast report rows for the selected horizon while retaining client-side monthly snapshots. |
 | Dashboard | Done for demo | Company KPIs, utilization-eligible FTE, governance-user separation, CD portfolio cards, client/project/resource drilldowns, and route-aware navigation exist. |
-| Import/Export | Partial | CSV import/export, validation reports, backend import/export history persistence, and backend apply transactions for Employee Master, Client Master, Project Master, Allocation Control, and Timesheet Import exist. XLSX/PDF are pending. |
+| Import/Export | Partial | CSV import/export, validation reports, backend import/export history persistence, backend apply transactions, and checked-in CSV templates for Employee Master, Client Master, Project Master, Allocation Control, and Timesheet Import exist. XLSX/PDF are pending. |
 | Audit Trail | Partial | Frontend/local audit is visible/exportable, and backend audit exists for major writes. Immutable full server-side audit coverage is pending. |
 | Governance Settings | Partial | Roles, CDs, departments, countries, industries, thresholds, settings write API, and guarded deletes exist. Full browser UAT pending. |
 | Global Search | Done for demo | Routes to employees, projects, clients, and relevant records; outside-click behavior is handled. |
@@ -104,6 +108,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Password lifecycle foundation | Added | `/api/auth/change-password` and `/api/users/:id/password-reset` use scrypt hashing, configurable minimum length, reset-to-change flag, Admin/HR authorization, and audit logging. Browser controls now exist for self-service password change and Admin/HR employee password reset. |
 | Production static serving | Done | Built frontend can be served by the Express server in production mode. |
 | Render deployment scaffold | Done | `render.yaml` and `DEPLOYMENT_SUPABASE_RENDER.md` document Render + Supabase deployment with secrets kept in environment variables. |
+| Handover/runbook documentation | Added | `PRODUCTION_RUNBOOK.md`, `REAL_DATA_IMPORT_GUIDE.md`, `SECURITY_OPERATIONS_CHECKLIST.md`, and `ROLE_UAT_CHECKLIST.md` are available for company handover and UAT planning. |
 
 ---
 
@@ -111,10 +116,26 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 
 | Priority | Item | Required Action |
 |---:|---|---|
-| P0 | Browser UAT | Run Admin, HR, Country Director, Project Manager, Team Lead, and Employee journeys manually or through Playwright. |
+| P0 | Browser UAT | Run Admin, HR, Country Director, Project Manager, Team Lead, and Employee journeys using `ROLE_UAT_CHECKLIST.md`. |
 | P0 | Render env safety | Set `AUTO_SEED_DEMO=false` after the first successful demo seed and before editing demo records into real records. |
 | P1 | Async save state polish | Add consistent saving/error states across remaining API-ready pages. |
 | P1 | Demo reset guidance | Keep reset guidance visible for disposable demo databases only. |
+
+---
+
+## 6.1 Finished Before Real Company Inputs
+
+| Area | Completed Artifact |
+|---|---|
+| Production operations | `PRODUCTION_RUNBOOK.md` |
+| Real-data onboarding | `REAL_DATA_IMPORT_GUIDE.md` and `templates/import/*.csv` |
+| Security/ops sign-off preparation | `SECURITY_OPERATIONS_CHECKLIST.md` |
+| Role browser UAT preparation | `ROLE_UAT_CHECKLIST.md` |
+| Automated readiness suite | `npm run test:prod-readiness` |
+| Multi-role backend smoke | `npm run test:backend-roles` |
+| Import template contract check | `npm run test:import-templates` |
+
+These items can be completed without company-owned database credentials or real employee/client/project files.
 
 ---
 
@@ -128,7 +149,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | P0 | Backend calculation parity | Initial utilization report endpoints exist, are contract/API-smoke covered, and are consumed by report pages through a dual-mode service. Remaining work: add DB-backed calculation fixtures and deeper backend-mode browser checks. | No |
 | P0 | Utilization eligibility data quality | During real-data load, classify Admin/HR/Country Director governance users as non-utilization capacity and keep Project Managers allocation-driven. | Yes, real employee role mapping |
 | P0 | Production auth lifecycle | Password change/reset endpoints and browser controls exist. Remaining: company password policy, reset delivery channel, persistent lockout behavior, disabled-user UAT, session expiry/refresh policy, and final production user-management workflow. | Yes |
-| P1 | Import/export backend jobs | CSV backend apply transactions now exist for employees, clients, projects, allocations, and timesheets. Remaining work: duplicate handling refinements and optional XLSX/PDF. | Yes, file/report formats |
+| P1 | Import/export backend jobs | CSV backend apply transactions and templates now exist for employees, clients, projects, allocations, and timesheets. Remaining work: duplicate handling refinements and optional XLSX/PDF. | Yes, file/report formats |
 | P1 | Real data load | Cleanse and load real employee/client/project/allocation data. | Yes |
 
 ---
@@ -144,7 +165,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | P0 | Monitoring/logging | Add production application logs, error logs, request logs, and alert ownership. | Yes |
 | P0 | Immutable audit | Make server-side audit mandatory and tamper-resistant for all critical mutations. | Yes, retention policy |
 | P1 | Full automated QA | Add API tests, calculation tests, route/access tests, and Playwright browser workflows. | No |
-| P1 | Release runbook | Document deploy, rollback, seed/migration, backup, and support process. | Yes, operations owner |
+| P1 | Release runbook | Draft runbook exists. Remaining work is company-specific hosting, backup, monitoring, and support owner sign-off. | Yes, operations owner |
 
 ---
 

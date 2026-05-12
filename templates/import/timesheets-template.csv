@@ -1,0 +1,3 @@
+employeeId,weekEnding,workType,projectId,clientName,category,date,hours,remark,billable,status,rejectionReason
+EMP-9001,2026-06-05,Project Work,PRJ-9001,,Delivery,2026-06-01,8,Client delivery,true,Submitted,
+EMP-9001,2026-06-05,Client Misc Task,,Example Client,Workshop,2026-06-02,4,Client workshop,true,Submitted,

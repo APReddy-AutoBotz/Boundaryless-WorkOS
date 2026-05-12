@@ -141,6 +141,21 @@ If it errors, check:
 - Render redeployed after environment variables were saved
 - Supabase project is active and not paused
 
+Optional read-only smoke tests:
+
+```bash
+BACKEND_SMOKE_BASE_URL=https://your-render-service.onrender.com npm run test:backend-api
+BACKEND_SMOKE_BASE_URL=https://your-render-service.onrender.com npm run test:backend-roles
+```
+
+Run the full pre-production suite locally before a release:
+
+```bash
+npm run test:prod-readiness
+```
+
+If `BACKEND_SMOKE_BASE_URL` is not set, hosted backend smoke tests are skipped.
+
 ## 9. Company Handover
 
 When handing over to the company technical team, provide:
@@ -150,6 +165,10 @@ When handing over to the company technical team, provide:
 - Requirements document
 - Technical status document
 - User flow guide
+- Production runbook
+- Real-data import guide and CSV templates
+- Security operations checklist
+- Role UAT checklist
 - List of environment variables, without your secret values
 - Migration command
 - Seed/import command

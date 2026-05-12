@@ -1,0 +1,4 @@
+employeeId,name,email,designation,department,country,primaryCountryDirectorId,mappedCountryDirectorIds,utilizationEligible,roles,initialPassword,status
+EMP-9001,Example Consultant,example.consultant@company.com,Consultant,Technology Consulting,United Kingdom,cd-1,cd-1|cd-3,true,Employee,,Active
+PM-9001,Example Project Manager,example.pm@company.com,Project Manager,Delivery Management,United Kingdom,cd-1,cd-1,true,ProjectManager|Employee,,Active
+ADMIN-9001,Example Admin,example.admin@company.com,System Administrator,Administration,United Kingdom,cd-1,cd-1,false,Admin,,Active

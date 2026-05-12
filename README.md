@@ -86,9 +86,13 @@ npm run test:backend
 npm run test:access
 npm run test:requirements
 npm run test:backend-api
+npm run test:backend-roles
+npm run test:import-templates
+npm run test:prod-readiness
 ```
 
 `test:backend-api` skips unless `BACKEND_SMOKE_BASE_URL` is provided. Set `BACKEND_SMOKE_MUTATIONS=true` only when it is acceptable for the test to write a settings record.
+`test:backend-roles` also skips unless `BACKEND_SMOKE_BASE_URL` is provided. Team Lead backend coverage requires `BACKEND_SMOKE_TEAMLEAD_USERNAME` after a Team Lead user is seeded.
 
 ## Handover Documents
 
@@ -96,5 +100,9 @@ npm run test:backend-api
 - `Resource_Utilization_Tracker_Technical_Status.md`
 - `Resource_Utilization_Tracker_User_Flow_Guide.md`
 - `DEPLOYMENT_SUPABASE_RENDER.md`
+- `PRODUCTION_RUNBOOK.md`
+- `REAL_DATA_IMPORT_GUIDE.md`
+- `SECURITY_OPERATIONS_CHECKLIST.md`
+- `ROLE_UAT_CHECKLIST.md`
 
 Company handover should normally require changing environment variables, running migrations, and loading real data. It should not require a code rewrite for the database provider.

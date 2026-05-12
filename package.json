@@ -16,7 +16,10 @@
     "test:requirements": "node --import tsx tests/requirements-smoke.mjs",
     "test:access": "node --import tsx tests/access-control-smoke.mjs",
     "test:backend": "node tests/backend-contract-smoke.mjs",
-    "test:backend-api": "node tests/backend-api-smoke.mjs"
+    "test:backend-api": "node tests/backend-api-smoke.mjs",
+    "test:backend-roles": "node tests/backend-role-smoke.mjs",
+    "test:import-templates": "node tests/import-template-smoke.mjs",
+    "test:prod-readiness": "node tests/prod-readiness.mjs"
   },
   "dependencies": {
     "@babel/compat-data": "^7.29.0",

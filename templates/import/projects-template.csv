@@ -1,0 +1,3 @@
+projectCode,name,clientId,client,managerId,startDate,endDate,status,billable,projectType,country,notes
+PRJ-9001,Example Client Delivery,client-example-1,Example Client,PM-9001,2026-06-01,2026-12-31,Active,true,Client Delivery,United Kingdom,Initial production import example
+PRJ-9002,Internal Improvement,client-example-2,Internal Operations,PM-9001,2026-07-01,2026-09-30,Proposed,false,Internal,United Kingdom,Optional internal project example
