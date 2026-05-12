@@ -1,8 +1,8 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AppLayout } from './components/Layout/AppLayout';
 import { authService } from './services/authService';
-import { canAccessEmployeeDetail, hasRouteRole, ROUTE_ROLES } from './services/accessControl';
+import { hasRouteRole, ROUTE_ROLES } from './services/accessControl';
 import { UserRole } from './types';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -38,11 +38,8 @@ const RoleRoute = ({ children, roles }: { children: React.ReactNode; roles: read
 };
 
 const EmployeeDetailRoute = () => {
-  const { id } = useParams();
   const user = authService.getCurrentUser();
-  if (!canAccessEmployeeDetail(user, id)) {
-    return <Navigate to="/" replace />;
-  }
+  if (!user) return <Navigate to="/" replace />;
   return <EmployeeDetail />;
 };
 

@@ -26,6 +26,13 @@ import {
 import { cn } from '../lib/utils';
 import { ProjectForm } from '../components/forms/ProjectForm';
 import { overlapsDateRange } from '../services/calculations';
+import { authService } from '../services/authService';
+import {
+  canAccessProjectDetail,
+  canEditProjectData,
+  canManageAllocations,
+  canOpenImportExport,
+} from '../services/accessControl';
 
 export const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +43,7 @@ export const ProjectDetail = () => {
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>({ expectedWeeklyHours: 40 });
+  const currentUser = authService.getCurrentUser();
 
   const fetchProjectData = async () => {
     if (!id) return;
@@ -85,7 +93,23 @@ export const ProjectDetail = () => {
     );
   }
 
+  if (!canAccessProjectDetail({ user: currentUser, project, projectId: project.id, allocations, employees })) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-gray-400 mb-4">
+          <Layers size={48} className="mx-auto opacity-20" />
+        </div>
+        <h2 className="text-xl font-bold text-heading">Project Not Found</h2>
+        <p className="text-sm text-body/60 mt-2 mb-8">The project engagement you are looking for is not available in your workspace scope.</p>
+        <Link to="/" className="btn-primary py-2 px-6">Back to Dashboard</Link>
+      </div>
+    );
+  }
+
   const getEmpInfo = (empId: string) => employees.find(e => e.id === empId);
+  const canEditProject = canEditProjectData(currentUser);
+  const canUseImportExport = canOpenImportExport(currentUser);
+  const canUseAllocationControl = canManageAllocations(currentUser);
   const currentDate = new Date().toISOString().split('T')[0];
 
   const visibleAllocations = allocations
@@ -158,12 +182,16 @@ export const ProjectDetail = () => {
         breadcrumb={['Operations', 'Project Registry', project.name]}
         actions={
           <div className="flex items-center gap-3">
+             {canUseImportExport && (
              <Link to="/import-export" className="btn-secondary py-2 px-4 flex items-center gap-2">
                 <FileText size={14} /> Governance Export
              </Link>
+             )}
+             {canEditProject && (
              <button onClick={() => setIsProjectFormOpen(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
                 <Edit2 size={14} /> Update Project
              </button>
+             )}
           </div>
         }
       />
@@ -285,12 +313,14 @@ export const ProjectDetail = () => {
             title="Assigned Consultants" 
             subtitle="Active resource stack and individual allocation integrity."
             headerAction={
+              canUseAllocationControl ? (
                <Link
                 to={`/allocations?projectId=${project.id}&returnTo=${encodeURIComponent(`/projects/${project.id}`)}`}
                 className="btn-primary py-1.5 px-3 flex items-center gap-2 text-[10px]"
                >
                   <Plus size={12} /> Add Resource
                </Link>
+              ) : undefined
             }
           >
             <div className="overflow-x-auto -mx-6">
@@ -356,6 +386,7 @@ export const ProjectDetail = () => {
                                </span>
                             </td>
                             <td className="px-6 py-4.5 text-right">
+                              {canUseAllocationControl && (
                                <Link
                                 to={`/allocations?allocationId=${alc.id}&returnTo=${encodeURIComponent(`/projects/${project.id}`)}`}
                                 className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:bg-orange-50 hover:text-primary transition-colors"
@@ -363,6 +394,7 @@ export const ProjectDetail = () => {
                                >
                                   <Edit2 size={14} /> Plan
                                 </Link>
+                              )}
                             </td>
                          </tr>
                        );

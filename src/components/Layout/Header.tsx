@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { adminService, allocationService, clientService, employeeService, projectService } from '../../services/api';
+import { hasRouteRole, ROUTE_ROLES } from '../../services/accessControl';
 
 type SearchResult = {
   id: string;
@@ -27,6 +28,7 @@ export const Header = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
+  const isPasswordChangeRequired = Boolean(user?.mustChangePassword);
 
   // Async data for search
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
@@ -52,6 +54,14 @@ export const Header = () => {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (isPasswordChangeRequired) {
+      resetPasswordForm();
+      setPasswordNotice({ type: 'danger', message: 'You must change your temporary password before continuing.' });
+      setIsPasswordOpen(true);
+    }
+  }, [isPasswordChangeRequired]);
 
   const handleLogout = () => {
     authService.logout();
@@ -128,16 +138,18 @@ export const Header = () => {
     }));
 
     const visibleClientNames = new Set(visibleProjects.map(project => project.client));
-    const clients = allClients
-      .filter(client => client.status === 'Active' && visibleClientNames.has(client.name))
-      .map(client => ({
+    const clients = canAccess(ROUTE_ROLES.clients)
+      ? allClients
+        .filter(client => client.status === 'Active' && visibleClientNames.has(client.name))
+        .map(client => ({
       id: `client-${client.id}`,
       title: client.name,
       subtitle: `${client.industry} - client projects and assigned resource coverage`,
       path: `/clients?client=${encodeURIComponent(client.name)}`,
       icon: Building2,
       keywords: `${client.name} ${client.industry} client customer account projects resources`,
-    }));
+        }))
+      : [];
 
     const visibleDirectors = (() => {
       if (!user) return [];
@@ -147,14 +159,14 @@ export const Header = () => {
       return allDirectors.filter(director => directorIds.has(director.id));
     })();
 
-    const countryDirectors = visibleDirectors.map(director => ({
+    const countryDirectors = canAccess(ROUTE_ROLES.employees) ? visibleDirectors.map(director => ({
       id: `director-${director.id}`,
       title: director.name,
       subtitle: `${director.region} country director scope`,
       path: `/employees?countryDirectorId=${director.id}`,
       icon: Users,
       keywords: `${director.name} ${director.region} country director cd`,
-    }));
+    })) : [];
 
     const allResults = [...pages.filter(page => canAccess(page.roles)), ...employees, ...projects, ...clients, ...countryDirectors];
     if (!query) return allResults.slice(0, 6);
@@ -186,6 +198,14 @@ export const Header = () => {
     setIsChangingPassword(false);
   };
 
+  const closePasswordModal = () => {
+    if (isPasswordChangeRequired) {
+      setPasswordNotice({ type: 'danger', message: 'Change your temporary password before continuing, or sign out.' });
+      return;
+    }
+    setIsPasswordOpen(false);
+  };
+
   const submitPasswordChange = async () => {
     if (newPassword !== confirmPassword) {
       setPasswordNotice({ type: 'danger', message: 'New password and confirmation do not match.' });
@@ -206,6 +226,7 @@ export const Header = () => {
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
+    setIsPasswordOpen(false);
   };
 
   return (
@@ -316,15 +337,17 @@ export const Header = () => {
               >
                 <KeyRound size={14} /> Change Password
               </button>
-              <button
-                onClick={() => {
-                  setIsProfileOpen(false);
-                  navigate('/admin');
-                }}
-                className="w-full px-4 py-2 text-left text-xs text-heading hover:bg-bg-secondary flex items-center gap-2 transition-colors"
-              >
-                <SettingsIcon size={14} /> System Preferences
-              </button>
+              {hasRouteRole(user, ROUTE_ROLES.adminSettings) && (
+                <button
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    navigate('/admin');
+                  }}
+                  className="w-full px-4 py-2 text-left text-xs text-heading hover:bg-bg-secondary flex items-center gap-2 transition-colors"
+                >
+                  <SettingsIcon size={14} /> System Preferences
+                </button>
+              )}
               <div className="h-px bg-border-light my-1 mx-2"></div>
               <button 
                 onClick={handleLogout}
@@ -352,7 +375,7 @@ export const Header = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsPasswordOpen(false)}
+                onClick={closePasswordModal}
                 className="rounded-xl p-2 text-slate-300 transition-colors hover:bg-slate-50 hover:text-heading"
                 aria-label="Close change password"
               >
@@ -399,10 +422,10 @@ export const Header = () => {
             <div className="flex items-center justify-end gap-3 bg-slate-50 px-6 py-4">
               <button
                 type="button"
-                onClick={() => setIsPasswordOpen(false)}
+                onClick={isPasswordChangeRequired ? handleLogout : closePasswordModal}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-heading transition-colors hover:bg-slate-100"
               >
-                Close
+                {isPasswordChangeRequired ? 'Secure Sign Out' : 'Close'}
               </button>
               <button
                 type="button"

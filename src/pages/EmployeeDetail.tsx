@@ -4,8 +4,8 @@ import { motion } from 'motion/react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { employeeService, allocationService, adminService, timesheetService } from '../services/api';
-import { Employee, Allocation, CountryDirector, TimesheetSummary } from '../types';
+import { employeeService, allocationService, adminService, timesheetService, projectService } from '../services/api';
+import { Employee, Allocation, CountryDirector, TimesheetSummary, Project } from '../types';
 import { 
   Building2, 
   Mail, 
@@ -30,11 +30,20 @@ import { cn } from '../lib/utils';
 import { EmployeeForm } from '../components/forms/EmployeeForm';
 import { isUtilizationEligibleEmployee } from '../services/calculations';
 import { authService } from '../services/authService';
+import {
+  canAccessEmployeeDetail,
+  canEditEmployeeData,
+  canManageAllocations,
+  canOpenImportExport,
+  canOpenTimesheetApproval,
+  canResetEmployeePassword,
+} from '../services/accessControl';
 
 export const EmployeeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetSummary[]>([]);
   const [cds, setCds] = useState<CountryDirector[]>([]);
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
@@ -54,10 +63,12 @@ export const EmployeeDetail = () => {
         timesheetService.getAll(),
         adminService.getCountryDirectors(),
       ]);
+      const projectData = await projectService.getAll();
       const alcData = allAllocations.filter(a => a.employeeId === id);
       const tsData = tsAll.filter(t => t.employeeId === id);
-      if (empData) setEmployee(empData);
+      setEmployee(empData ?? null);
       setAllocations(alcData);
+      setProjects(projectData);
       setTimesheets(tsData);
       setCds(cdData);
     } catch (error) {
@@ -92,8 +103,25 @@ export const EmployeeDetail = () => {
     );
   }
 
+  if (!canAccessEmployeeDetail({ user: currentUser, employeeId: employee.id, employees: [employee], allocations, projects })) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-gray-400 mb-4">
+          <User size={48} className="mx-auto opacity-20" />
+        </div>
+        <h2 className="text-xl font-bold text-heading">Employee Not Found</h2>
+        <p className="text-sm text-body/60 mt-2 mb-8">The consultant you are looking for is not available in your workspace scope.</p>
+        <Link to="/" className="btn-primary py-2 px-6">Back to Dashboard</Link>
+      </div>
+    );
+  }
+
   const getCDName = (cdId: string) => cds.find(c => c.id === cdId)?.name || cdId;
-  const canResetPassword = !!currentUser && ['Admin', 'HR'].includes(currentUser.role);
+  const canEditEmployee = canEditEmployeeData(currentUser);
+  const canResetPassword = canResetEmployeePassword(currentUser);
+  const canUseImportExport = canOpenImportExport(currentUser);
+  const canUseAllocationControl = canManageAllocations(currentUser);
+  const canUseTimesheetApproval = canOpenTimesheetApproval(currentUser);
   const utilizationEligible = isUtilizationEligibleEmployee(employee, allocations);
   const submittedTimesheets = timesheets.filter(timesheet => timesheet.status !== 'Draft');
   const approvedTimesheets = timesheets.filter(timesheet => timesheet.status === 'Approved');
@@ -251,12 +279,16 @@ export const EmployeeDetail = () => {
         breadcrumb={['Operations', 'Employee Master', employee.name]}
         actions={
           <div className="flex items-center gap-3">
+             {canUseImportExport && (
              <Link to="/import-export" className="btn-secondary py-2 px-4 flex items-center gap-2">
                 <FileText size={14} /> Export Profile
              </Link>
+             )}
+             {canEditEmployee && (
              <button onClick={() => setIsEmployeeFormOpen(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
                 <Edit2 size={14} /> Edit Consultant
              </button>
+             )}
              {canResetPassword && (
                <button
                  onClick={() => {
@@ -514,6 +546,7 @@ export const EmployeeDetail = () => {
 
           <Card title="Quick Resources">
              <div className="space-y-2">
+                {canUseAllocationControl && (
                 <Link to={`/allocations?employeeId=${employee.id}&returnTo=${encodeURIComponent(`/employees/${employee.id}`)}`} className="w-full flex items-center justify-between p-3 rounded-xl border border-border-light hover:bg-orange-50 hover:border-primary/20 transition-all group text-left">
                    <div className="flex items-center gap-3">
                       <div className="p-2 bg-bg-secondary group-hover:bg-white rounded-lg text-slate-dark group-hover:text-primary transition-colors">
@@ -523,6 +556,8 @@ export const EmployeeDetail = () => {
                    </div>
                    <ChevronRight size={14} className="text-gray-300 group-hover:text-primary" />
                 </Link>
+                )}
+                {canUseTimesheetApproval && (
                 <Link to="/timesheets/approval" className="w-full flex items-center justify-between p-3 rounded-xl border border-border-light hover:bg-orange-50 hover:border-primary/20 transition-all group text-left">
                    <div className="flex items-center gap-3">
                       <div className="p-2 bg-bg-secondary group-hover:bg-white rounded-lg text-slate-dark group-hover:text-primary transition-colors">
@@ -532,6 +567,7 @@ export const EmployeeDetail = () => {
                    </div>
                    <ChevronRight size={14} className="text-gray-300 group-hover:text-primary" />
                 </Link>
+                )}
              </div>
           </Card>
         </div>
@@ -542,9 +578,11 @@ export const EmployeeDetail = () => {
             title="Portfolio Assignments" 
             subtitle="Detailed view of all active and proposed project allocations."
             headerAction={
+              canUseAllocationControl ? (
                <Link to={`/allocations?employeeId=${employee.id}&returnTo=${encodeURIComponent(`/employees/${employee.id}`)}`} className="btn-primary py-1.5 px-3 flex items-center gap-2 text-[10px]">
                   <Plus size={12} /> Assign Project
                </Link>
+              ) : undefined
             }
           >
             <div className="overflow-x-auto -mx-6">

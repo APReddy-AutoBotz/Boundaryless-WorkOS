@@ -17,11 +17,66 @@ export const hasRouteRole = (user: UserSession | null | undefined, roles: readon
   return !!user && roles.includes(user.role);
 };
 
-export const canAccessEmployeeDetail = (user: UserSession | null | undefined, employeeId: string | undefined) => {
+interface EmployeeAccessInput {
+  user: UserSession | null | undefined;
+  employeeId: string | undefined;
+  employees: Employee[];
+  allocations: Allocation[];
+  projects: Project[];
+}
+
+export const canAccessEmployeeDetail = ({
+  user,
+  employeeId,
+  employees,
+  allocations,
+  projects,
+}: EmployeeAccessInput) => {
   if (!user || !employeeId) return false;
-  const privilegedRoles: UserRole[] = ['Admin', 'HR', 'CountryDirector', 'TeamLead'];
-  return privilegedRoles.includes(user.role) || user.id === employeeId;
+  if (['Admin', 'HR', 'TeamLead'].includes(user.role)) return true;
+  if (user.id === employeeId) return true;
+
+  const employee = employees.find(item => item.id === employeeId);
+  if (!employee) return false;
+
+  if (user.role === 'CountryDirector' && user.cdId) {
+    return employee.primaryCountryDirectorId === user.cdId ||
+      employee.mappedCountryDirectorIds.includes(user.cdId);
+  }
+
+  if (user.role === 'ProjectManager') {
+    const managedProjectIds = new Set(projects
+      .filter(project =>
+        project.managerId === user.id ||
+        project.managerId === user.employeeId ||
+        project.managerName === user.name
+      )
+      .map(project => project.id));
+    return allocations.some(allocation =>
+      allocation.employeeId === employeeId &&
+      managedProjectIds.has(allocation.projectId)
+    );
+  }
+
+  return false;
 };
+
+export const canEditEmployeeData = (user: UserSession | null | undefined) =>
+  hasRouteRole(user, ['Admin', 'HR'] as const);
+
+export const canResetEmployeePassword = canEditEmployeeData;
+
+export const canOpenImportExport = (user: UserSession | null | undefined) =>
+  hasRouteRole(user, ROUTE_ROLES.importExport);
+
+export const canManageAllocations = (user: UserSession | null | undefined) =>
+  hasRouteRole(user, ROUTE_ROLES.allocations);
+
+export const canOpenTimesheetApproval = (user: UserSession | null | undefined) =>
+  hasRouteRole(user, ROUTE_ROLES.timesheetApproval);
+
+export const canEditProjectData = (user: UserSession | null | undefined) =>
+  hasRouteRole(user, ['Admin', 'HR'] as const);
 
 interface ProjectAccessInput {
   user: UserSession | null | undefined;

@@ -26,6 +26,12 @@ const {
   ROUTE_ROLES,
   canAccessEmployeeDetail,
   canAccessProjectDetail,
+  canEditEmployeeData,
+  canEditProjectData,
+  canManageAllocations,
+  canOpenImportExport,
+  canOpenTimesheetApproval,
+  canResetEmployeePassword,
   hasRouteRole,
 } = await import('../src/services/accessControl.ts');
 
@@ -39,12 +45,19 @@ const admin = await authService.login('admin-1', 'demo123');
 assert.ok(admin, 'admin account should be available');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.importExport), true, 'admin should access import/export');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.auditTrail), true, 'admin should access audit trail');
-assert.equal(canAccessEmployeeDetail(admin, employees[0].id), true, 'admin should access any employee detail');
+assert.equal(canOpenImportExport(admin), true, 'admin should see import/export actions');
+assert.equal(canEditEmployeeData(admin), true, 'admin should see employee edit actions');
+assert.equal(canResetEmployeePassword(admin), true, 'admin should see password reset actions');
+assert.equal(canEditProjectData(admin), true, 'admin should see project edit actions');
+assert.equal(canAccessEmployeeDetail({ user: admin, employeeId: employees[0].id, employees, allocations, projects }), true, 'admin should access any employee detail');
 
 const hr = await authService.login('hr-1', 'demo123', 'HR');
 assert.ok(hr, 'HR account should be available');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.adminSettings), true, 'HR should access governance settings');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.auditTrail), false, 'HR should not access audit trail');
+assert.equal(canOpenImportExport(hr), false, 'HR should not see import/export actions');
+assert.equal(canEditEmployeeData(hr), true, 'HR should see employee edit actions');
+assert.equal(canEditProjectData(hr), true, 'HR should see project edit actions');
 
 const projectManager = await authService.login('pm-1', 'demo123', 'ProjectManager');
 assert.ok(projectManager, 'PM account should be available');
@@ -65,7 +78,19 @@ assert.equal(
   true,
   'PM should access managed project detail'
 );
+const managedEmployeeId = allocations.find(allocation => allocation.projectId === managedProject.id)?.employeeId;
+assert.ok(managedEmployeeId, 'managed project should have at least one assigned employee');
+assert.equal(
+  canAccessEmployeeDetail({ user: projectManager, employeeId: managedEmployeeId, employees, allocations, projects }),
+  true,
+  'PM should access employees assigned to managed projects'
+);
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.clients), false, 'PM should not access Client Portfolio');
+assert.equal(canOpenImportExport(projectManager), false, 'PM should not see import/export actions');
+assert.equal(canEditEmployeeData(projectManager), false, 'PM should not see employee edit actions');
+assert.equal(canResetEmployeePassword(projectManager), false, 'PM should not see password reset actions');
+assert.equal(canEditProjectData(projectManager), false, 'PM should not see project edit actions');
+assert.equal(canManageAllocations(projectManager), true, 'PM should see allocation controls');
 
 const countryDirector = await authService.login('cd-1', 'demo123', 'CountryDirector');
 assert.ok(countryDirector?.cdId, 'Country Director session should include CD scope id');
@@ -90,6 +115,19 @@ assert.equal(
   true,
   'CD should access projects containing scoped employees'
 );
+assert.equal(
+  canAccessEmployeeDetail({ user: countryDirector, employeeId: scopedAllocation.employeeId, employees, allocations, projects }),
+  true,
+  'CD should access scoped employee detail'
+);
+const unscopedEmployee = employees.find(employee => !cdEmployeeIds.has(employee.id));
+assert.ok(unscopedEmployee, 'seed data should include an employee outside CD scope');
+assert.equal(
+  canAccessEmployeeDetail({ user: countryDirector, employeeId: unscopedEmployee.id, employees, allocations, projects }),
+  false,
+  'CD should not access unscoped employee detail'
+);
+assert.equal(canOpenTimesheetApproval(countryDirector), true, 'CD should see timesheet approval actions');
 
 const allocatedEmployee = employees.find(employee =>
   employee.employeeId.startsWith('EMP-') &&
@@ -98,7 +136,10 @@ const allocatedEmployee = employees.find(employee =>
 assert.ok(allocatedEmployee, 'seed data should include an allocated employee user');
 const employee = await authService.login(allocatedEmployee.employeeId, 'demo123', 'Employee');
 assert.ok(employee, 'employee account should be available');
-assert.equal(canAccessEmployeeDetail(employee, allocatedEmployee.id), true, 'employee should access own detail');
+assert.equal(canAccessEmployeeDetail({ user: employee, employeeId: allocatedEmployee.id, employees, allocations, projects }), true, 'employee should access own detail');
+assert.equal(canEditEmployeeData(employee), false, 'employee should not see employee edit actions');
+assert.equal(canManageAllocations(employee), false, 'employee should not see allocation controls');
+assert.equal(canOpenTimesheetApproval(employee), false, 'employee should not see timesheet approval actions');
 const unrelatedProject = projects.find(project =>
   !allocations.some(allocation => allocation.projectId === project.id && allocation.employeeId === employee.id)
 );
@@ -113,6 +154,17 @@ assert.equal(
   }),
   false,
   'employee should not access unrelated project detail'
+);
+assert.equal(
+  canAccessProjectDetail({
+    user: projectManager,
+    project: unrelatedProject,
+    projectId: unrelatedProject.id,
+    allocations,
+    employees,
+  }),
+  false,
+  'PM should not access unmanaged project detail'
 );
 
 console.log(JSON.stringify({
