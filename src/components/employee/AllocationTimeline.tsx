@@ -8,7 +8,7 @@ interface AllocationTimelineProps {
   employees: Employee[];
   allocations: Allocation[];
   settings: SystemSettings;
-  onEditAllocation: (allocation: Allocation) => void;
+  onEditAllocation?: (allocation: Allocation) => void;
 }
 
 /** Generate next N weeks starting from this Monday + offset */
@@ -97,7 +97,9 @@ export const AllocationTimeline = ({ employees, allocations, settings, onEditAll
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-light bg-bg-secondary/40">
         <div>
           <p className="text-xs font-bold text-heading">Allocation Timeline</p>
-          <p className="text-[10px] text-body/60 mt-0.5">Next 12 weeks · hover block for details · click to edit</p>
+          <p className="text-[10px] text-body/60 mt-0.5">
+            Next 12 weeks · hover block for details · {onEditAllocation ? 'click to edit' : 'read-only view'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Legend */}
@@ -182,10 +184,11 @@ export const AllocationTimeline = ({ employees, allocations, settings, onEditAll
                                 key={a.id}
                                 className={cn(
                                   'w-full rounded px-1.5 py-1 text-left text-[8px] leading-tight font-bold border cursor-pointer hover:opacity-90 transition-opacity flex flex-col',
+                                  !onEditAllocation && 'cursor-default',
                                   isOver ? 'bg-red-50 text-red-700 border-red-200' : `${PROJECT_COLORS[colorIdx]} ${PROJECT_BORDER[colorIdx]}`
                                 )}
                                 title={`${a.projectName} · ${a.percentage}% · ${a.startDate} → ${a.endDate}`}
-                                onClick={() => onEditAllocation(a)}
+                                onClick={() => onEditAllocation?.(a)}
                                 onMouseEnter={e => {
                                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                   setTooltip({ alloc: a, x: rect.left, y: rect.top });

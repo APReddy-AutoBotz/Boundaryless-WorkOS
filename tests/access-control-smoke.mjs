@@ -127,6 +127,10 @@ assert.equal(
   false,
   'CD should not access unscoped employee detail'
 );
+assert.equal(canEditEmployeeData(countryDirector), false, 'CD should not see employee edit actions');
+assert.equal(canResetEmployeePassword(countryDirector), false, 'CD should not see password reset actions');
+assert.equal(canOpenImportExport(countryDirector), false, 'CD should not see import/export actions');
+assert.equal(canManageAllocations(countryDirector), true, 'CD should see allocation controls for scoped employees');
 assert.equal(canOpenTimesheetApproval(countryDirector), true, 'CD should see timesheet approval actions');
 
 const allocatedEmployee = employees.find(employee =>

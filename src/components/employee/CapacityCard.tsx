@@ -11,6 +11,7 @@ interface CapacityCardProps {
   cds: CountryDirector[];
   settings: SystemSettings;
   utilizationEligible?: boolean;
+  canEdit?: boolean;
   onEdit: (emp: Employee) => void;
 }
 
@@ -48,7 +49,7 @@ function UtilRing({ value, color, size = 56 }: { value: number; color: string; s
   );
 }
 
-export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocations, cds, settings, utilizationEligible = true, onEdit }) => {
+export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocations, cds, settings, utilizationEligible = true, canEdit = true, onEdit }) => {
   const activeAllocs = allocations.filter(a => a.employeeId === employee.id && a.status === 'Active');
   const planned = employee.plannedUtilization;
   const actual = employee.actualUtilization;
@@ -183,12 +184,14 @@ export const CapacityCard: React.FC<CapacityCardProps> = ({ employee, allocation
         >
           <ArrowUpRight size={12} /> View Profile
         </Link>
-        <button
-          onClick={() => onEdit(employee)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold text-heading bg-bg-secondary hover:bg-orange-50 hover:text-primary transition-colors"
-        >
-          <Edit2 size={12} /> Edit
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => onEdit(employee)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold text-heading bg-bg-secondary hover:bg-orange-50 hover:text-primary transition-colors"
+          >
+            <Edit2 size={12} /> Edit
+          </button>
+        )}
       </div>
     </div>
   );

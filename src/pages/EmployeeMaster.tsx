@@ -36,12 +36,15 @@ import { CapacityCard } from '../components/employee/CapacityCard';
 import { AllocationTimeline } from '../components/employee/AllocationTimeline';
 import { UtilizationHeatmap } from '../components/employee/UtilizationHeatmap';
 import { isUtilizationEligibleEmployee } from '../services/calculations';
+import { canEditEmployeeData, canManageAllocations } from '../services/accessControl';
 
 type EmployeeSortKey = 'employee' | 'designation' | 'director' | 'utilization' | 'projects' | 'status';
 type ViewMode = 'table' | 'cards' | 'timeline' | 'heatmap';
 
 export const EmployeeMaster = () => {
   const currentUser = authService.getCurrentUser();
+  const canEditEmployee = canEditEmployeeData(currentUser);
+  const canUseAllocationControl = canManageAllocations(currentUser);
   const defaultView: ViewMode = currentUser?.role === 'CountryDirector' ? 'cards' : 'table';
   const [view, setView] = useState<ViewMode>(defaultView);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -313,12 +316,14 @@ export const EmployeeMaster = () => {
             <button onClick={handleExport} className="btn-secondary py-2 px-4 flex items-center gap-2 font-bold text-[11px]">
                <Download size={14} /> Export
             </button>
-            <button 
-              onClick={handleAdd}
-              className="btn-primary py-2 px-4 flex items-center gap-2 font-bold text-[11px]"
-            >
-              <UserPlus size={14} /> Add Employee
-            </button>
+            {canEditEmployee && (
+              <button
+                onClick={handleAdd}
+                className="btn-primary py-2 px-4 flex items-center gap-2 font-bold text-[11px]"
+              >
+                <UserPlus size={14} /> Add Employee
+              </button>
+            )}
           </div>
         </div>
 
@@ -452,6 +457,7 @@ export const EmployeeMaster = () => {
               cds={cds}
               settings={settings}
               utilizationEligible={isUtilizationEligibleEmployee(emp, allocations)}
+              canEdit={canEditEmployee}
               onEdit={handleEdit}
             />
           ))}
@@ -463,7 +469,7 @@ export const EmployeeMaster = () => {
           employees={filteredEmployees.filter(emp => isUtilizationEligibleEmployee(emp, allocations))}
           allocations={allocations}
           settings={settings}
-          onEditAllocation={(alloc) => setEditAllocation(alloc)}
+          onEditAllocation={canUseAllocationControl ? (alloc) => setEditAllocation(alloc) : undefined}
         />
       )}
 
@@ -574,14 +580,16 @@ export const EmployeeMaster = () => {
                       >
                         <Eye size={16} />
                       </Link>
-                      <button 
-                        onClick={() => handleEdit(emp)}
-                        className="p-2 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-all" 
-                        title="Quick Edit"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      {emp.status !== 'Exited' && (
+                      {canEditEmployee && (
+                        <button
+                          onClick={() => handleEdit(emp)}
+                          className="p-2 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-all"
+                          title="Quick Edit"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
+                      {canEditEmployee && emp.status !== 'Exited' && (
                         <button
                           onClick={() => handleDeactivate(emp)}
                           className="p-2 text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-all"
