@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatHours } from '../lib/format';
 
 export const TimesheetApproval = () => {
   const [timesheets, setTimesheets] = useState<TimesheetSummary[]>([]);
@@ -331,8 +332,8 @@ export const TimesheetApproval = () => {
                     </td>
                     <td className="py-5 px-6 text-center">
                       <div className="flex flex-col items-center">
-                        <span className="text-sm font-bold text-heading">{ts.totalHours}h</span>
-                        <span className="text-[10px] text-success font-bold">{ts.billableHours}h Billable</span>
+                        <span className="text-sm font-bold text-heading">{formatHours(ts.totalHours)}</span>
+                        <span className="text-[10px] text-success font-bold">{formatHours(ts.billableHours)} Billable</span>
                       </div>
                     </td>
                     <td className="py-5 px-6">
@@ -392,7 +393,7 @@ export const TimesheetApproval = () => {
                   </div>
                   <div className="p-4 rounded-2xl border border-gray-100 space-y-1">
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Logged Effort</p>
-                    <p className="text-xl font-bold text-primary">{selectedTimesheet.totalHours}h</p>
+                    <p className="text-xl font-bold text-primary">{formatHours(selectedTimesheet.totalHours)}</p>
                   </div>
                 </div>
 
@@ -412,7 +413,7 @@ export const TimesheetApproval = () => {
                               {entry.workType} {entry.category && `• ${entry.category}`}
                             </p>
                           </div>
-                          <span className="text-xs font-bold text-primary tabular-nums">{entry.hours}h</span>
+                          <span className="text-xs font-bold text-primary tabular-nums">{formatHours(entry.hours)}</span>
                         </div>
                         {entry.remark && (
                           <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">

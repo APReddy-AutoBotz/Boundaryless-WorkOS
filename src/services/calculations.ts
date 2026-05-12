@@ -1,4 +1,5 @@
 import { Allocation, Employee, Project, SystemSettings, TimesheetSummary } from '../types';
+import { roundMetric } from '../lib/format';
 
 export const toDateOnly = (date: Date) => date.toISOString().split('T')[0];
 
@@ -101,7 +102,7 @@ export const getApprovedHours = (timesheets: TimesheetSummary[], employeeId: str
       timesheet.status === 'Approved' &&
       (!weekEnding || timesheet.weekEnding === weekEnding)
     )
-    .reduce((sum, timesheet) => sum + timesheet.billableHours, 0);
+    .reduce((sum, timesheet) => roundMetric(sum + timesheet.billableHours), 0);
 };
 
 export const getLatestApprovedActualUtilization = (
@@ -114,7 +115,7 @@ export const getLatestApprovedActualUtilization = (
     .sort((a, b) => new Date(a.weekEnding).getTime() - new Date(b.weekEnding).getTime())
     .at(-1);
 
-  return latest ? Math.round((latest.billableHours / settings.expectedWeeklyHours) * 1000) / 10 : 0;
+  return latest ? roundMetric((latest.billableHours / settings.expectedWeeklyHours) * 100) : 0;
 };
 
 export const getUtilizationBand = (load: number, settings: SystemSettings) => {

@@ -9,6 +9,7 @@ import { authService } from '../services/authService';
 import { Allocation, Employee, Project, SystemSettings, TimesheetSummary } from '../types';
 import { cn } from '../lib/utils';
 import { getLatestApprovedActualUtilization, isProjectAvailableForPlanning, overlapsDateRange } from '../services/calculations';
+import { formatHours, formatPercent } from '../lib/format';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -121,9 +122,9 @@ export const EmployeeWorkspace = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Planned Utilization', value: `${plannedUtilization}%`, sub: 'Current allocation load', icon: Target },
-          { label: 'Actual Utilization', value: `${actualUtilization}%`, sub: 'Latest approved week', icon: TrendingUp },
-          { label: 'This Week Hours', value: `${currentHours}h`, sub: currentTimesheet?.status || 'Not started', icon: Clock },
+          { label: 'Planned Utilization', value: formatPercent(plannedUtilization), sub: 'Current allocation load', icon: Target },
+          { label: 'Actual Utilization', value: formatPercent(actualUtilization), sub: 'Latest approved week', icon: TrendingUp },
+          { label: 'This Week Hours', value: formatHours(currentHours), sub: currentTimesheet?.status || 'Not started', icon: Clock },
           { label: 'Active Projects', value: currentAllocations.length, sub: `${submittedWeeks} submitted week${submittedWeeks === 1 ? '' : 's'}`, icon: Briefcase },
         ].map(item => (
           <div key={item.label} className="bg-white border border-border-light rounded-2xl p-4 shadow-sm">
@@ -160,7 +161,7 @@ export const EmployeeWorkspace = () => {
                   <div key={item.label}>
                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
                       <span>{item.label}</span>
-                      <span>{item.value}%</span>
+                      <span>{formatPercent(item.value)}</span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div className={cn('h-full rounded-full transition-all', item.color)} style={{ width: `${Math.min(item.value, 100)}%` }} />
@@ -181,7 +182,7 @@ export const EmployeeWorkspace = () => {
                   {currentTimesheet?.status || 'Not Started'}
                 </Badge>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-3">Week ending {currentWeekEnding}</p>
-                <p className="text-2xl font-black text-heading mt-2 tabular-nums">{currentHours}h</p>
+                <p className="text-2xl font-black text-heading mt-2 tabular-nums">{formatHours(currentHours)}</p>
               </div>
               <Link to="/timesheets" className="btn-secondary py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest">
                 Continue

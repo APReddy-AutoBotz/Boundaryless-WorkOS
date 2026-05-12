@@ -31,6 +31,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : undefined,
 });
+const round1 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 10) / 10;
 
 app.set('trust proxy', 1);
 app.use(cors({ origin: process.env.APP_URL || 'http://localhost:3000', credentials: true }));
@@ -1323,8 +1324,8 @@ app.post('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 
       }
     }
 
-    const totalHours = parsed.data.entries.reduce((sum, entry) => sum + entry.hours, 0);
-    const billableHours = parsed.data.entries.filter(entry => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+    const totalHours = round1(parsed.data.entries.reduce((sum, entry) => sum + entry.hours, 0));
+    const billableHours = round1(parsed.data.entries.filter(entry => entry.billable).reduce((sum, entry) => sum + entry.hours, 0));
     const previous = (await client.query('select * from timesheets where employee_id = $1 and week_ending = $2', [parsed.data.employee_id, parsed.data.week_ending])).rows[0];
     const timesheetResult = await client.query(`
       insert into timesheets (employee_id, week_ending, status, total_hours, billable_hours, rejection_reason, submitted_at)
@@ -1358,7 +1359,7 @@ app.post('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 
         entry.client_name || null,
         entry.category || null,
         entry.work_date,
-        entry.hours,
+        round1(entry.hours),
         entry.remark || null,
         entry.billable,
       ]);
@@ -2730,7 +2731,7 @@ app.post('/api/imports/timesheets/apply', requireDatabase, requireAuth, requireR
         clientName: row.clientName || null,
         category: row.category || null,
         workDate: row.date,
-        hours: row.hours,
+        hours: round1(row.hours),
         remark: row.remark || null,
         billable: parseBoolean(row.billable, row.workType === 'Project Work'),
       });
@@ -2739,8 +2740,8 @@ app.post('/api/imports/timesheets/apply', requireDatabase, requireAuth, requireR
     }
 
     for (const group of groups.values()) {
-      const totalHours = group.entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-      const billableHours = group.entries.filter(entry => entry.billable).reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+      const totalHours = round1(group.entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0));
+      const billableHours = round1(group.entries.filter(entry => entry.billable).reduce((sum, entry) => sum + Number(entry.hours || 0), 0));
       const previous = (await client.query('select * from timesheets where employee_id = $1 and week_ending = $2', [group.employee.id, group.weekEnding])).rows[0];
       const timesheetResult = await client.query(`
         insert into timesheets (employee_id, week_ending, status, total_hours, billable_hours, rejection_reason, submitted_at)

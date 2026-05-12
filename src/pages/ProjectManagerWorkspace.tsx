@@ -9,6 +9,7 @@ import { authService } from '../services/authService';
 import { Allocation, Employee, Project, SystemSettings, TimesheetSummary } from '../types';
 import { cn } from '../lib/utils';
 import { isProjectAvailableForPlanning, overlapsDateRange } from '../services/calculations';
+import { formatFte, formatHours, formatMetric, formatPercent } from '../lib/format';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -123,7 +124,7 @@ export const ProjectManagerWorkspace = () => {
         {[
           { label: 'Managed Projects', value: projects.length, sub: `${activeProjects.length} active today`, icon: Briefcase },
           { label: 'Current Team', value: team.length, sub: 'Visible resources', icon: Users },
-          { label: 'Allocated FTE', value: allocatedFte.toFixed(1), sub: 'Across active projects', icon: Users },
+          { label: 'Allocated FTE', value: formatMetric(allocatedFte), sub: 'Across active projects', icon: Users },
           { label: 'Pending Approvals', value: pendingTimesheets.length, sub: 'Submitted timesheets', icon: Clock },
           { label: 'Staffing Risks', value: staffingGaps.length + overloadedTeam.length, sub: `${staffingGaps.length} gaps, ${overloadedTeam.length} overloads`, icon: AlertCircle },
         ].map(item => (
@@ -164,7 +165,7 @@ export const ProjectManagerWorkspace = () => {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{project.projectCode} | {project.client}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-lg font-black text-heading tabular-nums">{fte.toFixed(1)} FTE</p>
+                        <p className="text-lg font-black text-heading tabular-nums">{formatFte(fte)}</p>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{rows.length} resource{rows.length === 1 ? '' : 's'}</p>
                       </div>
                     </div>
@@ -207,12 +208,17 @@ export const ProjectManagerWorkspace = () => {
                       <p className="text-sm font-bold text-heading truncate">{employee.name}</p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{employee.employeeId} | {employee.designation}</p>
                     </div>
-                    <span className={cn(
-                      'text-sm font-black tabular-nums',
-                      employee.plannedUtilization > settings.utilizationThresholdHigh ? 'text-danger' : 'text-primary'
-                    )}>
-                      {employee.plannedUtilization}%
-                    </span>
+                    <div className="text-right shrink-0">
+                      <p className={cn(
+                        'text-sm font-black tabular-nums',
+                        employee.plannedUtilization > settings.utilizationThresholdHigh ? 'text-danger' : 'text-primary'
+                      )}>
+                        P {formatPercent(employee.plannedUtilization)}
+                      </p>
+                      <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-slate-400 tabular-nums">
+                        A {formatPercent(employee.actualUtilization)}
+                      </p>
+                    </div>
                   </Link>
                 ))}
               {team.length === 0 && (
@@ -241,7 +247,7 @@ export const ProjectManagerWorkspace = () => {
                     <p className="text-xs font-bold text-heading truncate">{timesheet.employeeName}</p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{timesheet.weekEnding}</p>
                   </div>
-                  <span className="text-xs font-black text-primary tabular-nums">{timesheet.totalHours}h</span>
+                  <span className="text-xs font-black text-primary tabular-nums">{formatHours(timesheet.totalHours)}</span>
                 </Link>
               ))}
               {pendingTimesheets.length === 0 && (

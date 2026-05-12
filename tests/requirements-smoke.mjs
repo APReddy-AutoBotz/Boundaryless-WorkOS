@@ -28,6 +28,7 @@ const {
   getCompanyMetrics,
   getUtilizationEligibleEmployees,
 } = await import('../src/services/calculations.ts');
+const { roundMetric, formatHours } = await import('../src/lib/format.ts');
 
 const todayIso = new Date().toISOString().split('T')[0];
 const inRange = (start, end) => new Date(start) <= new Date(todayIso) && new Date(end) >= new Date(todayIso);
@@ -56,6 +57,8 @@ assert.ok(timesheets.some(timesheet => timesheet.status === 'Draft'), 'demo data
 assert.ok(timesheets.some(timesheet => timesheet.status === 'Submitted'), 'demo data should include submitted timesheets');
 assert.ok(timesheets.some(timesheet => timesheet.status === 'Approved'), 'demo data should include approved timesheets');
 assert.ok(timesheets.some(timesheet => timesheet.status === 'Rejected'), 'demo data should include rejected timesheets');
+assert.equal(roundMetric(26.700000000000003), 26.7, 'metric rounding should remove floating-point artifacts');
+assert.equal(formatHours(26.700000000000003), '26.7h', 'hour formatting should present demo-safe decimal precision');
 assert.ok(departments.length >= 10, 'department catalog should be seeded');
 assert.ok(countries.length >= 10, 'country catalog should be seeded');
 assert.ok(industries.length >= 10, 'industry catalog should be seeded');

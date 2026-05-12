@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getUtilizationEligibleEmployees } from '../services/calculations';
+import { formatHours } from '../lib/format';
 
 export const ActualUtilization = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -504,7 +505,7 @@ export const ActualUtilization = () => {
                     </td>
                     <td className="py-5 px-6 font-mono text-xs text-gray-500 font-bold">{ts.weekEnding}</td>
                     <td className="py-5 px-6 text-center">
-                       <span className="text-sm font-bold text-heading">{ts.totalHours}h</span>
+                       <span className="text-sm font-bold text-heading">{formatHours(ts.totalHours)}</span>
                     </td>
                     <td className="py-5 px-6 text-center">
                        <span className={cn(

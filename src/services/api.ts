@@ -14,6 +14,7 @@ import {
   normalizeCountryDirector, normalizeImportExportLog, normalizeUtilizationReport,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
+import { roundMetric } from '../lib/format';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 const sha256 = async (value: string) => {
@@ -286,13 +287,16 @@ export const timesheetService = {
     return DataStorage.get<TimesheetSummary[]>(STORAGE_KEYS.TIMESHEETS, []);
   },
   save: async (ts: TimesheetSummary): Promise<void> => {
+    const roundedEntries = ts.entries.map(e => ({ ...e, hours: roundMetric(e.hours) }));
+    const totalHours = roundMetric(roundedEntries.reduce((sum, entry) => sum + entry.hours, 0));
+    const billableHours = roundMetric(roundedEntries.filter(entry => entry.billable).reduce((sum, entry) => sum + entry.hours, 0));
     if (await checkBackend()) {
       await api.post('/api/timesheets', {
         employee_id: ts.employeeId,
         week_ending: ts.weekEnding,
         status: ts.status,
         rejection_reason: ts.rejectionReason || null,
-        entries: ts.entries.map(e => ({
+        entries: roundedEntries.map(e => ({
           id: e.id,
           project_id: e.projectId || null,
           work_type: e.workType,
@@ -316,7 +320,7 @@ export const timesheetService = {
     if (weekStart > currWeekStart) throw new Error('Future week timesheets cannot be saved or submitted.');
     const list = DataStorage.get<TimesheetSummary[]>(STORAGE_KEYS.TIMESHEETS, []);
     const idx = list.findIndex(t => t.employeeId === ts.employeeId && t.weekEnding === ts.weekEnding);
-    const next = { ...ts, updatedAt: new Date().toISOString() };
+    const next = { ...ts, entries: roundedEntries, totalHours, billableHours, updatedAt: new Date().toISOString() };
     if (idx >= 0) list[idx] = next; else list.push(next);
     DataStorage.set(STORAGE_KEYS.TIMESHEETS, list);
     DataStorage.recalculateUtilization();

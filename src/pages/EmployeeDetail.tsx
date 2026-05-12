@@ -38,6 +38,7 @@ import {
   canOpenTimesheetApproval,
   canResetEmployeePassword,
 } from '../services/accessControl';
+import { formatHours, formatPercent } from '../lib/format';
 
 export const EmployeeDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -373,7 +374,7 @@ export const EmployeeDetail = () => {
               <div className="col-span-1 space-y-3">
                 <div>
                   <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    <span>Planned</span><span>{utilizationEligible ? `${plannedUtil}%` : 'Excluded'}</span>
+                    <span>Planned</span><span>{utilizationEligible ? formatPercent(plannedUtil) : 'Excluded'}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-heading/70 transition-all" style={{ width: utilizationEligible ? `${Math.min(plannedUtil, 100)}%` : '0%' }} />
@@ -381,7 +382,7 @@ export const EmployeeDetail = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    <span>Actual</span><span>{utilizationEligible ? `${actualUtil}%` : 'Excluded'}</span>
+                    <span>Actual</span><span>{utilizationEligible ? formatPercent(actualUtil) : 'Excluded'}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-primary transition-all" style={{ width: utilizationEligible ? `${Math.min(actualUtil, 100)}%` : '0%' }} />
@@ -664,11 +665,11 @@ export const EmployeeDetail = () => {
                 <div className="grid grid-cols-2 gap-4">
                    <div className="p-3 bg-bg-secondary rounded-xl border border-border-light">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Billable Hours</p>
-                      <p className="text-lg font-bold text-heading">{approvedBillableHours}h</p>
+                       <p className="text-lg font-bold text-heading">{formatHours(approvedBillableHours)}</p>
                    </div>
                    <div className="p-3 bg-bg-secondary rounded-xl border border-border-light">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Internal Ops</p>
-                      <p className="text-lg font-bold text-heading">{approvedInternalHours}h</p>
+                      <p className="text-lg font-bold text-heading">{formatHours(approvedInternalHours)}</p>
                    </div>
                 </div>
              </Card>

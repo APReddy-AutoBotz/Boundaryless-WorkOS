@@ -10,6 +10,7 @@ import type {
   RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
   UtilizationReport,
 } from '../types';
+import { roundMetric } from '../lib/format';
 
 // ─── Backend availability detection ──────────────────────────────────────────
 
@@ -134,8 +135,8 @@ export const normalizeUtilizationReportEmployee = (r: Record<string, unknown>): 
     : [],
   status: r.status as Employee['status'],
   utilizationEligible: r.utilization_eligible === undefined ? true : Boolean(r.utilization_eligible),
-  plannedUtilization: Number(r.planned_utilization ?? 0),
-  actualUtilization: Number(r.actual_utilization ?? 0),
+  plannedUtilization: roundMetric(Number(r.planned_utilization ?? 0)),
+  actualUtilization: roundMetric(Number(r.actual_utilization ?? 0)),
   activeProjectCount: Number(r.active_project_count ?? 0),
 });
 
@@ -226,8 +227,8 @@ export const normalizeTimesheetSummary = (
     employeeId: String(r.employee_id),
     employeeName: employeeMap.get(String(r.employee_id))?.name ?? String(r.employee_id),
     weekEnding: String(r.week_ending).slice(0, 10),
-    totalHours: Number(r.total_hours),
-    billableHours: Number(r.billable_hours),
+    totalHours: roundMetric(Number(r.total_hours)),
+    billableHours: roundMetric(Number(r.billable_hours)),
     status: r.status as TimesheetSummary['status'],
     rejectionReason: r.rejection_reason ? String(r.rejection_reason) : undefined,
     submittedAt: r.submitted_at ? String(r.submitted_at) : undefined,
@@ -245,7 +246,7 @@ export const normalizeTimesheetSummary = (
       clientName: entry.client_name ? String(entry.client_name) : undefined,
       category: entry.category ? String(entry.category) : undefined,
       date: String(entry.work_date).slice(0, 10),
-      hours: Number(entry.hours),
+      hours: roundMetric(Number(entry.hours)),
       remark: entry.remark ? String(entry.remark) : undefined,
       status: (entry.status || r.status) as TimesheetEntry['status'],
       billable: Boolean(entry.billable) as true,
