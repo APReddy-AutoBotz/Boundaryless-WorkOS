@@ -8,8 +8,10 @@ import { UserRole } from './types';
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const EmployeeMaster = lazy(() => import('./pages/EmployeeMaster').then(module => ({ default: module.EmployeeMaster })));
 const EmployeeDetail = lazy(() => import('./pages/EmployeeDetail').then(module => ({ default: module.EmployeeDetail })));
+const EmployeeWorkspace = lazy(() => import('./pages/EmployeeWorkspace').then(module => ({ default: module.EmployeeWorkspace })));
 const ProjectMaster = lazy(() => import('./pages/ProjectMaster').then(module => ({ default: module.ProjectMaster })));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail').then(module => ({ default: module.ProjectDetail })));
+const ProjectManagerWorkspace = lazy(() => import('./pages/ProjectManagerWorkspace').then(module => ({ default: module.ProjectManagerWorkspace })));
 const ClientPortfolio = lazy(() => import('./pages/ClientPortfolio').then(module => ({ default: module.ClientPortfolio })));
 const AllocationManagement = lazy(() => import('./pages/AllocationManagement').then(module => ({ default: module.AllocationManagement })));
 const MyTimesheet = lazy(() => import('./pages/MyTimesheet').then(module => ({ default: module.MyTimesheet })));
@@ -38,8 +40,8 @@ const RoleRoute = ({ children, roles }: { children: React.ReactNode; roles: read
 };
 
 const getRoleHomePath = (role: UserRole) => {
-  if (role === 'Employee') return '/timesheets';
-  if (role === 'ProjectManager') return '/projects';
+  if (role === 'Employee') return '/my-workspace';
+  if (role === 'ProjectManager') return '/pm-workspace';
   if (role === 'TeamLead') return '/timesheets/approval';
   return null;
 };
@@ -94,6 +96,11 @@ export default function App() {
                   <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 
                 {/* Employee Routes */}
+                <Route path="/my-workspace" element={
+                  <RoleRoute roles={ROUTE_ROLES.employeeWorkspace}>
+                    <EmployeeWorkspace />
+                  </RoleRoute>
+                } />
                 <Route path="/employees" element={
                   <RoleRoute roles={ROUTE_ROLES.employees}>
                     <EmployeeMaster />
@@ -102,6 +109,11 @@ export default function App() {
                 <Route path="/employees/:id" element={<EmployeeDetailRoute />} />
                 
                 {/* Project Routes */}
+                <Route path="/pm-workspace" element={
+                  <RoleRoute roles={ROUTE_ROLES.projectManagerWorkspace}>
+                    <ProjectManagerWorkspace />
+                  </RoleRoute>
+                } />
                 <Route path="/projects" element={
                   <RoleRoute roles={ROUTE_ROLES.projects}>
                     <ProjectMaster />

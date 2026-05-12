@@ -64,6 +64,7 @@ assert.equal(canEditProjectData(hr), true, 'HR should see project edit actions')
 const projectManager = await authService.login('pm-1', 'demo123', 'ProjectManager');
 assert.ok(projectManager, 'PM account should be available');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.dashboard), false, 'PM should land in project workspace instead of overview dashboard');
+assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.projectManagerWorkspace), true, 'PM should access PM Workspace');
 const managedProject = projects.find(project =>
   project.managerId === projectManager.id ||
   project.managerId === projectManager.employeeId ||
@@ -145,6 +146,7 @@ assert.ok(allocatedEmployee, 'seed data should include an allocated employee use
 const employee = await authService.login(allocatedEmployee.employeeId, 'demo123', 'Employee');
 assert.ok(employee, 'employee account should be available');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.dashboard), false, 'employee should land in timesheet workspace instead of overview dashboard');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.employeeWorkspace), true, 'employee should access My Workspace');
 assert.equal(canAccessEmployeeDetail({ user: employee, employeeId: allocatedEmployee.id, employees, allocations, projects }), true, 'employee should access own detail');
 assert.equal(canEditEmployeeData(employee), false, 'employee should not see employee edit actions');
 assert.equal(canManageAllocations(employee), false, 'employee should not see allocation controls');

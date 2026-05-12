@@ -44,6 +44,8 @@ export const Sidebar = () => {
       group: 'Main', 
       items: [
         { name: 'Overview Dashboard', path: '/', icon: LayoutDashboard, roles: ROUTE_ROLES.dashboard },
+        { name: 'My Workspace', path: '/my-workspace', icon: LayoutDashboard, roles: ROUTE_ROLES.employeeWorkspace },
+        { name: 'PM Workspace', path: '/pm-workspace', icon: LayoutDashboard, roles: ROUTE_ROLES.projectManagerWorkspace },
       ]
     },
     { 

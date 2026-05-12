@@ -78,6 +78,8 @@ export const Header = () => {
     const query = searchQuery.trim().toLowerCase();
     const pages: Array<SearchResult & { roles?: string[] }> = [
       { id: 'page-dashboard', title: 'Overview Dashboard', subtitle: 'Company and regional utilization command center', path: '/', icon: BarChart3, keywords: 'dashboard overview kpi country director clients operations', roles: ROUTE_ROLES.dashboard },
+      { id: 'page-my-workspace', title: 'My Workspace', subtitle: 'My projects, utilization, and timesheet status', path: '/my-workspace', icon: Users, keywords: 'my workspace employee assignments projects utilization timesheet', roles: ROUTE_ROLES.employeeWorkspace },
+      { id: 'page-pm-workspace', title: 'PM Workspace', subtitle: 'Managed projects, team allocation, approvals, and risks', path: '/pm-workspace', icon: BriefcaseBusiness, keywords: 'pm workspace project manager team allocation approvals risks', roles: ROUTE_ROLES.projectManagerWorkspace },
       { id: 'page-employees', title: 'Employee Master', subtitle: 'Resources, roles, CD mappings, utilization', path: '/employees', icon: Users, keywords: 'employees resources people consultants hr', roles: ['Admin', 'HR', 'CountryDirector', 'TeamLead'] },
       { id: 'page-projects', title: 'Project Master', subtitle: 'Processes, clients, project managers, resources', path: '/projects', icon: BriefcaseBusiness, keywords: 'projects processes clients pm delivery', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager'] },
       { id: 'page-clients', title: 'Client Portfolio', subtitle: 'Client, project, and resource coverage', path: '/clients', icon: Building2, keywords: 'clients portfolio accounts customer distribution', roles: ['Admin', 'HR', 'CountryDirector'] },
