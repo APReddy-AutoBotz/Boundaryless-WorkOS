@@ -163,6 +163,10 @@ export const ClientPortfolio = () => {
     return Array.from(grouped.values())
       .map(row => {
         const people = Array.from(row.people.values());
+        const getProjectFte = (projectId: string) =>
+          row.allocations
+            .filter(allocation => allocation.projectId === projectId)
+            .reduce((sum, allocation) => sum + allocation.percentage / 100, 0);
         return {
           clientId: row.clientId,
           client: row.client,
@@ -170,7 +174,7 @@ export const ClientPortfolio = () => {
           status: row.status,
           countryDirectorIds: row.countryDirectorIds,
           people,
-          projects: Array.from(row.projects.values()).sort((a, b) => b.resourceCount - a.resourceCount || a.name.localeCompare(b.name)),
+          projects: Array.from(row.projects.values()).sort((a, b) => getProjectFte(b.id) - getProjectFte(a.id) || a.name.localeCompare(b.name)),
           allocations: row.allocations,
           allocatedFte: Number(row.allocatedFte.toFixed(1)),
           billableFte: Number(row.billableFte.toFixed(1)),
@@ -332,6 +336,10 @@ export const ClientPortfolio = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {filteredRows.map(row => {
           const topProjects = row.projects.slice(0, 4);
+          const projectFte = (projectId: string) =>
+            row.allocations
+              .filter(allocation => allocation.projectId === projectId)
+              .reduce((sum, allocation) => sum + allocation.percentage / 100, 0);
           const topPeople = row.people
             .slice()
             .sort((a, b) => b.plannedUtilization - a.plannedUtilization || a.name.localeCompare(b.name))
@@ -410,7 +418,7 @@ export const ClientPortfolio = () => {
                               <p className="text-xs font-bold text-heading truncate">{project.name}</p>
                               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{project.projectCode}</p>
                             </div>
-                            <span className="text-[10px] font-black text-heading tabular-nums">{project.resourceCount} FTE</span>
+                            <span className="text-[10px] font-black text-heading tabular-nums">{projectFte(project.id).toFixed(1)} FTE</span>
                           </div>
                         </Link>
                       ))}
