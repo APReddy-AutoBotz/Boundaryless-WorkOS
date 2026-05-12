@@ -43,7 +43,7 @@ export const Sidebar = () => {
     { 
       group: 'Main', 
       items: [
-        { name: 'Overview Dashboard', path: '/', icon: LayoutDashboard },
+        { name: 'Overview Dashboard', path: '/', icon: LayoutDashboard, roles: ROUTE_ROLES.dashboard },
       ]
     },
     { 

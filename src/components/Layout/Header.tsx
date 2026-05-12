@@ -77,7 +77,7 @@ export const Header = () => {
   const searchResults = useMemo<SearchResult[]>(() => {
     const query = searchQuery.trim().toLowerCase();
     const pages: Array<SearchResult & { roles?: string[] }> = [
-      { id: 'page-dashboard', title: 'Overview Dashboard', subtitle: 'Company utilization command center', path: '/', icon: BarChart3, keywords: 'dashboard overview kpi country director clients operations' },
+      { id: 'page-dashboard', title: 'Overview Dashboard', subtitle: 'Company and regional utilization command center', path: '/', icon: BarChart3, keywords: 'dashboard overview kpi country director clients operations', roles: ROUTE_ROLES.dashboard },
       { id: 'page-employees', title: 'Employee Master', subtitle: 'Resources, roles, CD mappings, utilization', path: '/employees', icon: Users, keywords: 'employees resources people consultants hr', roles: ['Admin', 'HR', 'CountryDirector', 'TeamLead'] },
       { id: 'page-projects', title: 'Project Master', subtitle: 'Processes, clients, project managers, resources', path: '/projects', icon: BriefcaseBusiness, keywords: 'projects processes clients pm delivery', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager'] },
       { id: 'page-clients', title: 'Client Portfolio', subtitle: 'Client, project, and resource coverage', path: '/clients', icon: Building2, keywords: 'clients portfolio accounts customer distribution', roles: ['Admin', 'HR', 'CountryDirector'] },

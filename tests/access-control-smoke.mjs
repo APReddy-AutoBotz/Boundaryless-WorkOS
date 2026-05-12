@@ -43,6 +43,7 @@ const allocations = await allocationService.getAll();
 
 const admin = await authService.login('admin-1', 'demo123');
 assert.ok(admin, 'admin account should be available');
+assert.equal(hasRouteRole(admin, ROUTE_ROLES.dashboard), true, 'admin should access the overview dashboard');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.importExport), true, 'admin should access import/export');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.auditTrail), true, 'admin should access audit trail');
 assert.equal(canOpenImportExport(admin), true, 'admin should see import/export actions');
@@ -53,6 +54,7 @@ assert.equal(canAccessEmployeeDetail({ user: admin, employeeId: employees[0].id,
 
 const hr = await authService.login('hr-1', 'demo123', 'HR');
 assert.ok(hr, 'HR account should be available');
+assert.equal(hasRouteRole(hr, ROUTE_ROLES.dashboard), true, 'HR should access the overview dashboard');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.adminSettings), true, 'HR should access governance settings');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.auditTrail), false, 'HR should not access audit trail');
 assert.equal(canOpenImportExport(hr), false, 'HR should not see import/export actions');
@@ -61,6 +63,7 @@ assert.equal(canEditProjectData(hr), true, 'HR should see project edit actions')
 
 const projectManager = await authService.login('pm-1', 'demo123', 'ProjectManager');
 assert.ok(projectManager, 'PM account should be available');
+assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.dashboard), false, 'PM should land in project workspace instead of overview dashboard');
 const managedProject = projects.find(project =>
   project.managerId === projectManager.id ||
   project.managerId === projectManager.employeeId ||
@@ -94,6 +97,7 @@ assert.equal(canManageAllocations(projectManager), true, 'PM should see allocati
 
 const countryDirector = await authService.login('cd-1', 'demo123', 'CountryDirector');
 assert.ok(countryDirector?.cdId, 'Country Director session should include CD scope id');
+assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.dashboard), true, 'CD should access the scoped overview dashboard');
 const cdEmployeeIds = new Set(employees
   .filter(employee =>
     employee.primaryCountryDirectorId === countryDirector.cdId ||
@@ -140,6 +144,7 @@ const allocatedEmployee = employees.find(employee =>
 assert.ok(allocatedEmployee, 'seed data should include an allocated employee user');
 const employee = await authService.login(allocatedEmployee.employeeId, 'demo123', 'Employee');
 assert.ok(employee, 'employee account should be available');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.dashboard), false, 'employee should land in timesheet workspace instead of overview dashboard');
 assert.equal(canAccessEmployeeDetail({ user: employee, employeeId: allocatedEmployee.id, employees, allocations, projects }), true, 'employee should access own detail');
 assert.equal(canEditEmployeeData(employee), false, 'employee should not see employee edit actions');
 assert.equal(canManageAllocations(employee), false, 'employee should not see allocation controls');

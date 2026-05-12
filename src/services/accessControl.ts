@@ -1,6 +1,7 @@
 import { Allocation, Employee, Project, UserRole, UserSession } from '../types';
 
 export const ROUTE_ROLES = {
+  dashboard: ['Admin', 'HR', 'CountryDirector'],
   employees: ['Admin', 'HR', 'CountryDirector', 'TeamLead'],
   projects: ['Admin', 'HR', 'CountryDirector', 'ProjectManager'],
   clients: ['Admin', 'HR', 'CountryDirector'],

@@ -37,6 +37,22 @@ const RoleRoute = ({ children, roles }: { children: React.ReactNode; roles: read
   return <>{children}</>;
 };
 
+const getRoleHomePath = (role: UserRole) => {
+  if (role === 'Employee') return '/timesheets';
+  if (role === 'ProjectManager') return '/projects';
+  if (role === 'TeamLead') return '/timesheets/approval';
+  return null;
+};
+
+const DashboardRoute = () => {
+  const user = authService.getCurrentUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!hasRouteRole(user, ROUTE_ROLES.dashboard)) {
+    return <Navigate to={getRoleHomePath(user.role) || '/timesheets'} replace />;
+  }
+  return <Dashboard />;
+};
+
 const EmployeeDetailRoute = () => {
   const user = authService.getCurrentUser();
   if (!user) return <Navigate to="/" replace />;
@@ -74,7 +90,7 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/" element={<DashboardRoute />} />
                   <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 
                 {/* Employee Routes */}
