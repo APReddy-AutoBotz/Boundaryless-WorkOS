@@ -1,0 +1,66 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "viewport": "1600x900",
+  "captured": [
+    {
+      "name": "01-login-internal-access",
+      "description": "Internal login and role-based access screen",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\01-login-internal-access.png"
+    },
+    {
+      "name": "02-dashboard-command-center",
+      "description": "Overview dashboard with portfolio-level signals",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\02-dashboard-command-center.png"
+    },
+    {
+      "name": "03-client-portfolio-scope",
+      "description": "Client portfolio showing scope and concentration",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\03-client-portfolio-scope.png"
+    },
+    {
+      "name": "04-employee-master",
+      "description": "Employee master list with governed people records",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\04-employee-master.png"
+    },
+    {
+      "name": "05-employee-detail",
+      "description": "Employee detail proving person-to-project traceability",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\05-employee-detail.png"
+    },
+    {
+      "name": "06-project-detail",
+      "description": "Project detail with assigned consultants and allocation percentages",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\06-project-detail.png"
+    },
+    {
+      "name": "07-allocation-control",
+      "description": "Allocation Control showing planned utilization workflow",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\07-allocation-control.png"
+    },
+    {
+      "name": "08-my-timesheet",
+      "description": "Weekly timesheet entry and submission workflow",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\08-my-timesheet.png"
+    },
+    {
+      "name": "09-timesheet-governance",
+      "description": "Timesheet governance and approval queue",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\09-timesheet-governance.png"
+    },
+    {
+      "name": "10-actual-utilization",
+      "description": "Actual utilization and planned-vs-actual variance",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\10-actual-utilization.png"
+    },
+    {
+      "name": "11-governance-settings",
+      "description": "Governance settings, catalogs, and controlled master-data configuration",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\11-governance-settings.png"
+    },
+    {
+      "name": "12-audit-trail",
+      "description": "Audit trail and traceability evidence",
+      "file": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots\\12-audit-trail.png"
+    }
+  ]
+}
