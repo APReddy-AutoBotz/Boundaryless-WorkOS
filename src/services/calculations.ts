@@ -20,7 +20,7 @@ export const getAllocationLoad = (
   rangeEnd: string,
   includeProposedProjects = false
 ) => {
-  return allocations
+  const load = allocations
     .filter(allocation => {
       const project = projects.find(item => item.id === allocation.projectId);
       return allocation.employeeId === employeeId &&
@@ -30,6 +30,7 @@ export const getAllocationLoad = (
         overlapsDateRange(allocation.startDate, allocation.endDate, rangeStart, rangeEnd);
     })
     .reduce((sum, allocation) => sum + allocation.percentage, 0);
+  return roundMetric(load);
 };
 
 export const getActiveAllocationsForEmployee = (

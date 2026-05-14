@@ -32,6 +32,7 @@ import {
 import { cn } from '../lib/utils';
 import { downloadCsv } from '../lib/csv';
 import { getUtilizationEligibleEmployees } from '../services/calculations';
+import { formatPercent } from '../lib/format';
 
 const COLORS = ['#EF7D00', '#1E293B', '#64748B', '#94A3B8', '#CBD5E1'];
 
@@ -91,18 +92,18 @@ export const PlannedUtilization = () => {
     
     const active = getUtilizationEligibleEmployees(employees);
     const totalPlanned = active.reduce((sum, e) => sum + e.plannedUtilization, 0);
-    const avgPlanned = active.length > 0 ? (totalPlanned / active.length).toFixed(1) : 0;
+    const avgPlanned = active.length > 0 ? totalPlanned / active.length : 0;
     
     const overAllocated = active.filter(e => e.plannedUtilization > settings.utilizationThresholdHigh).length;
     const underUtilized = active.filter(e => e.plannedUtilization < settings.utilizationThresholdLow && e.plannedUtilization > settings.benchThreshold).length;
     const bench = active.filter(e => e.plannedUtilization <= settings.benchThreshold).length;
     
     return [
-      { title: 'Avg. Planned Util.', value: `${avgPlanned}%`, icon: 'Target' },
+      { title: 'Avg. Planned Util.', value: formatPercent(avgPlanned), icon: 'Target' },
       { title: 'Overloaded', value: overAllocated, change: 2, changeType: 'increase', icon: 'AlertTriangle' },
       { title: 'Underutilized', value: underUtilized, change: -3, changeType: 'decrease', icon: 'ArrowDownRight' },
       { title: 'Bench Count', value: bench, icon: 'Users' },
-      { title: 'Overload Density', value: active.length > 0 ? (overAllocated / active.length * 100).toFixed(0) + '%' : '0%', icon: 'Activity' },
+      { title: 'Overload Density', value: active.length > 0 ? formatPercent(overAllocated / active.length * 100, 0) : '0%', icon: 'Activity' },
       { title: 'Utilization FTE', value: active.length, icon: 'Users' }
     ];
   }, [employees, settings]);
@@ -294,7 +295,7 @@ export const PlannedUtilization = () => {
               {overAllocated.map(e => (
                 <div key={e.id} className="flex items-center justify-between">
                    <span className="text-xs font-bold text-heading truncate pr-2">{e.name}</span>
-                   <span className="text-xs font-bold text-danger">{e.plannedUtilization}%</span>
+                   <span className="text-xs font-bold text-danger">{formatPercent(e.plannedUtilization)}</span>
                 </div>
               ))}
               {overAllocated.length === 0 && <p className="text-[10px] text-gray-400 font-bold uppercase py-2">No critical overload</p>}
@@ -407,7 +408,7 @@ export const PlannedUtilization = () => {
                        <span className={cn(
                          "text-sm font-bold mb-1",
                          emp.plannedUtilization > 100 ? "text-danger" : "text-heading"
-                       )}>{emp.plannedUtilization}%</span>
+                       )}>{formatPercent(emp.plannedUtilization)}</span>
                        <div className="w-24 h-1 bg-gray-100 rounded-full overflow-hidden">
                           <div 
                             className={cn("h-full transition-all duration-500", emp.plannedUtilization > 100 ? "bg-danger" : "bg-primary")} 

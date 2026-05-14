@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getUtilizationEligibleEmployees } from '../services/calculations';
-import { formatHours } from '../lib/format';
+import { formatHours, formatPercent, roundMetric } from '../lib/format';
 
 export const ActualUtilization = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -86,24 +86,35 @@ export const ActualUtilization = () => {
     const approvedTimesheets = scopedTimesheets.filter(timesheet => timesheet.status === 'Approved');
     const totalBillableHours = approvedTimesheets.reduce((sum, ts) => sum + ts.billableHours, 0);
     const avgActual = approvedTimesheets.length > 0 && settings
-      ? ((totalBillableHours / (approvedTimesheets.length * settings.expectedWeeklyHours)) * 100).toFixed(1)
+      ? (totalBillableHours / (approvedTimesheets.length * settings.expectedWeeklyHours)) * 100
       : 0;
 
     const pendingReview = scopedTimesheets.filter(t => t.status === 'Submitted').length;
     const approved = scopedTimesheets.filter(t => t.status === 'Approved').length;
     const total = scopedTimesheets.length;
-    const submissionRate = total > 0 ? ((approved + pendingReview) / total * 100).toFixed(1) : 0;
+    const submissionRate = total > 0 ? ((approved + pendingReview) / total * 100) : 0;
     const missingLogs = active.filter(e => !scopedTimesheets.some(t => t.employeeId === e.id)).length;
-    const loggingVariance = active.length > 0
-      ? active.reduce((sum, employee) => sum + Math.abs(employee.plannedUtilization - employee.actualUtilization), 0) / active.length
+    const latestApprovedByEmployee = new Map<string, TimesheetSummary>();
+    approvedTimesheets
+      .sort((a, b) => new Date(a.weekEnding).getTime() - new Date(b.weekEnding).getTime())
+      .forEach(timesheet => latestApprovedByEmployee.set(timesheet.employeeId, timesheet));
+    const employeesWithApprovedScope = active.filter(employee => latestApprovedByEmployee.has(employee.id));
+    const loggingVariance = employeesWithApprovedScope.length > 0
+      ? employeesWithApprovedScope.reduce((sum, employee) => {
+        const latestApproved = latestApprovedByEmployee.get(employee.id);
+        const scopedActual = latestApproved && settings
+          ? roundMetric((latestApproved.billableHours / settings.expectedWeeklyHours) * 100)
+          : 0;
+        return sum + Math.abs(employee.plannedUtilization - scopedActual);
+      }, 0) / employeesWithApprovedScope.length
       : 0;
 
     return [
-      { title: 'Avg. Actual Util.', value: `${avgActual}%`, change: -0.5, changeType: 'decrease', icon: 'Zap' },
-      { title: 'Submission Rate', value: `${submissionRate}%`, icon: 'CheckCircle2' },
+      { title: 'Avg. Actual Util.', value: formatPercent(avgActual), change: -0.5, changeType: 'decrease', icon: 'Zap' },
+      { title: 'Submission Rate', value: formatPercent(submissionRate), icon: 'CheckCircle2' },
       { title: 'Pending Review', value: pendingReview, icon: 'Timer' },
       { title: 'Approved Logs', value: approved, icon: 'FileCheck' },
-      { title: 'Logging Variance', value: `${loggingVariance.toFixed(1)}%`, icon: 'AlertTriangle' },
+      { title: 'Logging Variance', value: formatPercent(loggingVariance), icon: 'AlertTriangle' },
       { title: 'Missing Logs', value: missingLogs, icon: 'Clock' }
     ];
   }, [employees, scopedTimesheets, settings]);
@@ -154,7 +165,7 @@ export const ActualUtilization = () => {
           .sort((a, b) => new Date(a.weekEnding).getTime() - new Date(b.weekEnding).getTime())
           .at(-1);
         if (!latestApproved) return null;
-        const actual = Math.round((latestApproved.billableHours / expectedWeeklyHours) * 100);
+        const actual = roundMetric((latestApproved.billableHours / expectedWeeklyHours) * 100);
         const planned = Math.round(employee.plannedUtilization);
         return {
           employee,
@@ -210,7 +221,7 @@ export const ActualUtilization = () => {
         weekEnding: timesheet.weekEnding,
         totalHours: timesheet.totalHours,
         billableHours: timesheet.billableHours,
-        actualUtilization: timesheet.status === 'Approved' ? `${((timesheet.billableHours / (settings?.expectedWeeklyHours || 40)) * 100).toFixed(1)}%` : '0%',
+        actualUtilization: timesheet.status === 'Approved' ? formatPercent((timesheet.billableHours / (settings?.expectedWeeklyHours || 40)) * 100) : '0%',
         status: timesheet.status,
         submittedAt: timesheet.submittedAt || '',
         approvedAt: timesheet.approvedAt || '',
@@ -378,7 +389,7 @@ export const ActualUtilization = () => {
                     <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1">{item.employee.department}</p>
                   </div>
                   <Badge variant={Math.abs(item.gap) >= 20 ? 'danger' : 'warning'}>
-                    {item.gap > 0 ? '+' : ''}{item.gap}%
+                    {item.gap > 0 ? '+' : ''}{formatPercent(item.gap)}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-4">
@@ -388,7 +399,7 @@ export const ActualUtilization = () => {
                   </div>
                   <div className="bg-white border border-slate-100 rounded-xl p-3">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Actual</p>
-                    <p className="text-sm font-bold text-primary mt-1">{item.actual}%</p>
+                    <p className="text-sm font-bold text-primary mt-1">{formatPercent(item.actual)}</p>
                   </div>
                 </div>
               </div>
@@ -511,14 +522,14 @@ export const ActualUtilization = () => {
                        <span className={cn(
                          "text-[10px] font-bold px-2 py-1 rounded-md",
                          billableP > 80 ? "text-success bg-green-50" : "text-gray-500 bg-gray-50"
-                       )}>{billableP.toFixed(0)}%</span>
+                       )}>{formatPercent(billableP, 0)}</span>
                     </td>
                     <td className="py-5 px-6 text-center">
                        <div className="flex flex-col items-center">
                           <span className={cn(
                              "text-sm font-bold",
                              util > 100 ? "text-danger" : util >= 80 ? "text-heading" : "text-primary"
-                          )}>{util.toFixed(1)}%</span>
+                          )}>{formatPercent(util)}</span>
                           <div className="w-20 h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
                              <div className={cn("h-full transition-all duration-500", util > 100 ? "bg-danger" : "bg-primary")} style={{ width: `${Math.min(util, 100)}%` }} />
                           </div>

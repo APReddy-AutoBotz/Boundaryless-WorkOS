@@ -59,6 +59,16 @@ assert.ok(timesheets.some(timesheet => timesheet.status === 'Approved'), 'demo d
 assert.ok(timesheets.some(timesheet => timesheet.status === 'Rejected'), 'demo data should include rejected timesheets');
 assert.equal(roundMetric(26.700000000000003), 26.7, 'metric rounding should remove floating-point artifacts');
 assert.equal(formatHours(26.700000000000003), '26.7h', 'hour formatting should present demo-safe decimal precision');
+assert.equal(getAllocationLoad(
+  'rounding-employee',
+  [
+    { id: 'rounding-a1', employeeId: 'rounding-employee', employeeName: 'Rounding Employee', projectId: 'rounding-project', projectName: 'Rounding Project', roleOnProject: 'Consultant', percentage: 13.3, startDate: todayIso, endDate: todayIso, status: 'Active' },
+    { id: 'rounding-a2', employeeId: 'rounding-employee', employeeName: 'Rounding Employee', projectId: 'rounding-project', projectName: 'Rounding Project', roleOnProject: 'Consultant', percentage: 13.4, startDate: todayIso, endDate: todayIso, status: 'Active' },
+  ],
+  [{ id: 'rounding-project', projectCode: 'ROUND-1', name: 'Rounding Project', client: 'Demo Client', managerId: 'pm-test', managerName: 'PM Test', startDate: todayIso, endDate: todayIso, status: 'Active', billable: true, plannedUtilization: 0, actualUtilization: 0, resourceCount: 0 }],
+  todayIso,
+  todayIso
+), 26.7, 'allocation-load calculations should round floating-point sums before display/reporting');
 assert.ok(departments.length >= 10, 'department catalog should be seeded');
 assert.ok(countries.length >= 10, 'country catalog should be seeded');
 assert.ok(industries.length >= 10, 'industry catalog should be seeded');

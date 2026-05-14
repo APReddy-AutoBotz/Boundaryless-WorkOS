@@ -33,6 +33,7 @@ import { cn } from '../lib/utils';
 import { downloadCsv } from '../lib/csv';
 import { Link } from 'react-router-dom';
 import { getAllocationLoad, isProjectAvailableForPlanning, overlapsDateRange, isUtilizationEligibleEmployee } from '../services/calculations';
+import { formatPercent, roundMetric } from '../lib/format';
 
 const toIsoDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -76,7 +77,7 @@ export const ForecastUtilization = () => {
   }, [forecastWindow.start, horizonMonths]);
 
   const getEmployeeForecastAt = (employeeId: string, dateIso: string) => {
-    return getAllocationLoad(employeeId, allocations, projects, dateIso, dateIso, true);
+    return roundMetric(getAllocationLoad(employeeId, allocations, projects, dateIso, dateIso, true));
   };
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export const ForecastUtilization = () => {
           snapshots,
           horizonLoad,
           peakLoad,
-          averageLoad,
+          averageLoad: roundMetric(averageLoad),
           status: peakLoad > settings.utilizationThresholdHigh
             ? 'Overload'
             : horizonLoad === 0
@@ -192,7 +193,7 @@ export const ForecastUtilization = () => {
     if (employees.length === 0) return [];
     const horizonForecasts = forecastRows.map(row => row.horizonLoad);
     const peakForecasts = forecastRows.map(row => row.peakLoad);
-    const projectedAvg = forecastRows.length > 0 ? (horizonForecasts.reduce((sum, value) => sum + value, 0) / forecastRows.length).toFixed(1) : 0;
+    const projectedAvg = forecastRows.length > 0 ? roundMetric(horizonForecasts.reduce((sum, value) => sum + value, 0) / forecastRows.length) : 0;
     const futureBench = horizonForecasts.filter(value => value === 0).length;
     const highPressureMonth = [...supplyDemandData].sort((a, b) => b.pressure - a.pressure)[0];
     const capacityGaps = projects.filter(project => {
@@ -208,7 +209,7 @@ export const ForecastUtilization = () => {
       return projectLoad < 100;
     }).length;
     return [
-      { title: 'Projected Avg. Util.', value: `${projectedAvg}%`, icon: 'TrendingUp' },
+      { title: 'Projected Avg. Util.', value: formatPercent(projectedAvg), icon: 'TrendingUp' },
       { title: 'Capacity Gaps', value: capacityGaps, icon: 'Users' },
       { title: 'Overload Risk', value: peakForecasts.filter(value => value > settings.utilizationThresholdHigh).length, icon: 'AlertTriangle' },
       { title: 'Future Bench', value: futureBench, icon: 'Briefcase' },
@@ -271,7 +272,7 @@ export const ForecastUtilization = () => {
       department: row.employee.department,
       country: row.employee.country,
       currentPlannedUtilization: row.employee.plannedUtilization,
-      averageFutureLoad: Math.round(row.averageLoad),
+      averageFutureLoad: row.averageLoad,
       peakForecastLoad: row.peakLoad,
       horizonLoad: row.horizonLoad,
       status: row.status,
@@ -553,12 +554,12 @@ export const ForecastUtilization = () => {
                            <span className={cn(
                              "text-xs font-bold",
                              snapshot.load > 100 ? "text-danger" : snapshot.load === 0 ? "text-slate-400" : "text-heading"
-                           )}>{snapshot.load}%</span>
+                           )}>{formatPercent(snapshot.load)}</span>
                         </div>
                       </td>
                     ))}
                     <td className="py-5 px-6 text-center">
-                      <span className={cn("text-xs font-black tabular-nums", row.peakLoad > 100 ? "text-danger" : "text-heading")}>{row.peakLoad}%</span>
+                      <span className={cn("text-xs font-black tabular-nums", row.peakLoad > 100 ? "text-danger" : "text-heading")}>{formatPercent(row.peakLoad)}</span>
                     </td>
                     <td className="py-5 px-8 text-right">
                        <Badge variant={row.status === 'Overload' ? 'danger' : row.status === 'Low Demand' ? 'warning' : 'neutral'}>
