@@ -39,6 +39,12 @@ assert.match(server, /app\.post\('\/api\/imports\/clients\/apply'/, 'client impo
 assert.match(server, /app\.post\('\/api\/imports\/projects\/apply'/, 'project import apply route must exist');
 assert.match(server, /app\.post\('\/api\/imports\/allocations\/apply'/, 'allocation import apply route must exist');
 assert.match(server, /app\.post\('\/api\/imports\/timesheets\/apply'/, 'timesheet import apply route must exist');
+assert.match(server, /collectDuplicateImportRows/, 'import apply routes must share duplicate-row detection');
+assert.match(server, /Duplicate \$\{label \|\| field\} also appears on row/, 'duplicate import rows must return row-level errors');
+assert.match(server, /field: 'employeeId'[\s\S]*field: 'email'/, 'employee import must reject duplicate employee IDs and emails within a file');
+assert.match(server, /field: 'projectCode'/, 'project import must reject duplicate project codes within a file');
+assert.match(server, /field: 'id', value: row\.id, label: 'client ID'[\s\S]*field: 'name', value: row\.name, label: 'client name'/, 'client import must reject duplicate client IDs and names within a file');
+assert.match(server, /duplicateImportRows\.duplicateRowNumbers\.has\(rowNumber\)/, 'duplicate import rows must be skipped instead of upserted');
 assert.match(server, /json_agg\(json_build_object/, 'timesheet API must include entries');
 assert.match(server, /app\.get\('\/api\/reports\/planned-utilization'/, 'planned utilization report route must exist');
 assert.match(server, /app\.get\('\/api\/reports\/actual-utilization'/, 'actual utilization report route must exist');

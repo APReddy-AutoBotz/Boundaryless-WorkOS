@@ -189,6 +189,31 @@ const splitPipeList = (value) => {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   return String(value || '').split('|').map(item => item.trim()).filter(Boolean);
 };
+const normalizeImportKey = (value) => String(value || '').trim().toLowerCase();
+const collectDuplicateImportRows = (rows, getKeys) => {
+  const seen = new Map();
+  const duplicateRowNumbers = new Set();
+  const errors = [];
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2;
+    for (const { field, value, label } of getKeys(row)) {
+      const normalizedValue = normalizeImportKey(value);
+      if (!normalizedValue) continue;
+      const key = `${field}:${normalizedValue}`;
+      if (seen.has(key)) {
+        duplicateRowNumbers.add(rowNumber);
+        errors.push({
+          rowNumber,
+          field,
+          message: `Duplicate ${label || field} also appears on row ${seen.get(key)}.`,
+        });
+      } else {
+        seen.set(key, rowNumber);
+      }
+    }
+  });
+  return { duplicateRowNumbers, errors };
+};
 
 const buildEmployeeScopeWhere = (req, params, employeeAlias = 'e') => {
   if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
@@ -2395,7 +2420,11 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
   }
 
   const client = await pool.connect();
-  const errors = [...(parsed.data.clientErrors || [])];
+  const duplicateImportRows = collectDuplicateImportRows(parsed.data.rows, row => [
+    { field: 'employeeId', value: row.employeeId, label: 'employee ID' },
+    { field: 'email', value: row.email, label: 'email' },
+  ]);
+  const errors = [...(parsed.data.clientErrors || []), ...duplicateImportRows.errors];
   let saved = 0;
   try {
     await client.query('begin');
@@ -2405,6 +2434,7 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
 
     for (const [index, row] of parsed.data.rows.entries()) {
       const rowNumber = index + 2;
+      if (duplicateImportRows.duplicateRowNumbers.has(rowNumber)) continue;
       const mappedIds = splitPipeList(row.mappedCountryDirectorIds);
       const primaryDirectorId = row.primaryCountryDirectorId || mappedIds[0] || null;
       const rowErrors = [];
@@ -2604,7 +2634,11 @@ app.post('/api/imports/clients/apply', requireDatabase, requireAuth, requireRole
   }
 
   const client = await pool.connect();
-  const errors = [...(parsed.data.clientErrors || [])];
+  const duplicateImportRows = collectDuplicateImportRows(parsed.data.rows, row => [
+    { field: 'id', value: row.id, label: 'client ID' },
+    { field: 'name', value: row.name, label: 'client name' },
+  ]);
+  const errors = [...(parsed.data.clientErrors || []), ...duplicateImportRows.errors];
   let saved = 0;
   try {
     await client.query('begin');
@@ -2613,6 +2647,7 @@ app.post('/api/imports/clients/apply', requireDatabase, requireAuth, requireRole
 
     for (const [index, row] of parsed.data.rows.entries()) {
       const rowNumber = index + 2;
+      if (duplicateImportRows.duplicateRowNumbers.has(rowNumber)) continue;
       const countryDirectorIds = splitPipeList(row.countryDirectorIds);
       const rowErrors = [];
       for (const directorId of countryDirectorIds) {
@@ -2747,13 +2782,17 @@ app.post('/api/imports/projects/apply', requireDatabase, requireAuth, requireRol
   }
 
   const client = await pool.connect();
-  const errors = [...(parsed.data.clientErrors || [])];
+  const duplicateImportRows = collectDuplicateImportRows(parsed.data.rows, row => [
+    { field: 'projectCode', value: row.projectCode, label: 'project code' },
+  ]);
+  const errors = [...(parsed.data.clientErrors || []), ...duplicateImportRows.errors];
   let saved = 0;
   try {
     await client.query('begin');
 
     for (const [index, row] of parsed.data.rows.entries()) {
       const rowNumber = index + 2;
+      if (duplicateImportRows.duplicateRowNumbers.has(rowNumber)) continue;
       const rowErrors = [];
       if (row.endDate < row.startDate) {
         rowErrors.push({ rowNumber, field: 'endDate', message: 'End date must be on or after start date.' });
@@ -2894,7 +2933,10 @@ app.post('/api/imports/allocations/apply', requireDatabase, requireAuth, require
   }
 
   const client = await pool.connect();
-  const errors = [...(parsed.data.clientErrors || [])];
+  const duplicateImportRows = collectDuplicateImportRows(parsed.data.rows, row => [
+    { field: 'id', value: row.id, label: 'allocation ID' },
+  ]);
+  const errors = [...(parsed.data.clientErrors || []), ...duplicateImportRows.errors];
   let saved = 0;
   try {
     await client.query('begin');
@@ -2902,6 +2944,7 @@ app.post('/api/imports/allocations/apply', requireDatabase, requireAuth, require
 
     for (const [index, row] of parsed.data.rows.entries()) {
       const rowNumber = index + 2;
+      if (duplicateImportRows.duplicateRowNumbers.has(rowNumber)) continue;
       const rowErrors = [];
       if (row.endDate < row.startDate) {
         rowErrors.push({ rowNumber, field: 'endDate', message: 'End date must be on or after start date.' });
