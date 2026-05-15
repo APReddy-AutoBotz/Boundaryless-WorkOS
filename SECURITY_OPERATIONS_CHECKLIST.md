@@ -21,6 +21,7 @@ Use this checklist before production go-live. Items marked company-owned require
 | Password reset delivery channel is approved. | Company-owned |
 | Temporary passwords force password change on next login. | Implemented |
 | Login rate limiting is enabled. | Implemented |
+| Session lifetime is configured through `API_SESSION_TTL_HOURS`. | Implemented, company value required |
 | Disabled/exited users cannot login. | Implemented, UAT required |
 | Session expiry and refresh policy is signed off. | Company-owned |
 

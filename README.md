@@ -48,6 +48,7 @@ Create a local `.env` from `.env.example`, then set:
 DATABASE_URL=postgres://...
 PGSSLMODE=require
 API_SESSION_SECRET=<long-random-secret>
+API_SESSION_TTL_HOURS=8
 ```
 
 Run:

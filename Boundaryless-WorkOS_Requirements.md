@@ -250,6 +250,7 @@ APP_MODE=production|demo
 DISABLE_DEMO_FALLBACK=true|false
 DATABASE_URL=postgresql://...
 API_SESSION_SECRET=<company-owned secret>
+API_SESSION_TTL_HOURS=<number>
 PGSSLMODE=require|disable|...
 APP_URL=https://...
 PASSWORD_MIN_LENGTH=<number>
@@ -303,6 +304,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
 | Import duplicate-row guardrails | Complete foundation | Employee, client, project, and allocation backend imports reject duplicate identifiers inside a single file instead of silently upserting later rows. |
 | Password change/reset foundation | Complete foundation | Self-service change, Admin/HR reset endpoints, hashing, and audit exist. |
+| Configurable session lifetime | Complete foundation | `API_SESSION_TTL_HOURS` now controls signed token expiry and HTTP-only session cookie max age; login and role switch responses expose `sessionExpiresAt`. |
 | Production hardening smoke | Complete | `test:prod-hardening` covers production mode, active-role guard, data-quality report, migration, and audit restrictions. |
 | Handover docs | Complete foundation | Runbook, real-data guide, security checklist, role UAT checklist, deployment guide, and handover checklist exist. |
 
@@ -315,7 +317,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | P0 | Role UAT | Complete Admin, HR, Country Director, Project Manager, Team Lead, and Employee browser UAT in backend mode. | Partly |
 | P0 | Team Lead rules | Confirm final visibility and approval authority. | Yes |
 | P0 | Project Manager rules | Confirm whether PMs can approve timesheets or only view/recommend. | Yes |
-| P0 | Auth operations | Final password policy, reset channel, initial admin users, lockout policy, session expiry, and user lifecycle sign-off. | Yes |
+| P0 | Auth operations | Session lifetime is configurable. Remaining work: final password policy, reset channel, initial admin users, lockout persistence policy, refresh behavior, and user lifecycle sign-off. | Yes |
 | P0 | Backup/restore | Define backup frequency, retention, restore owner, and run at least one restore test. | Yes |
 | P0 | Monitoring/logging | Add production log ownership, health monitoring, and alert channel. | Yes |
 | P0 | Audit governance | Finalize retention, export permissions, and immutable audit expectations. | Yes |

@@ -42,6 +42,7 @@ const login = await request('/api/auth/login', {
   }),
 });
 assert.ok(login.token, 'login must return a token');
+assert.ok(login.sessionExpiresAt && !Number.isNaN(Date.parse(login.sessionExpiresAt)), 'login must return parseable session expiry metadata');
 token = login.token;
 
 const [employees, projects, clients, allocations, timesheets, settings] = await Promise.all([

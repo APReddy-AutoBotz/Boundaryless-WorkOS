@@ -137,6 +137,19 @@ const getPasswordMinLength = () => {
   return Number.isFinite(configured) && configured >= 6 ? configured : 6;
 };
 
+const getSessionTtlMs = () => {
+  const configuredHours = Number(process.env.API_SESSION_TTL_HOURS || 8);
+  const safeHours = Number.isFinite(configuredHours) && configuredHours > 0 ? configuredHours : 8;
+  return safeHours * 60 * 60 * 1000;
+};
+
+const getSessionCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: isProduction,
+  maxAge: getSessionTtlMs(),
+});
+
 const validateNewPassword = (password, identityValues = []) => {
   const minLength = getPasswordMinLength();
   if (typeof password !== 'string' || password.length < minLength) {
@@ -355,6 +368,7 @@ app.post('/api/auth/login', loginRateLimit, requireDatabase, async (req, res) =>
     const activeRole = parsed.data.requestedRole && user.roles.includes(parsed.data.requestedRole)
       ? parsed.data.requestedRole
       : user.roles[0];
+    const sessionExpiresAt = Date.now() + getSessionTtlMs();
     const token = signToken({
       sub: user.id,
       username: user.username,
@@ -363,9 +377,9 @@ app.post('/api/auth/login', loginRateLimit, requireDatabase, async (req, res) =>
       countryDirectorId: user.country_director_id,
       roles: user.roles,
       activeRole,
-      exp: Date.now() + 8 * 60 * 60 * 1000,
+      exp: sessionExpiresAt,
     });
-    res.cookie?.('rut_session', token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    res.cookie?.('rut_session', token, getSessionCookieOptions());
     res.json({
       id: user.id,
       username: user.username,
@@ -377,6 +391,7 @@ app.post('/api/auth/login', loginRateLimit, requireDatabase, async (req, res) =>
       roles: user.roles,
       activeRole,
       mustChangePassword: Boolean(user.must_change_password),
+      sessionExpiresAt: new Date(sessionExpiresAt).toISOString(),
       token,
     });
   } catch (error) {
@@ -417,6 +432,7 @@ app.post('/api/auth/switch-role', requireDatabase, requireAuth, async (req, res)
       return;
     }
     const activeRole = parsed.data.role;
+    const sessionExpiresAt = Date.now() + getSessionTtlMs();
     const token = signToken({
       sub: user.id,
       username: user.username,
@@ -425,9 +441,9 @@ app.post('/api/auth/switch-role', requireDatabase, requireAuth, async (req, res)
       countryDirectorId: user.country_director_id,
       roles: req.user.roles,
       activeRole,
-      exp: Date.now() + 8 * 60 * 60 * 1000,
+      exp: sessionExpiresAt,
     });
-    res.cookie?.('rut_session', token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    res.cookie?.('rut_session', token, getSessionCookieOptions());
     await audit(pool, req, {
       module: 'Auth',
       action: 'Switch Role',
@@ -447,6 +463,7 @@ app.post('/api/auth/switch-role', requireDatabase, requireAuth, async (req, res)
       roles: req.user.roles,
       activeRole,
       mustChangePassword: Boolean(user.must_change_password),
+      sessionExpiresAt: new Date(sessionExpiresAt).toISOString(),
       token,
     });
   } catch (error) {

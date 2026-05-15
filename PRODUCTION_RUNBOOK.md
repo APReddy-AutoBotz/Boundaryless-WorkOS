@@ -19,6 +19,7 @@ Render UAT proves the application path, but it is not company production until t
 | `DATABASE_URL` | Yes | Company PostgreSQL or Supabase transaction pooler URL. Keep secret. |
 | `PGSSLMODE` | Yes | Use `require` for Supabase and most hosted PostgreSQL providers. |
 | `API_SESSION_SECRET` | Yes | Long random secret, at least 32 characters. Do not reuse DB passwords. |
+| `API_SESSION_TTL_HOURS` | Recommended | Signed token and HTTP-only cookie lifetime. Defaults to `8`; set to company-approved session duration. |
 | `NODE_ENV` | Yes | `production` for production deployments. |
 | `APP_URL` | Yes | Public/internal HTTPS app URL. Required for CORS and cookie planning. |
 | `APP_MODE` | Yes | Use `production` for company production and `demo` only for local demos. |

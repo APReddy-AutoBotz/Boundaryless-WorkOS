@@ -17,6 +17,11 @@ assert.match(server, /getCatalogUsage/, 'catalog delete usage guard must exist')
 
 assert.match(server, /loginRateLimit/, 'login rate limiter must exist');
 assert.match(server, /getPasswordMinLength/, 'password policy helper must exist');
+assert.match(server, /getSessionTtlMs/, 'session TTL helper must exist');
+assert.match(server, /API_SESSION_TTL_HOURS/, 'session TTL must be configurable through environment');
+assert.match(server, /maxAge: getSessionTtlMs\(\)/, 'session cookie must use configured maxAge');
+assert.doesNotMatch(server, /Date\.now\(\) \+ 8 \* 60 \* 60 \* 1000/, 'session expiry must not be hardcoded at token issuance');
+assert.match(server, /sessionExpiresAt/, 'login and role switching must expose session expiry metadata');
 assert.match(server, /app\.post\('\/api\/auth\/change-password'/, 'self-service password change route must exist');
 assert.match(server, /app\.post\('\/api\/users\/:id\/password-reset'/, 'admin password reset route must exist');
 assert.match(server, /must_change_password/, 'user password lifecycle flag must be persisted');

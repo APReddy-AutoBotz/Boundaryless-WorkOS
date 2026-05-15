@@ -10,6 +10,7 @@ Create `.env.local` or production environment variables:
 API_PORT=4000
 APP_URL=http://localhost:3000
 API_SESSION_SECRET=replace-with-a-long-random-secret
+API_SESSION_TTL_HOURS=8
 LOGIN_RATE_LIMIT=8
 DEMO_SEED_PASSWORD=demo123
 DATABASE_URL=postgres://user:password@localhost:5432/resource_tracker
@@ -93,7 +94,7 @@ Implemented starter routes:
 - `POST /api/imports/allocations/apply`
 - `POST /api/imports/timesheets/apply`
 
-User passwords are stored as `scrypt$salt$hexKey` in the `users.password_hash` column. Login returns a signed session token and also sets an HTTP-only `rut_session` cookie. Protected API routes require either the cookie or an `Authorization: Bearer <token>` header. Users can change their own password, and Admin/HR can reset a user's password with a one-time temporary value through the backend password lifecycle endpoints.
+User passwords are stored as `scrypt$salt$hexKey` in the `users.password_hash` column. Login returns a signed session token and also sets an HTTP-only `rut_session` cookie. Protected API routes require either the cookie or an `Authorization: Bearer <token>` header. `API_SESSION_TTL_HOURS` controls both signed-token expiry and cookie `maxAge`, defaulting to 8 hours. Users can change their own password, and Admin/HR can reset a user's password with a one-time temporary value through the backend password lifecycle endpoints.
 
 The server now enforces starter role checks:
 
@@ -120,6 +121,7 @@ The write endpoints include starter production guardrails:
 - Country Director and role definition deletes are guarded when scope mappings, employees, or allocations still reference them.
 - Department, country, and industry catalogs are PostgreSQL-backed, audited, and blocked from deactivation while referenced by employees, roles, or clients.
 - Login attempts are throttled per username/IP window to reduce brute-force exposure.
+- Session lifetime is configurable through `API_SESSION_TTL_HOURS` and is returned as `sessionExpiresAt` during login and active-role switching.
 
 The local demo UI can still use seeded demo accounts for offline evaluation, but production deployments should create named users in PostgreSQL and rotate demo data out.
 

@@ -49,6 +49,7 @@ const login = async ({ label, username, requestedRole }) => {
   assert.equal(body.activeRole, requestedRole, `${label} login should activate requested role`);
   assert.ok(Array.isArray(body.roles), `${label} login should return role list`);
   assert.equal(typeof body.mustChangePassword, 'boolean', `${label} login should expose password lifecycle flag`);
+  assert.ok(body.sessionExpiresAt && !Number.isNaN(Date.parse(body.sessionExpiresAt)), `${label} login should expose parseable session expiry`);
   return body;
 };
 
