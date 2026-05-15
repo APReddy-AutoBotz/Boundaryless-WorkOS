@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -14,7 +14,8 @@ import {
   normalizeCountryDirector, normalizeImportExportLog, normalizeUtilizationReport,
   normalizeDataQualityReport, normalizeDashboardReport, normalizeLeaveType,
   normalizeLeavePolicy, normalizeHolidayCalendar, normalizeLeaveBalance,
-  normalizeLeaveRequest,
+  normalizeLeaveRequest, normalizeApprovalRecord, normalizeApprovalDelegation,
+  normalizeApprovalSlaReport,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
@@ -56,6 +57,45 @@ function enrichEmployees(employees: Employee[], allocations: Allocation[], proje
     activeProjectCount: getActiveAllocationsForEmployee(emp.id, allocations, projects, today, today).length,
   }));
 }
+
+const getLocalApprovalRecords = () => DataStorage.get<ApprovalRecord[]>(STORAGE_KEYS.APPROVAL_RECORDS, []);
+
+const saveLocalApprovalRecord = (record: ApprovalRecord) => {
+  const records = getLocalApprovalRecords();
+  DataStorage.set(STORAGE_KEYS.APPROVAL_RECORDS, [record, ...records.filter(item => item.id !== record.id)]);
+};
+
+const ensureLocalApprovalRecord = (record: Omit<ApprovalRecord, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) => {
+  const existing = getLocalApprovalRecords().find(item => item.entityType === record.entityType && item.entityId === record.entityId);
+  const next: ApprovalRecord = {
+    ...existing,
+    ...record,
+    id: existing?.id || record.id || crypto.randomUUID(),
+    createdAt: existing?.createdAt || record.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  saveLocalApprovalRecord(next);
+  return next;
+};
+
+const decideLocalApprovalRecord = (entityType: string, entityId: string, status: ApprovalRecord['status'], comments?: string) => {
+  const u = actor();
+  const existing = getLocalApprovalRecords().find(item => item.entityType === entityType && item.entityId === entityId);
+  if (!existing) return null;
+  const next: ApprovalRecord = {
+    ...existing,
+    status,
+    comments,
+    approverId: u.id,
+    approverName: u.name,
+    approverRole: u.role,
+    activeRole: u.role,
+    decidedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  saveLocalApprovalRecord(next);
+  return next;
+};
 
 // ── Employee Service ─────────────────────────────────────────────────────────
 export const employeeService = {
@@ -335,6 +375,18 @@ export const timesheetService = {
     const next = { ...ts, entries: roundedEntries, totalHours, billableHours, updatedAt: new Date().toISOString() };
     if (idx >= 0) list[idx] = next; else list.push(next);
     DataStorage.set(STORAGE_KEYS.TIMESHEETS, list);
+    if (next.status === 'Submitted') {
+      ensureLocalApprovalRecord({
+        entityType: 'Timesheet',
+        entityId: next.id || `${next.employeeId}:${next.weekEnding}`,
+        subjectEmployeeId: next.employeeId,
+        subjectEmployeeName: next.employeeName,
+        requesterId: next.employeeId,
+        requesterName: next.employeeName,
+        status: 'Pending',
+        source: 'Web',
+      });
+    }
     DataStorage.recalculateUtilization();
   },
   approve: async (timesheetId: string, _reason?: string): Promise<void> => {
@@ -353,6 +405,7 @@ export const timesheetService = {
         ? { ...t, status: 'Approved' as const, approvedAt: new Date().toISOString() }
         : t
     ));
+    decideLocalApprovalRecord('Timesheet', timesheetId, 'Approved');
   },
   reject: async (timesheetId: string, reason: string): Promise<void> => {
     if (await checkBackend()) {
@@ -370,6 +423,7 @@ export const timesheetService = {
         ? { ...t, status: 'Rejected' as const, rejectionReason: reason, rejectionNote: reason, rejectedAt: new Date().toISOString() }
         : t
     ));
+    decideLocalApprovalRecord('Timesheet', timesheetId, 'Rejected', reason);
   },
 };
 
@@ -611,6 +665,16 @@ export const leaveService = {
     };
     const list = DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
     DataStorage.set(STORAGE_KEYS.LEAVE_REQUESTS, [next, ...list.filter(item => item.id !== next.id)]);
+    ensureLocalApprovalRecord({
+      entityType: 'LeaveRequest',
+      entityId: next.id,
+      subjectEmployeeId: next.employeeId,
+      subjectEmployeeName: next.employeeName,
+      requesterId: next.employeeId,
+      requesterName: next.employeeName,
+      status: 'Pending',
+      source: 'Web',
+    });
     refreshLocalLeaveBalances();
     const u = actor();
     DataStorage.logAction(u.id, u.name, u.role, 'Submit Leave', 'Leave', `Submitted leave request for ${next.employeeName || next.employeeId}`, { entityType: 'LeaveRequest', entityId: next.id, newValue: next });
@@ -634,6 +698,7 @@ export const leaveService = {
       updatedAt: new Date().toISOString(),
     };
     DataStorage.set(STORAGE_KEYS.LEAVE_REQUESTS, list.map(item => item.id === id ? next : item));
+    decideLocalApprovalRecord('LeaveRequest', id, status === 'Cancelled' ? 'Cancelled' : status, comments);
     refreshLocalLeaveBalances();
     DataStorage.logAction(u.id, u.name, u.role, `${status} Leave`, 'Leave', `${status} leave request for ${next.employeeName || next.employeeId}`, { entityType: 'LeaveRequest', entityId: next.id, oldValue: previous, newValue: next, reason: comments });
     return next;
@@ -651,6 +716,103 @@ export const leaveService = {
       }));
     }
     return buildLocalLeaveAvailability();
+  },
+};
+
+export const approvalService = {
+  getAll: async (): Promise<ApprovalRecord[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/approvals');
+      return raw.map(normalizeApprovalRecord);
+    }
+    return getLocalApprovalRecords();
+  },
+  decide: async (id: string, status: 'Approved' | 'Rejected' | 'Cancelled', comments?: string): Promise<ApprovalRecord> => {
+    if (await checkBackend()) {
+      return normalizeApprovalRecord(await api.patch<Record<string, unknown>>(`/api/approvals/${id}/status`, { status, comments }));
+    }
+    const records = getLocalApprovalRecords();
+    const record = records.find(item => item.id === id);
+    if (!record) throw new Error('Approval record was not found.');
+    const u = actor();
+    const next: ApprovalRecord = {
+      ...record,
+      status,
+      comments,
+      approverId: u.id,
+      approverName: u.name,
+      approverRole: u.role,
+      activeRole: u.role,
+      decidedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    saveLocalApprovalRecord(next);
+    if (record.entityType === 'Timesheet') {
+      const timesheets = DataStorage.get<TimesheetSummary[]>(STORAGE_KEYS.TIMESHEETS, []);
+      DataStorage.set(STORAGE_KEYS.TIMESHEETS, timesheets.map(timesheet => {
+        const key = timesheet.id || `${timesheet.employeeId}:${timesheet.weekEnding}`;
+        return key === record.entityId
+          ? {
+              ...timesheet,
+              status: status === 'Approved' ? 'Approved' : 'Rejected',
+              rejectionReason: status === 'Rejected' ? comments : undefined,
+              approvedAt: status === 'Approved' ? new Date().toISOString() : timesheet.approvedAt,
+              rejectedAt: status === 'Rejected' ? new Date().toISOString() : timesheet.rejectedAt,
+            }
+          : timesheet;
+      }));
+    }
+    if (record.entityType === 'LeaveRequest') {
+      const requests = DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+      DataStorage.set(STORAGE_KEYS.LEAVE_REQUESTS, requests.map(request => request.id === record.entityId
+        ? { ...request, status, comments, approverId: u.id, approverName: u.name, decidedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        : request
+      ));
+      refreshLocalLeaveBalances();
+    }
+    return next;
+  },
+  getDelegations: async (): Promise<ApprovalDelegation[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/approval-delegations');
+      return raw.map(normalizeApprovalDelegation);
+    }
+    return DataStorage.get<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
+  },
+  saveDelegation: async (delegation: ApprovalDelegation): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/approval-delegations', {
+        id: delegation.id,
+        delegator_id: delegation.delegatorId,
+        delegate_id: delegation.delegateId,
+        role: delegation.role,
+        start_date: delegation.startDate,
+        end_date: delegation.endDate,
+        status: delegation.status,
+        reason: delegation.reason || null,
+      });
+      return;
+    }
+    const list = DataStorage.get<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
+    const idx = list.findIndex(item => item.id === delegation.id);
+    if (idx >= 0) list[idx] = delegation; else list.push({ ...delegation, id: delegation.id || crypto.randomUUID() });
+    DataStorage.set(STORAGE_KEYS.APPROVAL_DELEGATIONS, list);
+  },
+  getSlaReport: async (): Promise<ApprovalSlaReport> => {
+    if (await checkBackend()) {
+      return normalizeApprovalSlaReport(await api.get<Record<string, unknown>>('/api/reports/approval-sla'));
+    }
+    const rows = getLocalApprovalRecords();
+    const now = Date.now();
+    const pending = rows.filter(row => row.status === 'Pending');
+    const ages = pending.map(row => Math.max(0, (now - new Date(row.createdAt).getTime()) / 36e5));
+    return {
+      generatedAt: new Date().toISOString(),
+      pendingCount: pending.length,
+      overdueCount: pending.filter(row => row.dueAt && new Date(row.dueAt).getTime() < now).length,
+      averageAgeHours: ages.length ? Number((ages.reduce((sum, age) => sum + age, 0) / ages.length).toFixed(1)) : 0,
+      rows,
+    };
   },
 };
 

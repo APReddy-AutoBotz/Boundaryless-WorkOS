@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const server = readFileSync('server/index.mjs', 'utf8');
 const schema = readFileSync('server/schema.sql', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
+const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
 const seedDemo = readFileSync('server/seed-demo.mjs', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -62,6 +63,12 @@ assert.match(server, /app\.get\('\/api\/holiday-calendars'/, 'holiday calendar r
 assert.match(server, /app\.get\('\/api\/reports\/availability'/, 'availability report route must exist');
 assert.match(leaveMigration, /create table if not exists leave_requests/, 'leave migration must create leave requests');
 assert.match(leaveMigration, /create table if not exists leave_balances/, 'leave migration must create leave balances');
+assert.match(server, /app\.get\('\/api\/approvals'/, 'approval inbox route must exist');
+assert.match(server, /app\.patch\('\/api\/approvals\/:id\/status'/, 'generic approval decision route must exist');
+assert.match(server, /app\.get\('\/api\/approval-delegations'/, 'approval delegation route must exist');
+assert.match(server, /app\.get\('\/api\/reports\/approval-sla'/, 'approval SLA report route must exist');
+assert.match(approvalMigration, /create table if not exists approval_records/, 'approval migration must create approval records');
+assert.match(approvalMigration, /create table if not exists approval_delegations/, 'approval migration must create approval delegations');
 assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
@@ -73,6 +80,7 @@ console.log(JSON.stringify({
   demoSeed: true,
   reportRoutes: true,
   leaveRoutes: true,
+  approvalRoutes: true,
   employeeImportApply: true,
   clientImportApply: true,
   projectImportApply: true,

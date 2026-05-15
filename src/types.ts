@@ -199,6 +199,51 @@ export interface LeaveAvailabilityEntry {
   availabilityHours: number;
 }
 
+export interface ApprovalRecord {
+  id: string;
+  entityType: 'Timesheet' | 'LeaveRequest' | 'AllocationChange' | string;
+  entityId: string;
+  subjectEmployeeId?: string;
+  subjectEmployeeName?: string;
+  requesterId?: string;
+  requesterName?: string;
+  approverId?: string;
+  approverName?: string;
+  approverRole?: UserRole | string;
+  activeRole?: UserRole | string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+  comments?: string;
+  source?: 'Web' | 'Teams' | 'Email' | 'Import' | 'System' | string;
+  auditLogId?: string;
+  dueAt?: string;
+  decidedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ApprovalDelegation {
+  id: string;
+  delegatorId: string;
+  delegatorName?: string;
+  delegateId: string;
+  delegateName?: string;
+  role: UserRole | string;
+  startDate: string;
+  endDate: string;
+  status: 'Active' | 'Inactive';
+  reason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ApprovalSlaReport {
+  generatedAt: string;
+  pendingCount: number;
+  overdueCount: number;
+  averageAgeHours: number;
+  rows: ApprovalRecord[];
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

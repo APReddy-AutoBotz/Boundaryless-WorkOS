@@ -27,6 +27,7 @@ const ESSHome = lazy(() => import('./pages/LeaveManagement').then(module => ({ d
 const MyLeave = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.MyLeave })));
 const TeamLeaveCalendar = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.TeamLeaveCalendar })));
 const LeaveAdmin = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.LeaveAdmin })));
+const ApprovalsWorkspace = lazy(() => import('./pages/ApprovalsWorkspace').then(module => ({ default: module.ApprovalsWorkspace })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -213,13 +214,7 @@ export default function App() {
                 } />
                 <Route path="/approvals" element={
                   <FeatureRoute flag="notifications" roles={ROUTE_ROLES.approvals}>
-                    <EnterpriseModuleShell
-                      module="Approvals"
-                      phase="Phase 3"
-                      subtitle="Shared approval inbox and history for timesheets, leave, allocations, and future workflows."
-                      capabilities={['My approvals inbox', 'Approval history and comments', 'Delegation and SLA foundation']}
-                      nextMilestone="Create generic approval records and migrate timesheet approvals onto the shared model."
-                    />
+                    <ApprovalsWorkspace />
                   </FeatureRoute>
                 } />
                 <Route path="/notifications" element={

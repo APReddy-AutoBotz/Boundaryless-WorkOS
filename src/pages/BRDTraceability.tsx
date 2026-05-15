@@ -108,6 +108,15 @@ const rows: TraceabilityRow[] = [
     nextAction: 'Harden accrual automation, richer team hierarchy, calendar UX, and browser UAT evidence before company rollout.',
   },
   {
+    module: 'Approval Management',
+    brdIntent: 'Shared approval model for timesheets, leave, allocation changes, delegations, history, and SLA governance.',
+    phase: 'Workforce OS Phase',
+    deliveryStatus: 'Partial',
+    uiStatus: 'Available',
+    apiDataStatus: 'Approval records, delegations, shared inbox, status decisions, and SLA report exist; timesheet and leave decisions write shared approval state.',
+    nextAction: 'Add allocation-change approvals, enforce delegation routing rules, and complete browser UAT evidence.',
+  },
+  {
     module: 'Notification Center',
     brdIntent: 'Role, scope, event, email, and Teams notifications for approvals and operational follow-up.',
     phase: 'Workforce OS Phase',

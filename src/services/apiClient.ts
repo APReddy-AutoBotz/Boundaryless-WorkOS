@@ -10,6 +10,7 @@ import type {
   RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
   UtilizationReport, DataQualityReport, DashboardReport,
   LeaveType, LeavePolicy, HolidayCalendar, Holiday, LeaveBalance, LeaveRequest,
+  ApprovalRecord, ApprovalDelegation, ApprovalSlaReport,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -442,6 +443,51 @@ export const normalizeLeaveRequest = (r: Record<string, unknown>): LeaveRequest 
   decidedAt: r.decided_at ? String(r.decided_at) : r.decidedAt ? String(r.decidedAt) : undefined,
   createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
   updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeApprovalRecord = (r: Record<string, unknown>): ApprovalRecord => ({
+  id: String(r.id),
+  entityType: String(r.entity_type ?? r.entityType),
+  entityId: String(r.entity_id ?? r.entityId),
+  subjectEmployeeId: r.subject_employee_id ? String(r.subject_employee_id) : r.subjectEmployeeId ? String(r.subjectEmployeeId) : undefined,
+  subjectEmployeeName: r.subject_employee_name ? String(r.subject_employee_name) : r.subjectEmployeeName ? String(r.subjectEmployeeName) : undefined,
+  requesterId: r.requester_id ? String(r.requester_id) : r.requesterId ? String(r.requesterId) : undefined,
+  requesterName: r.requester_name ? String(r.requester_name) : r.requesterName ? String(r.requesterName) : undefined,
+  approverId: r.approver_id ? String(r.approver_id) : r.approverId ? String(r.approverId) : undefined,
+  approverName: r.approver_name ? String(r.approver_name) : r.approverName ? String(r.approverName) : undefined,
+  approverRole: r.approver_role ? String(r.approver_role) : r.approverRole ? String(r.approverRole) : undefined,
+  activeRole: r.active_role ? String(r.active_role) : r.activeRole ? String(r.activeRole) : undefined,
+  status: String(r.status ?? 'Pending') as ApprovalRecord['status'],
+  comments: r.comments ? String(r.comments) : undefined,
+  source: r.source ? String(r.source) : undefined,
+  auditLogId: r.audit_log_id ? String(r.audit_log_id) : r.auditLogId ? String(r.auditLogId) : undefined,
+  dueAt: r.due_at ? String(r.due_at) : r.dueAt ? String(r.dueAt) : undefined,
+  decidedAt: r.decided_at ? String(r.decided_at) : r.decidedAt ? String(r.decidedAt) : undefined,
+  createdAt: String(r.created_at ?? r.createdAt ?? new Date().toISOString()),
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeApprovalDelegation = (r: Record<string, unknown>): ApprovalDelegation => ({
+  id: String(r.id),
+  delegatorId: String(r.delegator_id ?? r.delegatorId),
+  delegatorName: r.delegator_name ? String(r.delegator_name) : r.delegatorName ? String(r.delegatorName) : undefined,
+  delegateId: String(r.delegate_id ?? r.delegateId),
+  delegateName: r.delegate_name ? String(r.delegate_name) : r.delegateName ? String(r.delegateName) : undefined,
+  role: String(r.role),
+  startDate: String(r.start_date ?? r.startDate).slice(0, 10),
+  endDate: String(r.end_date ?? r.endDate).slice(0, 10),
+  status: String(r.status ?? 'Active') as ApprovalDelegation['status'],
+  reason: r.reason ? String(r.reason) : undefined,
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeApprovalSlaReport = (r: Record<string, unknown>): ApprovalSlaReport => ({
+  generatedAt: String(r.generated_at ?? r.generatedAt ?? new Date().toISOString()),
+  pendingCount: Number(r.pending_count ?? r.pendingCount ?? 0),
+  overdueCount: Number(r.overdue_count ?? r.overdueCount ?? 0),
+  averageAgeHours: Number(r.average_age_hours ?? r.averageAgeHours ?? 0),
+  rows: Array.isArray(r.rows) ? (r.rows as Record<string, unknown>[]).map(normalizeApprovalRecord) : [],
 });
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {

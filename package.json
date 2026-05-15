@@ -17,6 +17,7 @@
     "test:access": "node --import tsx tests/access-control-smoke.mjs",
     "test:leave": "node --import tsx tests/leave-management-smoke.mjs",
     "test:backend": "node tests/backend-contract-smoke.mjs",
+    "test:approvals": "node --import tsx tests/approval-engine-smoke.mjs",
     "test:backend-api": "node tests/backend-api-smoke.mjs",
     "test:backend-roles": "node tests/backend-role-smoke.mjs",
     "test:import-templates": "node tests/import-template-smoke.mjs",

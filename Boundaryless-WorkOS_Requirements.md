@@ -80,7 +80,7 @@ One trusted operational layer for employees, capacity, availability, allocations
 | Employee Master as root | Employee data feeds identity, reporting, capacity, allocations, timesheets, approvals, leave, notifications, and Teams identity. | Partially complete | Included now; identity/leave/Teams fields are the bridge into Workforce OS phases. |
 | ESS Portal | Employee self-service for profile, allocations, timesheets, leave, notifications, and manager views. | Phase 2 in progress | Feature-flagged ESS home now shows profile, leave balances, pending requests, and leave-adjusted availability. |
 | Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Phase 2 in progress | Leave data model, backend APIs, local/demo services, self-service UI, team calendar, admin policy view, balance report, and availability report are implemented. |
-| Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Phase 1 foundation | Feature-flagged route foundation now; shared approval model in Phase 3. |
+| Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Phase 3 in progress | Shared approval records, approval inbox/history, delegation model, SLA report, and timesheet/leave approval linkage are implemented. |
 | Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Phase 1 foundation | Feature-flagged route foundation now; notification data and adapters in Phase 4. |
 | Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 1 foundation | Feature-flagged route foundation now; mock adapter and mapping in Phase 5. |
 | Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Phase 1 foundation | Feature-flagged route foundation now; mock identity adapter and mapping in Phase 5. |
@@ -291,6 +291,10 @@ VITE_FEATURE_PLANNING=true|false
 - `GET/POST /api/leave/policies`
 - `GET/POST /api/leave/balances`
 - `GET/POST /api/holiday-calendars`
+- `GET /api/approvals`
+- `PATCH /api/approvals/:id/status`
+- `GET/POST /api/approval-delegations`
+- `GET /api/reports/approval-sla`
 - CSV import apply endpoints for employees, clients, projects, allocations, and timesheets
 
 ---
@@ -318,6 +322,11 @@ VITE_FEATURE_PLANNING=true|false
 | Leave data model and migration | Phase 2 complete foundation | `007_workforce_os_leave.sql` adds leave types, policies, policy-type mapping, holiday calendars, holidays, balances, and requests. |
 | Availability-adjusted capacity | Phase 2 complete foundation | `GET /api/reports/availability` and local service calculate annual availability hours from standard weekly hours minus approved leave and holidays. |
 | Leave smoke coverage | Complete | `test:leave` covers leave seed data, request submission, approval, balance impact, availability impact, and audit entries. |
+| Generic approval data model | Phase 3 complete foundation | `008_workforce_os_approvals.sql` adds approval records and approval delegations with entity type, entity ID, subject employee, active role, status, comments, source, timestamps, and SLA due date. |
+| Shared approval APIs | Phase 3 complete foundation | `GET /api/approvals`, `PATCH /api/approvals/:id/status`, delegation APIs, and approval SLA report are implemented with active-role data scope. |
+| Timesheet/leave approval migration | Phase 3 complete foundation | Submitted timesheets and leave requests create approval records; decisions through module endpoints or `/approvals` update the shared approval record. |
+| Approval workspace UI | Phase 3 complete foundation | `/approvals` renders approval inbox, history, delegations, and SLA metrics behind the Workforce OS feature flag. |
+| Approval smoke coverage | Complete | `test:approvals` covers generic approval records for submitted timesheets and leave requests, linked entity decisions, and SLA rows. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -523,7 +532,7 @@ Implement these in order behind feature flags, updating BRD traceability, tests,
 
 1. Phase 1: enterprise feature flags, route foundations, adapter-first configuration, and traceability.
 2. Phase 2: ESS and Leave Management. Core leave model, APIs, ESS, self-service leave, team calendar, admin policy view, balance report, availability report, and smoke test are complete; remaining hardening is richer manager hierarchy, accrual automation, calendar UX, and browser UAT evidence.
-3. Phase 3: generic approval engine.
+3. Phase 3: generic approval engine. Shared records, APIs, approval workspace, delegation model, SLA report, and timesheet/leave approval linkage are complete; remaining hardening is allocation-change approvals, delegation enforcement in decision routing, and browser UAT evidence.
 4. Phase 4: notification center with in-app, mock email, and mock Teams adapters.
 5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation.
 6. Phase 6: resource planning board and upgraded workforce command center.

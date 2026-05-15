@@ -12,7 +12,9 @@ const sidebar = readFileSync('src/components/Layout/Sidebar.tsx', 'utf8');
 const brdTraceability = readFileSync('src/pages/BRDTraceability.tsx', 'utf8');
 const featureFlags = readFileSync('src/config/featureFlags.ts', 'utf8');
 const leaveManagement = readFileSync('src/pages/LeaveManagement.tsx', 'utf8');
+const approvalsWorkspace = readFileSync('src/pages/ApprovalsWorkspace.tsx', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
+const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
 const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
 const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
 const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
@@ -48,6 +50,9 @@ assert.match(server, /app\.get\('\/api\/reports\/dashboard'/, 'dashboard report 
 assert.match(server, /app\.get\('\/api\/leave\/requests'/, 'leave request API must exist');
 assert.match(server, /app\.patch\('\/api\/leave\/requests\/:id\/status'/, 'leave approval API must exist');
 assert.match(server, /app\.get\('\/api\/reports\/availability'/, 'availability report API must exist');
+assert.match(server, /app\.get\('\/api\/approvals'/, 'generic approval API must exist');
+assert.match(server, /app\.patch\('\/api\/approvals\/:id\/status'/, 'generic approval decision API must exist');
+assert.match(server, /app\.get\('\/api\/reports\/approval-sla'/, 'approval SLA API must exist');
 assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
 assert.match(server, /app\.post\('\/api\/audit-events'/, 'backend audit event endpoint must exist for UI-triggered exports');
 assert.match(server, /action: z\.enum\(\['Export', 'Import', 'Notify'\]\)/, 'client audit events must be constrained to approved UI event actions');
@@ -64,15 +69,21 @@ assert.match(brdTraceability, /Leave Management[\s\S]*Workforce OS Phase[\s\S]*M
 assert.match(featureFlags, /FEATURE_LEAVE[\s\S]*FEATURE_NOTIFICATIONS[\s\S]*FEATURE_TEAMS[\s\S]*FEATURE_ENTRA[\s\S]*FEATURE_PLANNING/, 'enterprise feature flags must cover all Workforce OS modules');
 assert.match(app, /\/ess[\s\S]*\/leave\/my[\s\S]*\/approvals[\s\S]*\/notifications[\s\S]*\/integrations\/identity[\s\S]*\/planning\/resources[\s\S]*\/reports\/command-center/, 'Workforce OS route foundations must exist');
 assert.match(app, /<ESSHome \/>[\s\S]*<MyLeave \/>[\s\S]*<TeamLeaveCalendar \/>[\s\S]*<LeaveAdmin \/>/, 'Phase 2 leave routes must render real leave screens');
+assert.match(app, /<ApprovalsWorkspace \/>/, 'Phase 3 approvals route must render real approval workspace');
 assert.match(sidebar, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS navigation must be feature-gated');
 assert.match(header, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS search entries must be feature-gated');
 assert.match(leaveManagement, /Leave Balance[\s\S]*Submit Request[\s\S]*Team Leave Calendar[\s\S]*Leave Administration/, 'Phase 2 leave UI must include self-service, balances, team calendar, and admin views');
+assert.match(approvalsWorkspace, /Approval Inbox[\s\S]*Approval History[\s\S]*Approval Delegations/, 'Phase 3 approval UI must include inbox, history, and delegations');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
 assert.ok(existsSync('server/migrations/007_workforce_os_leave.sql'), 'Workforce OS leave migration must exist');
+assert.ok(existsSync('server/migrations/008_workforce_os_approvals.sql'), 'Workforce OS approval migration must exist');
 for (const table of ['leave_types', 'leave_policies', 'holiday_calendars', 'leave_balances', 'leave_requests']) {
   assert.match(leaveMigration, new RegExp(`create table if not exists ${table}`), `leave migration must create ${table}`);
+}
+for (const table of ['approval_records', 'approval_delegations']) {
+  assert.match(approvalMigration, new RegExp(`create table if not exists ${table}`), `approval migration must create ${table}`);
 }
 
 assert.match(requirements, /Single source of truth for product scope, production-core requirements, implementation status, and next technical plan\./, 'requirements document must be the BRD source of truth');
@@ -98,4 +109,5 @@ console.log(JSON.stringify({
   sourceOfTruthBrd: true,
   brdTraceabilityUi: true,
   leaveManagement: true,
+  approvalEngine: true,
 }, null, 2));

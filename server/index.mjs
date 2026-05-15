@@ -322,6 +322,77 @@ const audit = async (client, req, { module, action, entityType, entityId, oldVal
   ]);
 };
 
+const upsertApprovalRecord = async (client, req, {
+  entityType,
+  entityId,
+  subjectEmployeeId,
+  requesterId,
+  requesterName,
+  approverRole = null,
+  status = 'Pending',
+  comments = null,
+  source = 'Web',
+  dueAt = null,
+}) => {
+  const result = await client.query(`
+    insert into approval_records (
+      entity_type, entity_id, subject_employee_id, requester_id, requester_name,
+      approver_role, active_role, status, comments, source, due_at
+    )
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    on conflict (entity_type, entity_id) do update set
+      subject_employee_id = excluded.subject_employee_id,
+      requester_id = excluded.requester_id,
+      requester_name = excluded.requester_name,
+      approver_role = coalesce(excluded.approver_role, approval_records.approver_role),
+      active_role = excluded.active_role,
+      status = excluded.status,
+      comments = excluded.comments,
+      source = excluded.source,
+      due_at = excluded.due_at,
+      updated_at = now()
+    returning *
+  `, [
+    entityType,
+    entityId,
+    subjectEmployeeId,
+    requesterId,
+    requesterName,
+    approverRole,
+    req.user?.activeRole || null,
+    status,
+    comments,
+    source,
+    dueAt,
+  ]);
+  return result.rows[0];
+};
+
+const decideApprovalRecord = async (client, req, { entityType, entityId, status, comments = null }) => {
+  const result = await client.query(`
+    update approval_records
+    set status = $3,
+      comments = $4,
+      approver_id = $5,
+      approver_name = $6,
+      approver_role = $7,
+      active_role = $7,
+      decided_at = now(),
+      updated_at = now()
+    where entity_type = $1 and entity_id = $2
+    returning *
+  `, [
+    entityType,
+    entityId,
+    status,
+    comments,
+    req.user?.employeeRecordId || req.user?.sub || null,
+    req.user?.username || 'system',
+    req.user?.activeRole || 'system',
+  ]);
+  return result.rows[0] || null;
+};
+
 app.get('/api/health', async (_req, res) => {
   if (!process.env.DATABASE_URL) {
     res.json({ status: 'ok', database: 'not_configured' });
@@ -1537,6 +1608,18 @@ app.post('/api/timesheets', requireDatabase, requireAuth, requireRoles('Admin', 
         entry.billable,
       ]);
     }
+    if (parsed.data.status === 'Submitted') {
+      await upsertApprovalRecord(client, req, {
+        entityType: 'Timesheet',
+        entityId: String(timesheet.id),
+        subjectEmployeeId: employee.id,
+        requesterId: employee.id,
+        requesterName: employee.name,
+        status: 'Pending',
+        source: 'Web',
+        dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+    }
     await audit(client, req, {
       module: 'Timesheets',
       action: previous ? 'Update Timesheet' : 'Create Timesheet',
@@ -1642,6 +1725,12 @@ app.patch('/api/timesheets/:id/status', requireDatabase, requireAuth, requireRol
       newValue: result.rows[0],
       details: `${approved ? 'Approved' : 'Rejected'} timesheet ${req.params.id}`,
       reason: parsed.data.reason,
+    });
+    await decideApprovalRecord(client, req, {
+      entityType: 'Timesheet',
+      entityId: req.params.id,
+      status: parsed.data.status,
+      comments: parsed.data.reason || null,
     });
     await client.query('commit');
     res.json(result.rows[0]);
@@ -2007,6 +2096,16 @@ app.post('/api/leave/requests', requireDatabase, requireAuth, requireRoles('Admi
       returning *
     `, [employee.id, parsed.data.leave_type_id, parsed.data.start_date, parsed.data.end_date, parsed.data.total_days, parsed.data.reason || null]);
     await refreshLeaveBalancesForEmployee(client, employee.id, Number(parsed.data.start_date.slice(0, 4)));
+    await upsertApprovalRecord(client, req, {
+      entityType: 'LeaveRequest',
+      entityId: result.rows[0].id,
+      subjectEmployeeId: employee.id,
+      requesterId: employee.id,
+      requesterName: employee.name,
+      status: 'Pending',
+      source: 'Web',
+      dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    });
     await audit(client, req, {
       module: 'Leave',
       action: 'Submit Leave',
@@ -2098,6 +2197,12 @@ app.patch('/api/leave/requests/:id/status', requireDatabase, requireAuth, requir
       details: `${parsed.data.status} leave request ${req.params.id}`,
       reason: parsed.data.comments,
     });
+    await decideApprovalRecord(client, req, {
+      entityType: 'LeaveRequest',
+      entityId: req.params.id,
+      status: parsed.data.status,
+      comments: parsed.data.comments || null,
+    });
     await client.query('commit');
     res.json(result.rows[0]);
   } catch (error) {
@@ -2140,6 +2245,242 @@ app.get('/api/reports/availability', requireDatabase, requireAuth, requireRoles(
     where e.status <> 'Exited' and ${where}
     order by e.name
   `, params);
+});
+
+const buildApprovalScopeWhere = (req, params) => {
+  if (isGlobalRole(req)) return 'true';
+  if (req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    return `(e.id = $${params.length - 1} or e.employee_id = $${params.length} or e.reporting_manager_id = $${params.length - 1})`;
+  }
+  return buildEmployeeScopeWhere(req, params, 'e');
+};
+
+const approvalSelect = `
+  select ar.*, e.name as subject_employee_name
+  from approval_records ar
+  left join employees e on e.id = ar.subject_employee_id
+`;
+
+app.get('/api/approvals', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const params = [];
+  const where = buildApprovalScopeWhere(req, params);
+  await run(res, `
+    ${approvalSelect}
+    where ${where}
+    order by case when ar.status = 'Pending' then 0 else 1 end, ar.created_at desc
+  `, params);
+});
+
+app.patch('/api/approvals/:id/status', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const schema = z.object({
+    status: z.enum(['Approved', 'Rejected', 'Cancelled']),
+    comments: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  if (parsed.data.status === 'Rejected' && !parsed.data.comments?.trim()) {
+    res.status(422).json({ error: 'Rejected approvals require comments' });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const approval = (await client.query(`${approvalSelect} where ar.id = $1 for update`, [req.params.id])).rows[0];
+    if (!approval) {
+      await client.query('rollback');
+      res.status(404).json({ error: 'Approval record not found' });
+      return;
+    }
+    if (approval.status !== 'Pending') {
+      await client.query('rollback');
+      res.status(422).json({ error: 'Only pending approvals can be decided' });
+      return;
+    }
+
+    const scopeParams = [approval.subject_employee_id];
+    const scoped = (await client.query(`
+      select 1
+      from employees e
+      where e.id = $1 and ${buildApprovalScopeWhere(req, scopeParams)}
+      limit 1
+    `, scopeParams)).rows[0];
+    if (!scoped) {
+      await client.query('rollback');
+      res.status(403).json({ error: 'Approval is outside active-role data scope' });
+      return;
+    }
+
+    if (approval.entity_type === 'Timesheet') {
+      const previous = (await client.query('select * from timesheets where id = $1 for update', [approval.entity_id])).rows[0];
+      if (!previous || previous.status !== 'Submitted') {
+        await client.query('rollback');
+        res.status(422).json({ error: 'Linked timesheet is not submitted' });
+        return;
+      }
+      const nextStatus = parsed.data.status === 'Approved' ? 'Approved' : 'Rejected';
+      await client.query(`
+        update timesheets
+        set status = $2,
+          rejection_reason = case when $2 = 'Rejected' then $3 else null end,
+          approved_at = case when $2 = 'Approved' then now() else approved_at end,
+          approved_by = case when $2 = 'Approved' then $4 else approved_by end,
+          rejected_at = case when $2 = 'Rejected' then now() else rejected_at end,
+          rejected_by = case when $2 = 'Rejected' then $4 else rejected_by end,
+          updated_at = now()
+        where id = $1
+      `, [approval.entity_id, nextStatus, parsed.data.comments || null, req.user.username]);
+    }
+
+    if (approval.entity_type === 'LeaveRequest') {
+      const previous = (await client.query('select * from leave_requests where id = $1 for update', [approval.entity_id])).rows[0];
+      if (!previous || previous.status !== 'Submitted') {
+        await client.query('rollback');
+        res.status(422).json({ error: 'Linked leave request is not submitted' });
+        return;
+      }
+      await client.query(`
+        update leave_requests
+        set status = $2,
+          comments = $3,
+          approver_id = $4,
+          approver_name = $5,
+          decided_at = now(),
+          updated_at = now()
+        where id = $1
+      `, [approval.entity_id, parsed.data.status, parsed.data.comments || null, req.user.employeeRecordId || req.user.sub, req.user.username]);
+      await refreshLeaveBalancesForEmployee(client, previous.employee_id, Number(String(previous.start_date).slice(0, 4)));
+    }
+
+    const nextApproval = await decideApprovalRecord(client, req, {
+      entityType: approval.entity_type,
+      entityId: approval.entity_id,
+      status: parsed.data.status,
+      comments: parsed.data.comments || null,
+    });
+    await audit(client, req, {
+      module: 'Approvals',
+      action: `${parsed.data.status} Approval`,
+      entityType: 'ApprovalRecord',
+      entityId: req.params.id,
+      oldValue: approval,
+      newValue: nextApproval,
+      details: `${parsed.data.status} ${approval.entity_type} approval ${req.params.id}`,
+      reason: parsed.data.comments,
+    });
+    await client.query('commit');
+    res.json(nextApproval);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Approval status update failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/approval-delegations', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const params = [];
+  let where = 'true';
+  if (!isGlobalRole(req)) {
+    params.push(req.user.employeeRecordId);
+    where = '(ad.delegator_id = $1 or ad.delegate_id = $1)';
+  }
+  await run(res, `
+    select ad.*, delegator.name as delegator_name, delegate.name as delegate_name
+    from approval_delegations ad
+    left join employees delegator on delegator.id = ad.delegator_id
+    left join employees delegate on delegate.id = ad.delegate_id
+    where ${where}
+    order by ad.status desc, ad.start_date desc
+  `, params);
+});
+
+app.post('/api/approval-delegations', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    delegator_id: z.string().min(1),
+    delegate_id: z.string().min(1),
+    role: z.string().min(1),
+    start_date: z.string().min(10),
+    end_date: z.string().min(10),
+    status: z.enum(['Active', 'Inactive']).default('Active'),
+    reason: z.string().nullable().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  if (!isGlobalRole(req) && parsed.data.delegator_id !== req.user.employeeRecordId) {
+    res.status(403).json({ error: 'Users can create delegations only for themselves' });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = parsed.data.id ? (await client.query('select * from approval_delegations where id = $1', [parsed.data.id])).rows[0] : null;
+    const result = await client.query(`
+      insert into approval_delegations (id, delegator_id, delegate_id, role, start_date, end_date, status, reason)
+      values (coalesce($1, 'approval-delegation-' || gen_random_uuid()::text), $2, $3, $4, $5, $6, $7, $8)
+      on conflict (id) do update set
+        delegator_id = excluded.delegator_id,
+        delegate_id = excluded.delegate_id,
+        role = excluded.role,
+        start_date = excluded.start_date,
+        end_date = excluded.end_date,
+        status = excluded.status,
+        reason = excluded.reason,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.delegator_id, parsed.data.delegate_id, parsed.data.role, parsed.data.start_date, parsed.data.end_date, parsed.data.status, parsed.data.reason || null]);
+    await audit(client, req, {
+      module: 'Approvals',
+      action: previous ? 'Update Approval Delegation' : 'Create Approval Delegation',
+      entityType: 'ApprovalDelegation',
+      entityId: result.rows[0].id,
+      oldValue: previous,
+      newValue: result.rows[0],
+      details: `${previous ? 'Updated' : 'Created'} approval delegation ${result.rows[0].id}`,
+      reason: parsed.data.reason,
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Approval delegation save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/reports/approval-sla', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const params = [];
+  const where = buildApprovalScopeWhere(req, params);
+  try {
+    const rows = (await pool.query(`
+      ${approvalSelect}
+      where ${where}
+      order by ar.created_at desc
+    `, params)).rows;
+    const pending = rows.filter(row => row.status === 'Pending');
+    const now = Date.now();
+    const ages = pending.map(row => Math.max(0, (now - new Date(row.created_at).getTime()) / 36e5));
+    res.json({
+      generatedAt: new Date().toISOString(),
+      pendingCount: pending.length,
+      overdueCount: pending.filter(row => row.due_at && new Date(row.due_at).getTime() < now).length,
+      averageAgeHours: ages.length ? round1(ages.reduce((sum, age) => sum + age, 0) / ages.length) : 0,
+      rows,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Approval SLA report failed' });
+  }
 });
 app.get('/api/settings', requireDatabase, requireAuth, (_req, res) => run(res, 'select key, value from system_settings order by key'));
 app.post('/api/settings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {

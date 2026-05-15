@@ -17,7 +17,9 @@ import {
   LeavePolicy,
   HolidayCalendar,
   LeaveBalance,
-  LeaveRequest
+  LeaveRequest,
+  ApprovalRecord,
+  ApprovalDelegation
 } from '../types';
 import { getActiveAllocationsForEmployee, getAllocationLoad, getLatestApprovedActualUtilization, overlapsDateRange } from './calculations';
 import {
@@ -51,6 +53,8 @@ const STORAGE_KEYS = {
   HOLIDAY_CALENDARS: 'bw_holiday_calendars',
   LEAVE_BALANCES: 'bw_leave_balances',
   LEAVE_REQUESTS: 'bw_leave_requests',
+  APPROVAL_RECORDS: 'bw_approval_records',
+  APPROVAL_DELEGATIONS: 'bw_approval_delegations',
   DEMO_DATA_VERSION: 'rt_demo_data_version'
 };
 
@@ -330,6 +334,8 @@ export class DataStorage {
     this.set(STORAGE_KEYS.HOLIDAY_CALENDARS, buildDefaultHolidayCalendars());
     this.set(STORAGE_KEYS.LEAVE_BALANCES, buildDefaultLeaveBalances(dataset.employees));
     this.set<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+    this.set<ApprovalRecord[]>(STORAGE_KEYS.APPROVAL_RECORDS, []);
+    this.set<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
     localStorage.removeItem(STORAGE_KEYS.AUTH);
     localStorage.removeItem(STORAGE_KEYS.USER_ACCOUNTS);
     this.set(STORAGE_KEYS.DEMO_DATA_VERSION, DEMO_DATA_VERSION);
@@ -362,6 +368,12 @@ export class DataStorage {
     }
     if (!localStorage.getItem(STORAGE_KEYS.LEAVE_REQUESTS)) {
       this.set<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.APPROVAL_RECORDS)) {
+      this.set<ApprovalRecord[]>(STORAGE_KEYS.APPROVAL_RECORDS, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.APPROVAL_DELEGATIONS)) {
+      this.set<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
     }
   }
 
