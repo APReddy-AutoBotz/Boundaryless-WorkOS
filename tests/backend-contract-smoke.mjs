@@ -5,6 +5,7 @@ const server = readFileSync('server/index.mjs', 'utf8');
 const schema = readFileSync('server/schema.sql', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
+const notificationMigration = readFileSync('server/migrations/009_workforce_os_notifications.sql', 'utf8');
 const seedDemo = readFileSync('server/seed-demo.mjs', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -69,6 +70,13 @@ assert.match(server, /app\.get\('\/api\/approval-delegations'/, 'approval delega
 assert.match(server, /app\.get\('\/api\/reports\/approval-sla'/, 'approval SLA report route must exist');
 assert.match(approvalMigration, /create table if not exists approval_records/, 'approval migration must create approval records');
 assert.match(approvalMigration, /create table if not exists approval_delegations/, 'approval migration must create approval delegations');
+assert.match(server, /app\.get\('\/api\/notifications'/, 'notification inbox route must exist');
+assert.match(server, /app\.patch\('\/api\/notifications\/:id\/read'/, 'notification read route must exist');
+assert.match(server, /app\.get\('\/api\/notification-templates'/, 'notification template route must exist');
+assert.match(server, /app\.get\('\/api\/notification-preferences'/, 'notification preference route must exist');
+assert.match(server, /app\.get\('\/api\/notification-delivery-attempts'/, 'notification delivery monitoring route must exist');
+assert.match(notificationMigration, /create table if not exists notification_events/, 'notification migration must create events');
+assert.match(notificationMigration, /create table if not exists notification_delivery_attempts/, 'notification migration must create delivery attempts');
 assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
@@ -81,6 +89,7 @@ console.log(JSON.stringify({
   reportRoutes: true,
   leaveRoutes: true,
   approvalRoutes: true,
+  notificationRoutes: true,
   employeeImportApply: true,
   clientImportApply: true,
   projectImportApply: true,

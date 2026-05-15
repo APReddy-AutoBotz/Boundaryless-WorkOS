@@ -19,7 +19,11 @@ import {
   LeaveBalance,
   LeaveRequest,
   ApprovalRecord,
-  ApprovalDelegation
+  ApprovalDelegation,
+  NotificationEvent,
+  NotificationTemplate,
+  NotificationPreference,
+  NotificationDeliveryAttempt
 } from '../types';
 import { getActiveAllocationsForEmployee, getAllocationLoad, getLatestApprovedActualUtilization, overlapsDateRange } from './calculations';
 import {
@@ -55,6 +59,10 @@ const STORAGE_KEYS = {
   LEAVE_REQUESTS: 'bw_leave_requests',
   APPROVAL_RECORDS: 'bw_approval_records',
   APPROVAL_DELEGATIONS: 'bw_approval_delegations',
+  NOTIFICATION_EVENTS: 'bw_notification_events',
+  NOTIFICATION_TEMPLATES: 'bw_notification_templates',
+  NOTIFICATION_PREFERENCES: 'bw_notification_preferences',
+  NOTIFICATION_DELIVERY_ATTEMPTS: 'bw_notification_delivery_attempts',
   DEMO_DATA_VERSION: 'rt_demo_data_version'
 };
 
@@ -208,6 +216,25 @@ const buildDefaultLeaveBalances = (employees: Employee[]): LeaveBalance[] => {
     }));
 };
 
+const defaultNotificationTemplates: NotificationTemplate[] = [
+  {
+    id: 'notification-template-approval-requested',
+    eventType: 'ApprovalRequested',
+    channel: 'InApp',
+    subject: 'Approval requested',
+    body: 'A workforce approval item is waiting for review.',
+    active: true,
+  },
+  {
+    id: 'notification-template-approval-decided',
+    eventType: 'ApprovalDecided',
+    channel: 'InApp',
+    subject: 'Approval updated',
+    body: 'A workforce approval item has been decided.',
+    active: true,
+  },
+];
+
 const todayIso = () => new Date().toISOString().split('T')[0];
 const DEMO_PASSWORD_HASH = 'sha256:d3ad9315b7be5dd53b31a273b3b3aba5defe700808305aa16a3062b76658a791';
 
@@ -336,6 +363,10 @@ export class DataStorage {
     this.set<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
     this.set<ApprovalRecord[]>(STORAGE_KEYS.APPROVAL_RECORDS, []);
     this.set<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
+    this.set<NotificationEvent[]>(STORAGE_KEYS.NOTIFICATION_EVENTS, []);
+    this.set(STORAGE_KEYS.NOTIFICATION_TEMPLATES, defaultNotificationTemplates);
+    this.set<NotificationPreference[]>(STORAGE_KEYS.NOTIFICATION_PREFERENCES, []);
+    this.set<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
     localStorage.removeItem(STORAGE_KEYS.AUTH);
     localStorage.removeItem(STORAGE_KEYS.USER_ACCOUNTS);
     this.set(STORAGE_KEYS.DEMO_DATA_VERSION, DEMO_DATA_VERSION);
@@ -374,6 +405,18 @@ export class DataStorage {
     }
     if (!localStorage.getItem(STORAGE_KEYS.APPROVAL_DELEGATIONS)) {
       this.set<ApprovalDelegation[]>(STORAGE_KEYS.APPROVAL_DELEGATIONS, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_EVENTS)) {
+      this.set<NotificationEvent[]>(STORAGE_KEYS.NOTIFICATION_EVENTS, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_TEMPLATES)) {
+      this.set(STORAGE_KEYS.NOTIFICATION_TEMPLATES, defaultNotificationTemplates);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_PREFERENCES)) {
+      this.set<NotificationPreference[]>(STORAGE_KEYS.NOTIFICATION_PREFERENCES, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS)) {
+      this.set<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
     }
   }
 

@@ -116,6 +116,7 @@ npm run test:backend
 npm run test:access
 npm run test:leave
 npm run test:approvals
+npm run test:notifications
 npm run test:requirements
 npm run test:backend-api
 npm run test:backend-roles

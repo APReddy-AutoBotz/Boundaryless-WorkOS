@@ -244,6 +244,52 @@ export interface ApprovalSlaReport {
   rows: ApprovalRecord[];
 }
 
+export interface NotificationEvent {
+  id: string;
+  recipientEmployeeId?: string;
+  recipientName?: string;
+  eventType: string;
+  title: string;
+  body: string;
+  entityType?: string;
+  entityId?: string;
+  severity: 'Info' | 'Warning' | 'Critical' | string;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface NotificationTemplate {
+  id: string;
+  eventType: string;
+  channel: 'InApp' | 'Email' | 'Teams' | string;
+  subject: string;
+  body: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  eventType: string;
+  inApp: boolean;
+  email: boolean;
+  teams: boolean;
+  updatedAt?: string;
+}
+
+export interface NotificationDeliveryAttempt {
+  id: string;
+  notificationId: string;
+  channel: 'InApp' | 'Email' | 'Teams' | string;
+  provider: string;
+  status: 'Pending' | 'Delivered' | 'Failed' | string;
+  responseMetadata?: Record<string, unknown>;
+  attemptedAt: string;
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

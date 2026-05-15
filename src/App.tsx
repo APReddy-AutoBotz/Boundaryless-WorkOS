@@ -28,6 +28,7 @@ const MyLeave = lazy(() => import('./pages/LeaveManagement').then(module => ({ d
 const TeamLeaveCalendar = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.TeamLeaveCalendar })));
 const LeaveAdmin = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.LeaveAdmin })));
 const ApprovalsWorkspace = lazy(() => import('./pages/ApprovalsWorkspace').then(module => ({ default: module.ApprovalsWorkspace })));
+const NotificationCenter = lazy(() => import('./pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -219,13 +220,7 @@ export default function App() {
                 } />
                 <Route path="/notifications" element={
                   <FeatureRoute flag="notifications" roles={ROUTE_ROLES.notifications}>
-                    <EnterpriseModuleShell
-                      module="Notifications"
-                      phase="Phase 4"
-                      subtitle="In-app notification center with adapter-ready email and Teams delivery."
-                      capabilities={['Notification inbox', 'Templates and preferences', 'Delivery attempts and audit']}
-                      nextMilestone="Add notification events, templates, preferences, delivery attempts, and mock providers."
-                    />
+                    <NotificationCenter />
                   </FeatureRoute>
                 } />
                 <Route path="/integrations/identity" element={

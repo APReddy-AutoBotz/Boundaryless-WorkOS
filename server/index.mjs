@@ -365,6 +365,17 @@ const upsertApprovalRecord = async (client, req, {
     source,
     dueAt,
   ]);
+  if (status === 'Pending') {
+    await sendNotification(client, req, {
+      recipientEmployeeId: subjectEmployeeId,
+      eventType: 'ApprovalRequested',
+      title: `${entityType} approval requested`,
+      body: `${requesterName || 'A user'} submitted ${entityType} for approval.`,
+      entityType,
+      entityId,
+      severity: 'Info',
+    });
+  }
   return result.rows[0];
 };
 
@@ -390,7 +401,52 @@ const decideApprovalRecord = async (client, req, { entityType, entityId, status,
     req.user?.username || 'system',
     req.user?.activeRole || 'system',
   ]);
-  return result.rows[0] || null;
+  const next = result.rows[0] || null;
+  if (next) {
+    await sendNotification(client, req, {
+      recipientEmployeeId: next.subject_employee_id,
+      eventType: 'ApprovalDecided',
+      title: `${entityType} approval ${status.toLowerCase()}`,
+      body: `${entityType} ${entityId} was ${status.toLowerCase()}.`,
+      entityType,
+      entityId,
+      severity: status === 'Rejected' ? 'Warning' : 'Info',
+    });
+  }
+  return next;
+};
+
+const sendNotification = async (client, req, {
+  recipientEmployeeId = null,
+  eventType,
+  title,
+  body,
+  entityType = null,
+  entityId = null,
+  severity = 'Info',
+  channel = 'InApp',
+  provider = 'mock',
+}) => {
+  const eventResult = await client.query(`
+    insert into notification_events (recipient_employee_id, event_type, title, body, entity_type, entity_id, severity)
+    values ($1,$2,$3,$4,$5,$6,$7)
+    returning *
+  `, [recipientEmployeeId, eventType, title, body, entityType, entityId, severity]);
+  const event = eventResult.rows[0];
+  await client.query(`
+    insert into notification_delivery_attempts (notification_id, channel, provider, status, response_metadata)
+    values ($1,$2,$3,'Delivered',$4)
+  `, [event.id, channel, provider, JSON.stringify({ mode: provider, deterministic: true })]);
+  await audit(client, req, {
+    module: 'Notifications',
+    action: 'Send Notification',
+    entityType: entityType || 'NotificationEvent',
+    entityId: entityId || event.id,
+    newValue: event,
+    details: `Sent ${channel} notification ${event.title}`,
+    source: 'System',
+  });
+  return event;
 };
 
 app.get('/api/health', async (_req, res) => {
@@ -2481,6 +2537,160 @@ app.get('/api/reports/approval-sla', requireDatabase, requireAuth, requireRoles(
     console.error(error);
     res.status(500).json({ error: 'Approval SLA report failed' });
   }
+});
+
+app.get('/api/notifications', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
+  const params = [];
+  let where = 'true';
+  if (!isGlobalRole(req)) {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    where = '(ne.recipient_employee_id = $1 or e.employee_id = $2)';
+  }
+  await run(res, `
+    select ne.*, e.name as recipient_name
+    from notification_events ne
+    left join employees e on e.id = ne.recipient_employee_id
+    where ${where}
+    order by ne.created_at desc
+    limit 300
+  `, params);
+});
+
+app.patch('/api/notifications/:id/read', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      update notification_events
+      set read_at = coalesce(read_at, now())
+      where id = $1
+      returning *
+    `, [req.params.id]);
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Notification not found' });
+      return;
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Notification read update failed' });
+  }
+});
+
+app.get('/api/notification-templates', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, 'select * from notification_templates order by event_type, channel');
+});
+
+app.post('/api/notification-templates', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    event_type: z.string().min(1),
+    channel: z.enum(['InApp', 'Email', 'Teams']),
+    subject: z.string().min(1),
+    body: z.string().min(1),
+    active: z.boolean().default(true),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = parsed.data.id ? (await client.query('select * from notification_templates where id = $1', [parsed.data.id])).rows[0] : null;
+    const result = await client.query(`
+      insert into notification_templates (id, event_type, channel, subject, body, active)
+      values (coalesce($1, 'notification-template-' || gen_random_uuid()::text), $2, $3, $4, $5, $6)
+      on conflict (event_type, channel) do update set
+        subject = excluded.subject,
+        body = excluded.body,
+        active = excluded.active,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.event_type, parsed.data.channel, parsed.data.subject, parsed.data.body, parsed.data.active]);
+    await audit(client, req, {
+      module: 'Notifications',
+      action: previous ? 'Update Notification Template' : 'Create Notification Template',
+      entityType: 'NotificationTemplate',
+      entityId: result.rows[0].id,
+      oldValue: previous,
+      newValue: result.rows[0],
+      details: `${previous ? 'Updated' : 'Created'} notification template ${result.rows[0].event_type}`,
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Notification template save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/notification-preferences', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
+  const params = [];
+  const where = buildEmployeeScopeWhere(req, params, 'e');
+  await run(res, `
+    select np.*, e.name as employee_name
+    from notification_preferences np
+    join employees e on e.id = np.employee_id
+    where ${where}
+    order by e.name, np.event_type
+  `, params);
+});
+
+app.post('/api/notification-preferences', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead', 'Employee'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    employee_id: z.string().min(1),
+    event_type: z.string().min(1),
+    in_app: z.boolean().default(true),
+    email: z.boolean().default(false),
+    teams: z.boolean().default(false),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  if (req.user.activeRole === 'Employee' && parsed.data.employee_id !== req.user.employeeRecordId && parsed.data.employee_id !== req.user.employeeId) {
+    res.status(403).json({ error: 'Employees can update only their own notification preferences' });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const result = await client.query(`
+      insert into notification_preferences (id, employee_id, event_type, in_app, email, teams)
+      values (coalesce($1, 'notification-preference-' || gen_random_uuid()::text), $2, $3, $4, $5, $6)
+      on conflict (employee_id, event_type) do update set
+        in_app = excluded.in_app,
+        email = excluded.email,
+        teams = excluded.teams,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.employee_id, parsed.data.event_type, parsed.data.in_app, parsed.data.email, parsed.data.teams]);
+    await audit(client, req, {
+      module: 'Notifications',
+      action: 'Update Notification Preference',
+      entityType: 'NotificationPreference',
+      entityId: result.rows[0].id,
+      newValue: result.rows[0],
+      details: `Updated notification preference ${result.rows[0].event_type}`,
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Notification preference save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/notification-delivery-attempts', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, 'select * from notification_delivery_attempts order by attempted_at desc limit 300');
 });
 app.get('/api/settings', requireDatabase, requireAuth, (_req, res) => run(res, 'select key, value from system_settings order by key'));
 app.post('/api/settings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {

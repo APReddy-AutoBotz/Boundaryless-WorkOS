@@ -8,6 +8,7 @@ const steps = [
   ['test:access'],
   ['test:leave'],
   ['test:approvals'],
+  ['test:notifications'],
   ['test:requirements'],
   ['test:import-templates'],
   ['test:prod-hardening'],

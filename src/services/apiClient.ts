@@ -11,6 +11,7 @@ import type {
   UtilizationReport, DataQualityReport, DashboardReport,
   LeaveType, LeavePolicy, HolidayCalendar, Holiday, LeaveBalance, LeaveRequest,
   ApprovalRecord, ApprovalDelegation, ApprovalSlaReport,
+  NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -488,6 +489,56 @@ export const normalizeApprovalSlaReport = (r: Record<string, unknown>): Approval
   overdueCount: Number(r.overdue_count ?? r.overdueCount ?? 0),
   averageAgeHours: Number(r.average_age_hours ?? r.averageAgeHours ?? 0),
   rows: Array.isArray(r.rows) ? (r.rows as Record<string, unknown>[]).map(normalizeApprovalRecord) : [],
+});
+
+export const normalizeNotificationEvent = (r: Record<string, unknown>): NotificationEvent => ({
+  id: String(r.id),
+  recipientEmployeeId: r.recipient_employee_id ? String(r.recipient_employee_id) : r.recipientEmployeeId ? String(r.recipientEmployeeId) : undefined,
+  recipientName: r.recipient_name ? String(r.recipient_name) : r.recipientName ? String(r.recipientName) : undefined,
+  eventType: String(r.event_type ?? r.eventType),
+  title: String(r.title),
+  body: String(r.body),
+  entityType: r.entity_type ? String(r.entity_type) : r.entityType ? String(r.entityType) : undefined,
+  entityId: r.entity_id ? String(r.entity_id) : r.entityId ? String(r.entityId) : undefined,
+  severity: String(r.severity ?? 'Info') as NotificationEvent['severity'],
+  readAt: r.read_at ? String(r.read_at) : r.readAt ? String(r.readAt) : undefined,
+  createdAt: String(r.created_at ?? r.createdAt ?? new Date().toISOString()),
+});
+
+export const normalizeNotificationTemplate = (r: Record<string, unknown>): NotificationTemplate => ({
+  id: String(r.id),
+  eventType: String(r.event_type ?? r.eventType),
+  channel: String(r.channel ?? 'InApp') as NotificationTemplate['channel'],
+  subject: String(r.subject),
+  body: String(r.body),
+  active: r.active === undefined ? true : Boolean(r.active),
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeNotificationPreference = (r: Record<string, unknown>): NotificationPreference => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeName: r.employee_name ? String(r.employee_name) : r.employeeName ? String(r.employeeName) : undefined,
+  eventType: String(r.event_type ?? r.eventType),
+  inApp: r.in_app === undefined ? Boolean(r.inApp ?? true) : Boolean(r.in_app),
+  email: r.email === undefined ? false : Boolean(r.email),
+  teams: r.teams === undefined ? false : Boolean(r.teams),
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeNotificationDeliveryAttempt = (r: Record<string, unknown>): NotificationDeliveryAttempt => ({
+  id: String(r.id),
+  notificationId: String(r.notification_id ?? r.notificationId),
+  channel: String(r.channel ?? 'InApp') as NotificationDeliveryAttempt['channel'],
+  provider: String(r.provider ?? 'mock'),
+  status: String(r.status ?? 'Delivered') as NotificationDeliveryAttempt['status'],
+  responseMetadata: r.response_metadata && typeof r.response_metadata === 'object'
+    ? r.response_metadata as Record<string, unknown>
+    : r.responseMetadata && typeof r.responseMetadata === 'object'
+      ? r.responseMetadata as Record<string, unknown>
+      : undefined,
+  attemptedAt: String(r.attempted_at ?? r.attemptedAt ?? new Date().toISOString()),
 });
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {

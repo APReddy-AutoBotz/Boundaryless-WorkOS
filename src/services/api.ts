@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport, NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -15,7 +15,8 @@ import {
   normalizeDataQualityReport, normalizeDashboardReport, normalizeLeaveType,
   normalizeLeavePolicy, normalizeHolidayCalendar, normalizeLeaveBalance,
   normalizeLeaveRequest, normalizeApprovalRecord, normalizeApprovalDelegation,
-  normalizeApprovalSlaReport,
+  normalizeApprovalSlaReport, normalizeNotificationEvent, normalizeNotificationTemplate,
+  normalizeNotificationPreference, normalizeNotificationDeliveryAttempt,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
@@ -75,6 +76,18 @@ const ensureLocalApprovalRecord = (record: Omit<ApprovalRecord, 'id' | 'createdA
     updatedAt: new Date().toISOString(),
   };
   saveLocalApprovalRecord(next);
+  if (next.status === 'Pending') {
+    createLocalNotification({
+      recipientEmployeeId: next.subjectEmployeeId,
+      recipientName: next.subjectEmployeeName,
+      eventType: 'ApprovalRequested',
+      title: `${next.entityType} approval requested`,
+      body: `${next.requesterName || next.subjectEmployeeName || 'A user'} submitted ${next.entityType} for approval.`,
+      entityType: next.entityType,
+      entityId: next.entityId,
+      severity: 'Info',
+    });
+  }
   return next;
 };
 
@@ -94,7 +107,40 @@ const decideLocalApprovalRecord = (entityType: string, entityId: string, status:
     updatedAt: new Date().toISOString(),
   };
   saveLocalApprovalRecord(next);
+  createLocalNotification({
+    recipientEmployeeId: next.subjectEmployeeId,
+    recipientName: next.subjectEmployeeName,
+    eventType: 'ApprovalDecided',
+    title: `${next.entityType} approval ${status.toLowerCase()}`,
+    body: `${next.entityType} ${next.entityId} was ${status.toLowerCase()}.`,
+    entityType: next.entityType,
+    entityId: next.entityId,
+    severity: status === 'Rejected' ? 'Warning' : 'Info',
+  });
   return next;
+};
+
+const createLocalNotification = (notification: Omit<NotificationEvent, 'id' | 'createdAt'>) => {
+  const event: NotificationEvent = {
+    ...notification,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  const events = DataStorage.get<NotificationEvent[]>(STORAGE_KEYS.NOTIFICATION_EVENTS, []);
+  DataStorage.set(STORAGE_KEYS.NOTIFICATION_EVENTS, [event, ...events]);
+  const attempts = DataStorage.get<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
+  DataStorage.set(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, [{
+    id: crypto.randomUUID(),
+    notificationId: event.id,
+    channel: 'InApp',
+    provider: 'mock',
+    status: 'Delivered',
+    responseMetadata: { mode: 'local' },
+    attemptedAt: new Date().toISOString(),
+  }, ...attempts]);
+  const u = actor();
+  DataStorage.logAction(u.id, u.name, u.role, 'Send Notification', 'Notifications', `Sent notification ${event.title}`, { entityType: event.entityType, entityId: event.entityId, source: 'System' });
+  return event;
 };
 
 // ── Employee Service ─────────────────────────────────────────────────────────
@@ -747,6 +793,16 @@ export const approvalService = {
       updatedAt: new Date().toISOString(),
     };
     saveLocalApprovalRecord(next);
+    createLocalNotification({
+      recipientEmployeeId: next.subjectEmployeeId,
+      recipientName: next.subjectEmployeeName,
+      eventType: 'ApprovalDecided',
+      title: `${next.entityType} approval ${status.toLowerCase()}`,
+      body: `${next.entityType} ${next.entityId} was ${status.toLowerCase()}.`,
+      entityType: next.entityType,
+      entityId: next.entityId,
+      severity: status === 'Rejected' ? 'Warning' : 'Info',
+    });
     if (record.entityType === 'Timesheet') {
       const timesheets = DataStorage.get<TimesheetSummary[]>(STORAGE_KEYS.TIMESHEETS, []);
       DataStorage.set(STORAGE_KEYS.TIMESHEETS, timesheets.map(timesheet => {
@@ -813,6 +869,79 @@ export const approvalService = {
       averageAgeHours: ages.length ? Number((ages.reduce((sum, age) => sum + age, 0) / ages.length).toFixed(1)) : 0,
       rows,
     };
+  },
+};
+
+export const notificationService = {
+  getAll: async (): Promise<NotificationEvent[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/notifications');
+      return raw.map(normalizeNotificationEvent);
+    }
+    return DataStorage.get<NotificationEvent[]>(STORAGE_KEYS.NOTIFICATION_EVENTS, []);
+  },
+  markRead: async (id: string): Promise<void> => {
+    if (await checkBackend()) {
+      await api.patch(`/api/notifications/${id}/read`, {});
+      return;
+    }
+    const list = DataStorage.get<NotificationEvent[]>(STORAGE_KEYS.NOTIFICATION_EVENTS, []);
+    DataStorage.set(STORAGE_KEYS.NOTIFICATION_EVENTS, list.map(item => item.id === id ? { ...item, readAt: new Date().toISOString() } : item));
+  },
+  getTemplates: async (): Promise<NotificationTemplate[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/notification-templates');
+      return raw.map(normalizeNotificationTemplate);
+    }
+    return DataStorage.get<NotificationTemplate[]>(STORAGE_KEYS.NOTIFICATION_TEMPLATES, []);
+  },
+  saveTemplate: async (template: NotificationTemplate): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/notification-templates', {
+        id: template.id,
+        event_type: template.eventType,
+        channel: template.channel,
+        subject: template.subject,
+        body: template.body,
+        active: template.active,
+      });
+      return;
+    }
+    const list = DataStorage.get<NotificationTemplate[]>(STORAGE_KEYS.NOTIFICATION_TEMPLATES, []);
+    const idx = list.findIndex(item => item.id === template.id);
+    if (idx >= 0) list[idx] = template; else list.push({ ...template, id: template.id || crypto.randomUUID() });
+    DataStorage.set(STORAGE_KEYS.NOTIFICATION_TEMPLATES, list);
+  },
+  getPreferences: async (): Promise<NotificationPreference[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/notification-preferences');
+      return raw.map(normalizeNotificationPreference);
+    }
+    return DataStorage.get<NotificationPreference[]>(STORAGE_KEYS.NOTIFICATION_PREFERENCES, []);
+  },
+  savePreference: async (preference: NotificationPreference): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/notification-preferences', {
+        id: preference.id,
+        employee_id: preference.employeeId,
+        event_type: preference.eventType,
+        in_app: preference.inApp,
+        email: preference.email,
+        teams: preference.teams,
+      });
+      return;
+    }
+    const list = DataStorage.get<NotificationPreference[]>(STORAGE_KEYS.NOTIFICATION_PREFERENCES, []);
+    const idx = list.findIndex(item => item.id === preference.id);
+    if (idx >= 0) list[idx] = preference; else list.push({ ...preference, id: preference.id || crypto.randomUUID() });
+    DataStorage.set(STORAGE_KEYS.NOTIFICATION_PREFERENCES, list);
+  },
+  getDeliveryAttempts: async (): Promise<NotificationDeliveryAttempt[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/notification-delivery-attempts');
+      return raw.map(normalizeNotificationDeliveryAttempt);
+    }
+    return DataStorage.get<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
   },
 };
 
