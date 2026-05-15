@@ -34,6 +34,8 @@ export interface AuditLog {
   userId: string;
   userName: string;
   userRole: string;
+  activeRole?: string;
+  source?: 'Web' | 'Teams' | 'Email' | 'Import' | 'System' | string;
   action: string;
   module: string;
   details: string;
@@ -42,6 +44,8 @@ export interface AuditLog {
   oldValue?: unknown;
   newValue?: unknown;
   reason?: string;
+  ipAddress?: string;
+  sessionId?: string;
   timestamp: string;
 }
 
@@ -116,11 +120,20 @@ export interface Employee {
   designation: string;
   department: string;
   country: string;
+  reportingManagerId?: string;
   primaryCountryDirectorId: string;
   mappedCountryDirectorIds: string[]; // Supports many-to-many mapping
   avatar?: string;
   status: 'Active' | 'On Leave' | 'Exited';
   utilizationEligible?: boolean;
+  joiningDate?: string;
+  exitDate?: string;
+  standardWeeklyHours?: number;
+  capacityType?: 'Delivery' | 'Governance' | 'Shared' | 'NonDelivery' | string;
+  contractType?: 'Permanent' | 'Contractor' | 'FixedTerm' | 'Intern' | string;
+  leavePolicyId?: string;
+  entraObjectId?: string;
+  teamsUserId?: string;
   plannedUtilization: number;
   actualUtilization: number;
   activeProjectCount: number;

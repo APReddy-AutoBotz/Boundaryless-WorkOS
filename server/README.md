@@ -1,4 +1,4 @@
-# Resource Utilization Tracker API
+# StaffPulse Workforce Operations Core API
 
 This is the production backend starting point for the internal utilization tracker.
 
@@ -121,6 +121,6 @@ The write endpoints include starter production guardrails:
 - Department, country, and industry catalogs are PostgreSQL-backed, audited, and blocked from deactivation while referenced by employees, roles, or clients.
 - Login attempts are throttled per username/IP window to reduce brute-force exposure.
 
-The local demo UI still ships with `demo123` accounts for offline evaluation, but production deployments should create named users in PostgreSQL and rotate the demo data out.
+The local demo UI can still use seeded demo accounts for offline evaluation, but production deployments should create named users in PostgreSQL and rotate demo data out.
 
-The current React app still supports localStorage demo mode. The next backend integration step is to switch the frontend service functions in `src/services/api.ts` from `DataStorage` to these HTTP endpoints behind an environment flag.
+The React app uses the backend automatically when `/api/health` reports a connected database. Set `APP_MODE=production` and `DISABLE_DEMO_FALLBACK=true` for production so localStorage demo data cannot be used as a fallback.

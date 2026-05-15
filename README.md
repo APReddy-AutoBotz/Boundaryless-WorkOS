@@ -1,6 +1,6 @@
-# Boundaryless Resource Utilization Tracker
+# StaffPulse Workforce Operations Core
 
-Internal resource utilization, allocation, timesheet, and governance tracker for employees, Project Managers, Country Directors, HR, and Admin users.
+StaffPulse Workforce Operations Core is the production-core handover build for employee master data, project/client allocation, timesheets, utilization reporting, import/export, audit, and governance.
 
 Utilization is calculated against delivery capacity only. Admin, HR, and Country Director governance users remain in the app for access, approvals, and ownership, but they are excluded from utilization denominators. Project Managers count only when they have active project allocations.
 
@@ -8,6 +8,15 @@ The application can run in two modes:
 
 - Local demo mode: Vite frontend with browser-local demo data for fast demos and UI testing.
 - Production/API mode: Node/Express backend with PostgreSQL/Supabase persistence, username/password login, backend validation, scoped API reads, and production static serving.
+
+For company production, set:
+
+```text
+APP_MODE=production
+DISABLE_DEMO_FALLBACK=true
+```
+
+With demo fallback disabled, the frontend fails closed if the backend is unavailable instead of silently using browser-local demo data.
 
 ## Prerequisites
 
@@ -24,7 +33,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Seeded demo credentials use password `demo123`. Example users include:
+Seeded demo credentials use the configured `DEMO_SEED_PASSWORD`. Example disposable UAT users include:
 
 - `admin-1`
 - `hr-1`
@@ -88,6 +97,7 @@ npm run test:requirements
 npm run test:backend-api
 npm run test:backend-roles
 npm run test:import-templates
+npm run test:prod-hardening
 npm run test:prod-readiness
 ```
 
@@ -105,4 +115,4 @@ npm run test:prod-readiness
 - `SECURITY_OPERATIONS_CHECKLIST.md`
 - `ROLE_UAT_CHECKLIST.md`
 
-Company handover should normally require changing environment variables, running migrations, and loading real data. It should not require a code rewrite for the database provider.
+Company handover should require company-owned environment variables, versioned migrations, real data import, backend-mode role UAT, backup/restore ownership, monitoring ownership, and security sign-off. It should not require a code rewrite for the database provider.

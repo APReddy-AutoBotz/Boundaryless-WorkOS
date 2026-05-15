@@ -6,6 +6,7 @@ import { UserAccount, UserRole } from '../types';
 import { LogIn, Users, Shield, Briefcase, Globe, Info, UserCheck, LockKeyhole, Database, Clock3 } from 'lucide-react';
 import { DataStorage, STORAGE_KEYS } from '../services/storage';
 import { NoticeBanner } from '../components/ui/NoticeBanner';
+import { isDemoFallbackAllowed } from '../services/apiClient';
 
 const roles: { role: UserRole; icon: any; color: string; desc: string }[] = [
   { role: 'Admin', icon: Shield, color: 'text-purple-600 bg-purple-50', desc: 'Full system control, settings, and high-level audits.' },
@@ -25,12 +26,15 @@ export const Login = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [account, setAccount] = useState<UserAccount | undefined>(undefined);
   const [loginError, setLoginError] = useState('');
+  const showDemoShortcuts = isDemoFallbackAllowed();
 
   useEffect(() => {
     // Login is a public route. Do not call protected employee APIs here, because
     // production/API mode correctly returns 401 before authentication.
-    DataStorage.initialize();
-    setEmployees(DataStorage.get(STORAGE_KEYS.EMPLOYEES, []));
+    if (showDemoShortcuts) {
+      DataStorage.initialize();
+      setEmployees(DataStorage.get(STORAGE_KEYS.EMPLOYEES, []));
+    }
   }, []);
 
   useEffect(() => {
@@ -99,7 +103,7 @@ export const Login = () => {
               </div>
 
               <div className="mt-8">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Resource Utilization Tracker</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">StaffPulse Workforce Operations Core</p>
                 <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight leading-tight">
                   Internal workforce planning workspace
                 </h1>
@@ -205,7 +209,9 @@ export const Login = () => {
                     <Shield size={18} />
                   </div>
                 </div>
-                <p className="mt-2 text-[10px] text-gray-400 font-medium">UAT seeded users currently use demo123. Production must use named accounts and server-side password policies.</p>
+                {showDemoShortcuts && (
+                  <p className="mt-2 text-[10px] text-gray-400 font-medium">UAT seeded users use the configured demo password. Production must use named accounts and server-side password policies.</p>
+                )}
               </div>
 
               {allowedRoleCards.length > 1 && (
@@ -242,6 +248,7 @@ export const Login = () => {
               </button>
             </form>
 
+            {showDemoShortcuts && (
             <div className="mt-8 pt-6 border-t border-border-light">
               <div className="flex items-center gap-2 mb-4 text-primary">
                 <Info size={14} />
@@ -292,6 +299,7 @@ export const Login = () => {
                 </button>
               </div>
             </div>
+            )}
           </div>
         </motion.div>
       </div>

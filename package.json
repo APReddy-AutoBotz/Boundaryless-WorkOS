@@ -19,11 +19,11 @@
     "test:backend-api": "node tests/backend-api-smoke.mjs",
     "test:backend-roles": "node tests/backend-role-smoke.mjs",
     "test:import-templates": "node tests/import-template-smoke.mjs",
+    "test:prod-hardening": "node tests/production-hardening-smoke.mjs",
     "test:prod-readiness": "node tests/prod-readiness.mjs"
   },
   "dependencies": {
     "@babel/compat-data": "^7.29.0",
-    "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",

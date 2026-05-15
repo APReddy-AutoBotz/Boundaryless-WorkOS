@@ -106,10 +106,8 @@ const requireAuth = (req, res, next) => {
 };
 
 const requireRoles = (...roles) => (req, res, next) => {
-  const userRoles = new Set(req.user?.roles || []);
   const activeRole = req.user?.activeRole;
-  const allowed = roles.includes(activeRole) || roles.some(role => userRoles.has(role));
-  if (!allowed) {
+  if (!roles.includes(activeRole)) {
     res.status(403).json({ error: 'Insufficient role privileges' });
     return;
   }
@@ -224,20 +222,55 @@ const buildEmployeeScopeWhere = (req, params, employeeAlias = 'e') => {
   return 'true';
 };
 
+const buildProjectScopeWhere = (req, params, projectAlias = 'p') => {
+  if (isGlobalRole(req)) return 'true';
+  if (req.user.activeRole === 'Employee' || req.user.activeRole === 'TeamLead') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    return `exists (
+      select 1 from project_allocations scope_pa
+      where scope_pa.project_id = ${projectAlias}.id
+        and (scope_pa.employee_id = $${params.length - 1} or scope_pa.employee_id = $${params.length})
+    )`;
+  }
+  if (req.user.activeRole === 'ProjectManager') {
+    params.push(req.user.employeeRecordId, req.user.employeeId);
+    return `(${projectAlias}.manager_id = $${params.length - 1} or ${projectAlias}.manager_id = $${params.length})`;
+  }
+  if (req.user.activeRole === 'CountryDirector') {
+    params.push(req.user.countryDirectorId);
+    return `exists (
+      select 1
+      from project_allocations scope_pa
+      join employees scope_e on scope_e.id = scope_pa.employee_id
+      left join employee_country_director_map scope_ecdm on scope_ecdm.employee_id = scope_e.id
+      where scope_pa.project_id = ${projectAlias}.id
+        and (scope_e.primary_country_director_id = $${params.length} or scope_ecdm.country_director_id = $${params.length})
+    )`;
+  }
+  return 'false';
+};
+
 const getSetting = async (key, fallback) => {
   const result = await pool.query('select value from system_settings where key = $1', [key]);
   const raw = result.rows[0]?.value;
   return raw === undefined ? fallback : raw;
 };
 
-const audit = async (client, req, { module, action, entityType, entityId, oldValue, newValue, details, reason }) => {
+const getRequestIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || req.socket?.remoteAddress || '').split(',')[0].trim();
+
+const audit = async (client, req, { module, action, entityType, entityId, oldValue, newValue, details, reason, source = 'Web' }) => {
   await client.query(`
-    insert into audit_logs (user_id, user_name, user_role, module, action, entity_type, entity_id, old_value, new_value, details, reason)
-    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    insert into audit_logs (
+      user_id, user_name, user_role, active_role, source, module, action, entity_type, entity_id,
+      old_value, new_value, details, reason, ip_address, session_id
+    )
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
   `, [
     req.user?.sub || 'system',
     req.user?.username || 'system',
     req.user?.activeRole || 'system',
+    req.user?.activeRole || 'system',
+    source,
     module,
     action,
     entityType,
@@ -246,6 +279,8 @@ const audit = async (client, req, { module, action, entityType, entityId, oldVal
     newValue ? JSON.stringify(newValue) : null,
     details,
     reason || null,
+    getRequestIp(req) || null,
+    req.user?.sub || null,
   ]);
 };
 
@@ -502,9 +537,18 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
     designation: z.string().min(1),
     department: z.string().min(1),
     country: z.string().min(1),
+    reporting_manager_id: z.string().min(1).optional().nullable(),
     primary_country_director_id: z.string().min(1),
     mapped_country_director_ids: z.array(z.string()).default([]),
     utilization_eligible: z.boolean().optional(),
+    joining_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+    exit_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+    standard_weekly_hours: z.number().min(1).max(168).optional().nullable(),
+    capacity_type: z.string().min(1).optional().nullable(),
+    contract_type: z.string().min(1).optional().nullable(),
+    leave_policy_id: z.string().optional().nullable(),
+    entra_object_id: z.string().optional().nullable(),
+    teams_user_id: z.string().optional().nullable(),
     roles: z.array(z.enum(['Employee', 'TeamLead', 'ProjectManager', 'CountryDirector', 'HR', 'Admin'])).optional(),
     initial_password: z.string().min(6).optional(),
     status: z.enum(['Active', 'On Leave', 'Exited']).default('Active'),
@@ -534,17 +578,30 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
     );
     const utilizationEligible = parsed.data.utilization_eligible ?? defaultUtilizationEligible;
     const employeeResult = await client.query(`
-      insert into employees (id, employee_id, name, email, designation, department, country, primary_country_director_id, status, utilization_eligible)
-      values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9,$10)
+      insert into employees (
+        id, employee_id, name, email, designation, department, country, reporting_manager_id,
+        primary_country_director_id, status, utilization_eligible, joining_date, exit_date,
+        standard_weekly_hours, capacity_type, contract_type, leave_policy_id, entra_object_id, teams_user_id
+      )
+      values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
       on conflict (employee_id) do update set
         name = excluded.name,
         email = excluded.email,
         designation = excluded.designation,
         department = excluded.department,
         country = excluded.country,
+        reporting_manager_id = excluded.reporting_manager_id,
         primary_country_director_id = excluded.primary_country_director_id,
         status = excluded.status,
         utilization_eligible = excluded.utilization_eligible,
+        joining_date = excluded.joining_date,
+        exit_date = excluded.exit_date,
+        standard_weekly_hours = excluded.standard_weekly_hours,
+        capacity_type = excluded.capacity_type,
+        contract_type = excluded.contract_type,
+        leave_policy_id = excluded.leave_policy_id,
+        entra_object_id = excluded.entra_object_id,
+        teams_user_id = excluded.teams_user_id,
         updated_at = now()
       returning *
     `, [
@@ -555,9 +612,18 @@ app.post('/api/employees', requireDatabase, requireAuth, requireRoles('Admin', '
       parsed.data.designation,
       parsed.data.department,
       parsed.data.country,
+      parsed.data.reporting_manager_id || null,
       parsed.data.primary_country_director_id,
       parsed.data.status,
       utilizationEligible,
+      parsed.data.joining_date || null,
+      parsed.data.exit_date || null,
+      parsed.data.standard_weekly_hours || 40,
+      parsed.data.capacity_type || (utilizationEligible ? 'Delivery' : 'Governance'),
+      parsed.data.contract_type || 'Permanent',
+      parsed.data.leave_policy_id || null,
+      parsed.data.entra_object_id || null,
+      parsed.data.teams_user_id || null,
     ]);
     const employee = employeeResult.rows[0];
     const mappedIds = Array.from(new Set([parsed.data.primary_country_director_id, ...parsed.data.mapped_country_director_ids].filter(Boolean)));
@@ -1860,10 +1926,19 @@ const getUtilizationReport = async (req, res, mode) => {
           e.designation,
           e.department,
           e.country,
+          e.reporting_manager_id,
           e.primary_country_director_id,
           e.mapped_country_director_ids,
           e.status,
           e.utilization_eligible,
+          e.joining_date,
+          e.exit_date,
+          e.standard_weekly_hours,
+          e.capacity_type,
+          e.contract_type,
+          e.leave_policy_id,
+          e.entra_object_id,
+          e.teams_user_id,
           coalesce(sum(pa.percentage) filter (
             where pa.status = 'Active'
               and p.id is not null
@@ -1887,7 +1962,9 @@ const getUtilizationReport = async (req, res, mode) => {
         left join projects p on p.id = pa.project_id
         where e.status = 'Active' and e.utilization_eligible = true
         group by e.id, e.employee_id, e.name, e.email, e.designation, e.department, e.country,
-          e.primary_country_director_id, e.mapped_country_director_ids, e.status, e.utilization_eligible
+          e.reporting_manager_id, e.primary_country_director_id, e.mapped_country_director_ids, e.status,
+          e.utilization_eligible, e.joining_date, e.exit_date, e.standard_weekly_hours, e.capacity_type,
+          e.contract_type, e.leave_policy_id, e.entra_object_id, e.teams_user_id
       ),
       latest_approved as (
         select distinct on (t.employee_id)
@@ -1907,10 +1984,19 @@ const getUtilizationReport = async (req, res, mode) => {
         el.designation,
         el.department,
         el.country,
+        el.reporting_manager_id,
         el.primary_country_director_id,
         el.mapped_country_director_ids,
         el.status,
         el.utilization_eligible,
+        el.joining_date,
+        el.exit_date,
+        el.standard_weekly_hours,
+        el.capacity_type,
+        el.contract_type,
+        el.leave_policy_id,
+        el.entra_object_id,
+        el.teams_user_id,
         el.planned_utilization,
         coalesce(la.actual_utilization, 0) as actual_utilization,
         la.week_ending as latest_approved_week,
@@ -1976,6 +2062,170 @@ app.get('/api/reports/forecast-utilization', requireDatabase, requireAuth, requi
   getUtilizationReport(req, res, 'forecast');
 });
 
+const getDataQualityPayload = async (req) => {
+  const params = [];
+  const employeeScopeWhere = buildEmployeeScopeWhere(req, params, 'e');
+  const result = await pool.query(`
+    with scoped_employees as (
+      select e.*
+      from employees e
+      where ${employeeScopeWhere}
+    ),
+    scoped_allocations as (
+      select pa.*, p.name as project_name, p.start_date as project_start_date, p.end_date as project_end_date
+      from project_allocations pa
+      join scoped_employees e on e.id = pa.employee_id
+      join projects p on p.id = pa.project_id
+    ),
+    issues as (
+      select
+        'Employee' as entity_type,
+        e.id as entity_id,
+        e.name as entity,
+        'Missing reporting manager' as issue_type,
+        coalesce(e.email, e.employee_id) as owner,
+        'Approval routing and team views may be unreliable.' as impact,
+        'Assign a reporting manager in Employee Master.' as suggested_action
+      from scoped_employees e
+      where e.status = 'Active' and e.reporting_manager_id is null
+
+      union all
+
+      select
+        'Employee',
+        e.id,
+        e.name,
+        'Missing capacity profile',
+        coalesce(e.email, e.employee_id),
+        'Availability and utilization handover checks cannot be fully trusted.',
+        'Set standard weekly hours, capacity type, and contract type.'
+      from scoped_employees e
+      where e.status = 'Active'
+        and (e.standard_weekly_hours is null or e.capacity_type is null or e.contract_type is null)
+
+      union all
+
+      select
+        'Employee',
+        e.id,
+        e.name,
+        'Missing Teams identity link',
+        coalesce(e.email, e.employee_id),
+        'Future Teams approvals and reminders cannot target this user.',
+        'Capture the Teams user link during identity onboarding.'
+      from scoped_employees e
+      where e.status = 'Active' and nullif(e.teams_user_id, '') is null
+
+      union all
+
+      select
+        'Employee',
+        e.id,
+        e.name,
+        'Demo data remnant',
+        coalesce(e.email, e.employee_id),
+        'Production handover may still contain seeded demo records.',
+        'Replace demo user and employee records with company-owned data.'
+      from scoped_employees e
+      where e.email ilike '%.demo' or e.email ilike '%@boundaryless.demo'
+
+      union all
+
+      select
+        'Allocation',
+        sa.id,
+        sa.project_name,
+        'Allocation outside project timeline',
+        sa.employee_id,
+        'Planned and forecast utilization can be incorrect for this assignment.',
+        'Adjust allocation dates to fit within the project start and end dates.'
+      from scoped_allocations sa
+      where sa.start_date < sa.project_start_date or sa.end_date > sa.project_end_date
+    )
+    select * from issues order by issue_type, entity
+  `, params);
+
+  const scopedCount = await pool.query(`
+    select count(*)::int as count
+    from employees e
+    where ${employeeScopeWhere}
+  `, params);
+  const totalRecords = Number(scopedCount.rows[0]?.count || 0);
+  const issueCount = result.rows.length;
+  const denominator = Math.max(totalRecords * 4, 1);
+  const score = Math.max(0, Math.round(((denominator - issueCount) / denominator) * 100));
+  const byType = result.rows.reduce((acc, issue) => {
+    acc[issue.issue_type] = (acc[issue.issue_type] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    score,
+    totalRecords,
+    issueCount,
+    byType,
+    issues: result.rows,
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+app.get('/api/reports/data-quality', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  try {
+    res.json(await getDataQualityPayload(req));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Data quality report failed' });
+  }
+});
+
+app.get('/api/reports/dashboard', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const params = [];
+  const employeeScopeWhere = buildEmployeeScopeWhere(req, params, 'e');
+  const projectRiskParams = [];
+  const projectScopeWhere = buildProjectScopeWhere(req, projectRiskParams, 'p');
+  try {
+    const [settingsResult, workforceResult, projectRiskResult, pendingTimesheetsResult, quality] = await Promise.all([
+      pool.query('select key, value from system_settings'),
+      pool.query(`
+        select
+          count(*) filter (where e.status = 'Active')::int as active_people,
+          count(*) filter (where e.status = 'Active' and e.utilization_eligible = true)::int as utilization_eligible_fte,
+          count(*) filter (where e.status = 'Active' and e.utilization_eligible = false)::int as governance_users
+        from employees e
+        where ${employeeScopeWhere}
+      `, params),
+      pool.query(`
+        select count(distinct p.id)::int as staffing_risks
+        from projects p
+        where p.status in ('Active', 'Proposed')
+          and ${projectScopeWhere}
+          and not exists (
+            select 1 from project_allocations pa
+            where pa.project_id = p.id and pa.status = 'Active'
+          )
+      `, projectRiskParams),
+      pool.query(`
+        select count(*)::int as pending
+        from timesheets t
+        join employees e on e.id = t.employee_id
+        where t.status = 'Submitted' and ${employeeScopeWhere}
+      `, params),
+      getDataQualityPayload(req),
+    ]);
+    const settings = Object.fromEntries(settingsResult.rows.map(row => [row.key, row.value]));
+    res.json({
+      generatedAt: new Date().toISOString(),
+      settings,
+      workforce: workforceResult.rows[0] || {},
+      projectStaffingRisks: Number(projectRiskResult.rows[0]?.staffing_risks || 0),
+      pendingTimesheets: Number(pendingTimesheetsResult.rows[0]?.pending || 0),
+      dataQuality: quality,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Dashboard report failed' });
+  }
+});
+
 app.get('/api/import-export-logs', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => run(res, 'select * from import_export_logs order by created_at desc limit 100'));
 app.post('/api/import-export-logs', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
@@ -2022,10 +2272,20 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
     designation: z.string().optional(),
     department: z.string().optional(),
     country: z.string().optional(),
+    reportingManagerId: z.string().optional(),
     primaryCountryDirectorId: z.string().optional(),
     mappedCountryDirectorIds: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['Active', 'On Leave', 'Exited']).optional(),
     utilizationEligible: z.union([z.boolean(), z.string()]).optional(),
+    joiningDate: z.string().optional(),
+    exitDate: z.string().optional(),
+    standardWeeklyHours: z.union([z.number(), z.string()]).optional(),
+    capacityType: z.string().optional(),
+    contractType: z.string().optional(),
+    entraObjectId: z.string().optional(),
+    teamsUserId: z.string().optional(),
+    roles: z.union([z.string(), z.array(z.string())]).optional(),
+    initialPassword: z.string().optional(),
   });
   const schema = z.object({
     fileName: z.string().min(1),
@@ -2062,6 +2322,16 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
       for (const directorId of mappedIds) {
         if (!directorIds.has(directorId)) rowErrors.push({ rowNumber, field: 'mappedCountryDirectorIds', message: `Country director ${directorId} does not exist.` });
       }
+      let reportingManagerId = null;
+      if (row.reportingManagerId) {
+        const manager = (await client.query(`
+          select id from employees
+          where (id = $1 or employee_id = $1) and status <> 'Exited'
+          limit 1
+        `, [row.reportingManagerId])).rows[0];
+        if (!manager) rowErrors.push({ rowNumber, field: 'reportingManagerId', message: 'Reporting manager employee record does not exist or is exited.' });
+        reportingManagerId = manager?.id || null;
+      }
       if (rowErrors.length > 0) {
         errors.push(...rowErrors);
         continue;
@@ -2083,18 +2353,33 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
         department.toLowerCase() === 'human resources'
       );
       const utilizationEligible = parseBoolean(row.utilizationEligible, previous?.utilization_eligible ?? defaultUtilizationEligible);
+      const standardWeeklyHours = row.standardWeeklyHours === undefined || row.standardWeeklyHours === ''
+        ? Number(previous?.standard_weekly_hours || 40)
+        : Number(row.standardWeeklyHours);
       const employeeResult = await client.query(`
-        insert into employees (id, employee_id, name, email, designation, department, country, primary_country_director_id, status, utilization_eligible, updated_at)
-        values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+        insert into employees (
+          id, employee_id, name, email, designation, department, country, reporting_manager_id,
+          primary_country_director_id, status, utilization_eligible, joining_date, exit_date,
+          standard_weekly_hours, capacity_type, contract_type, entra_object_id, teams_user_id, updated_at
+        )
+        values (coalesce($1, 'e-' || gen_random_uuid()::text), $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,now())
         on conflict (employee_id) do update set
           name = excluded.name,
           email = excluded.email,
           designation = excluded.designation,
           department = excluded.department,
           country = excluded.country,
+          reporting_manager_id = excluded.reporting_manager_id,
           primary_country_director_id = excluded.primary_country_director_id,
           status = excluded.status,
           utilization_eligible = excluded.utilization_eligible,
+          joining_date = excluded.joining_date,
+          exit_date = excluded.exit_date,
+          standard_weekly_hours = excluded.standard_weekly_hours,
+          capacity_type = excluded.capacity_type,
+          contract_type = excluded.contract_type,
+          entra_object_id = excluded.entra_object_id,
+          teams_user_id = excluded.teams_user_id,
           updated_at = now()
         returning *
       `, [
@@ -2105,9 +2390,17 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
         designation,
         department,
         row.country || previous?.country || 'United Kingdom',
+        reportingManagerId || previous?.reporting_manager_id || null,
         primaryDirectorId,
         row.status || previous?.status || 'Active',
         utilizationEligible,
+        row.joiningDate || previous?.joining_date || null,
+        row.exitDate || previous?.exit_date || null,
+        Number.isFinite(standardWeeklyHours) ? standardWeeklyHours : 40,
+        row.capacityType || previous?.capacity_type || (utilizationEligible ? 'Delivery' : 'Governance'),
+        row.contractType || previous?.contract_type || 'Permanent',
+        row.entraObjectId || previous?.entra_object_id || null,
+        row.teamsUserId || previous?.teams_user_id || null,
       ]);
       const employee = employeeResult.rows[0];
       const allMappedIds = Array.from(new Set([primaryDirectorId, ...mappedIds].filter(Boolean)));
@@ -2121,7 +2414,7 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
       }
 
       const existingUser = (await client.query('select id from users where lower(username) = lower($1) or employee_id = $2', [row.employeeId, row.employeeId])).rows[0];
-      const passwordHash = existingUser ? null : await scryptHash(process.env.DEMO_SEED_PASSWORD || 'demo123');
+      const passwordHash = existingUser ? null : await scryptHash(row.initialPassword || process.env.DEMO_SEED_PASSWORD || 'demo123');
       const userResult = await client.query(`
         insert into users (username, employee_id, email, password_hash, status, updated_at)
         values ($1,$2,$3,$4,$5,now())
@@ -2139,7 +2432,15 @@ app.post('/api/imports/employees/apply', requireDatabase, requireAuth, requireRo
         passwordHash,
         employee.status === 'Exited' ? 'Disabled' : 'Active',
       ]);
-      if (employeeRole) {
+      const roleNames = splitPipeList(row.roles);
+      const requestedRoles = roleNames.length > 0 ? roleNames : ['Employee'];
+      const rolesResult = await client.query('select id, name from roles where name = any($1::text[])', [requestedRoles]);
+      if (rolesResult.rows.length > 0) {
+        await client.query('delete from user_roles where user_id = $1', [userResult.rows[0].id]);
+        for (const role of rolesResult.rows) {
+          await client.query('insert into user_roles (user_id, role_id) values ($1,$2) on conflict do nothing', [userResult.rows[0].id, role.id]);
+        }
+      } else if (employeeRole) {
         await client.query('insert into user_roles (user_id, role_id) values ($1,$2) on conflict do nothing', [userResult.rows[0].id, employeeRole.id]);
       }
       await audit(client, req, {
@@ -2856,5 +3157,5 @@ if (isProduction || process.env.SERVE_STATIC === 'true') {
 }
 
 app.listen(port, () => {
-  console.log(`Resource Utilization Tracker API listening on http://localhost:${port}`);
+  console.log(`StaffPulse Workforce Operations Core API listening on http://localhost:${port}`);
 });

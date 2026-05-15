@@ -8,6 +8,7 @@ Use this checklist before production go-live. Items marked company-owned require
 |---|---|
 | Company `DATABASE_URL` is stored only in the hosting secret manager. | Company-owned |
 | `API_SESSION_SECRET` is company-generated and at least 32 characters. | Company-owned |
+| `APP_MODE=production` and `DISABLE_DEMO_FALLBACK=true` are set for company production. | Required |
 | Demo or personal Supabase credentials are removed before handover. | Company-owned |
 | `.env` files and secret screenshots are not committed. | Must pass |
 | Any password shared in chat/email/screenshots is rotated. | Company-owned |
@@ -28,7 +29,7 @@ Use this checklist before production go-live. Items marked company-owned require
 | Item | Status |
 |---|---|
 | Frontend route access is role-gated. | Implemented |
-| Backend role middleware protects API routes. | Implemented |
+| Backend role middleware protects API routes using active role, not inactive assigned roles. | Implemented |
 | Employee, PM, CD, and Admin/HR scoped reads are covered by smoke tests. | Implemented |
 | Team Lead final data scope is confirmed. | Company-owned |
 | Project Manager approval authority is confirmed. | Company-owned |
@@ -37,7 +38,7 @@ Use this checklist before production go-live. Items marked company-owned require
 
 | Item | Status |
 |---|---|
-| Critical backend mutations write audit records. | Partially implemented |
+| Critical backend mutations write audit records with source, active role, and request metadata where available. | Implemented for core writes |
 | Audit retention period is defined. | Company-owned |
 | Audit export permissions are approved. | Company-owned |
 | Tamper-resistant audit storage is designed for go-live. | Company-owned |

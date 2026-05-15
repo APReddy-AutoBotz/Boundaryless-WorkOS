@@ -39,9 +39,17 @@ The same field names are used by the in-app Import / Export page.
 | `designation` | Recommended | Used for role/context and utilization interpretation. |
 | `department` | Recommended | Should match company department catalog. |
 | `country` | Recommended | Should match company country catalog. |
+| `reportingManagerId` | Required for production | Employee ID or record ID of the reporting manager. |
 | `primaryCountryDirectorId` | Yes | Must reference an existing Country Director ID. |
 | `mappedCountryDirectorIds` | Optional | Pipe-separated IDs, for example `cd-1|cd-3`. |
 | `utilizationEligible` | Recommended | `true` for delivery capacity, `false` for governance users. |
+| `joiningDate` | Recommended | `YYYY-MM-DD`. |
+| `exitDate` | Conditional | Required for exited employees where available. |
+| `standardWeeklyHours` | Required for production | Usually `40`, but must match the employee capacity profile. |
+| `capacityType` | Required for production | `Delivery`, `Governance`, `Shared`, or `NonDelivery`. |
+| `contractType` | Required for production | `Permanent`, `Contractor`, `FixedTerm`, `Intern`, or company-approved value. |
+| `entraObjectId` | Optional placeholder | Populate when Microsoft Entra SSO is connected. |
+| `teamsUserId` | Optional placeholder | Populate when Teams integration is connected. |
 | `roles` | Optional | Pipe-separated app roles if provisioning users through import. |
 | `initialPassword` | Optional | Temporary password for newly provisioned users. Prefer reset workflow. |
 | `status` | Optional | `Active`, `On Leave`, or `Exited`. |

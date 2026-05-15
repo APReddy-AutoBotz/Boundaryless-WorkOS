@@ -8,6 +8,7 @@ const steps = [
   ['test:access'],
   ['test:requirements'],
   ['test:import-templates'],
+  ['test:prod-hardening'],
   ['test:backend-api'],
   ['test:backend-roles'],
 ];

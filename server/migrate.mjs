@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { readdir } from 'node:fs/promises';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,7 +8,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const serverDir = dirname(fileURLToPath(import.meta.url));
-const migrationId = '005_auth_lifecycle';
+const baselineMigrationId = '005_auth_lifecycle';
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required to run database migrations.');
@@ -30,14 +31,32 @@ try {
     )
   `);
 
-  const applied = await client.query('select 1 from schema_migrations where id = $1', [migrationId]);
+  const applied = await client.query('select 1 from schema_migrations where id = $1', [baselineMigrationId]);
   if (applied.rowCount === 0) {
     const schemaSql = await readFile(join(serverDir, 'schema.sql'), 'utf8');
     await client.query(schemaSql);
+    await client.query('insert into schema_migrations (id) values ($1)', [baselineMigrationId]);
+    console.log(`Applied migration ${baselineMigrationId}`);
+  } else {
+    console.log(`Migration ${baselineMigrationId} already applied`);
+  }
+
+  const migrationsDir = join(serverDir, 'migrations');
+  const migrationFiles = (await readdir(migrationsDir).catch(() => []))
+    .filter(file => file.endsWith('.sql'))
+    .sort();
+
+  for (const file of migrationFiles) {
+    const migrationId = file.replace(/\.sql$/, '');
+    const fileApplied = await client.query('select 1 from schema_migrations where id = $1', [migrationId]);
+    if (fileApplied.rowCount > 0) {
+      console.log(`Migration ${migrationId} already applied`);
+      continue;
+    }
+    const sql = await readFile(join(migrationsDir, file), 'utf8');
+    await client.query(sql);
     await client.query('insert into schema_migrations (id) values ($1)', [migrationId]);
     console.log(`Applied migration ${migrationId}`);
-  } else {
-    console.log(`Migration ${migrationId} already applied`);
   }
 
   await client.query('commit');

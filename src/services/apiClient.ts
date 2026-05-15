@@ -12,6 +12,13 @@ import type {
 } from '../types';
 import { roundMetric } from '../lib/format';
 
+const frontendEnv = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env || {});
+const appMode = frontendEnv.VITE_APP_MODE || frontendEnv.APP_MODE || 'demo';
+const disableDemoFallback = frontendEnv.VITE_DISABLE_DEMO_FALLBACK || frontendEnv.DISABLE_DEMO_FALLBACK;
+
+export const isDemoFallbackAllowed = () =>
+  appMode !== 'production' && String(disableDemoFallback || '').toLowerCase() !== 'true';
+
 // ─── Backend availability detection ──────────────────────────────────────────
 
 let _backendStatus: 'unknown' | 'connected' | 'offline' = 'unknown';
@@ -19,7 +26,12 @@ let _checkPromise: Promise<boolean> | null = null;
 
 export const checkBackend = (): Promise<boolean> => {
   if (_backendStatus === 'connected') return Promise.resolve(true);
-  if (_backendStatus === 'offline') return Promise.resolve(false);
+  if (_backendStatus === 'offline') {
+    if (!isDemoFallbackAllowed()) {
+      return Promise.reject(new Error('Backend API is required because demo fallback is disabled.'));
+    }
+    return Promise.resolve(false);
+  }
   if (_checkPromise) return _checkPromise;
 
   _checkPromise = (async () => {
@@ -28,11 +40,14 @@ export const checkBackend = (): Promise<boolean> => {
         signal: AbortSignal.timeout(3000),
         credentials: 'include',
       });
-      if (!res.ok) { _backendStatus = 'offline'; return false; }
+      if (!res.ok) { _backendStatus = 'offline'; }
       const data = await res.json();
       _backendStatus = data.database === 'connected' ? 'connected' : 'offline';
     } catch {
       _backendStatus = 'offline';
+    }
+    if (_backendStatus !== 'connected' && !isDemoFallbackAllowed()) {
+      throw new Error('Backend API is required because demo fallback is disabled.');
     }
     return _backendStatus === 'connected';
   })();
@@ -110,12 +125,21 @@ export const normalizeEmployee = (r: Record<string, unknown>): Employee => ({
   designation: String(r.designation),
   department: String(r.department),
   country: String(r.country),
+  reportingManagerId: r.reporting_manager_id ? String(r.reporting_manager_id) : undefined,
   primaryCountryDirectorId: String(r.primary_country_director_id),
   mappedCountryDirectorIds: Array.isArray(r.mapped_country_director_ids)
     ? (r.mapped_country_director_ids as string[])
     : [],
   status: r.status as Employee['status'],
   utilizationEligible: r.utilization_eligible === undefined ? true : Boolean(r.utilization_eligible),
+  joiningDate: r.joining_date ? String(r.joining_date).slice(0, 10) : undefined,
+  exitDate: r.exit_date ? String(r.exit_date).slice(0, 10) : undefined,
+  standardWeeklyHours: r.standard_weekly_hours === undefined || r.standard_weekly_hours === null ? undefined : Number(r.standard_weekly_hours),
+  capacityType: r.capacity_type ? String(r.capacity_type) : undefined,
+  contractType: r.contract_type ? String(r.contract_type) : undefined,
+  leavePolicyId: r.leave_policy_id ? String(r.leave_policy_id) : undefined,
+  entraObjectId: r.entra_object_id ? String(r.entra_object_id) : undefined,
+  teamsUserId: r.teams_user_id ? String(r.teams_user_id) : undefined,
   plannedUtilization: 0,
   actualUtilization: 0,
   activeProjectCount: 0,
@@ -129,12 +153,21 @@ export const normalizeUtilizationReportEmployee = (r: Record<string, unknown>): 
   designation: String(r.designation),
   department: String(r.department),
   country: String(r.country),
+  reportingManagerId: r.reporting_manager_id ? String(r.reporting_manager_id) : undefined,
   primaryCountryDirectorId: String(r.primary_country_director_id),
   mappedCountryDirectorIds: Array.isArray(r.mapped_country_director_ids)
     ? (r.mapped_country_director_ids as string[])
     : [],
   status: r.status as Employee['status'],
   utilizationEligible: r.utilization_eligible === undefined ? true : Boolean(r.utilization_eligible),
+  joiningDate: r.joining_date ? String(r.joining_date).slice(0, 10) : undefined,
+  exitDate: r.exit_date ? String(r.exit_date).slice(0, 10) : undefined,
+  standardWeeklyHours: r.standard_weekly_hours === undefined || r.standard_weekly_hours === null ? undefined : Number(r.standard_weekly_hours),
+  capacityType: r.capacity_type ? String(r.capacity_type) : undefined,
+  contractType: r.contract_type ? String(r.contract_type) : undefined,
+  leavePolicyId: r.leave_policy_id ? String(r.leave_policy_id) : undefined,
+  entraObjectId: r.entra_object_id ? String(r.entra_object_id) : undefined,
+  teamsUserId: r.teams_user_id ? String(r.teams_user_id) : undefined,
   plannedUtilization: roundMetric(Number(r.planned_utilization ?? 0)),
   actualUtilization: roundMetric(Number(r.actual_utilization ?? 0)),
   activeProjectCount: Number(r.active_project_count ?? 0),
@@ -260,6 +293,8 @@ export const normalizeAuditLog = (r: Record<string, unknown>): AuditLog => ({
   userId: String(r.user_id),
   userName: String(r.user_name),
   userRole: String(r.user_role),
+  activeRole: r.active_role ? String(r.active_role) : undefined,
+  source: r.source ? String(r.source) : undefined,
   action: String(r.action),
   module: String(r.module),
   details: String(r.details),
@@ -268,6 +303,8 @@ export const normalizeAuditLog = (r: Record<string, unknown>): AuditLog => ({
   oldValue: r.old_value ?? undefined,
   newValue: r.new_value ?? undefined,
   reason: r.reason ? String(r.reason) : undefined,
+  ipAddress: r.ip_address ? String(r.ip_address) : undefined,
+  sessionId: r.session_id ? String(r.session_id) : undefined,
   timestamp: String(r.created_at),
 });
 

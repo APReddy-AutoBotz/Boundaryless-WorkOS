@@ -11,6 +11,7 @@ create table if not exists users (
   employee_id text unique,
   email text not null unique,
   password_hash text,
+  entra_object_id text unique,
   must_change_password boolean not null default false,
   status text not null default 'Active',
   created_at timestamptz not null default now(),
@@ -73,10 +74,19 @@ create table if not exists employees (
   designation text not null,
   department text not null,
   country text not null,
+  reporting_manager_id text references employees(id) on delete set null,
   primary_country_director_id text not null references country_directors(id),
   status text not null check (status in ('Active', 'On Leave', 'Exited')),
   utilization_eligible boolean not null default true,
   expected_weekly_hours numeric,
+  joining_date date,
+  exit_date date,
+  standard_weekly_hours numeric not null default 40,
+  capacity_type text not null default 'Delivery',
+  contract_type text not null default 'Permanent',
+  leave_policy_id text,
+  entra_object_id text,
+  teams_user_id text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -166,6 +176,8 @@ create table if not exists audit_logs (
   user_id text not null,
   user_name text not null,
   user_role text not null,
+  active_role text,
+  source text not null default 'Web',
   module text not null,
   action text not null,
   entity_type text,
@@ -173,6 +185,8 @@ create table if not exists audit_logs (
   old_value jsonb,
   new_value jsonb,
   reason text,
+  ip_address text,
+  session_id text,
   details text not null,
   created_at timestamptz not null default now()
 );
@@ -192,6 +206,9 @@ create table if not exists import_export_logs (
 );
 
 create index if not exists idx_employee_cd_map_cd on employee_country_director_map(country_director_id);
+create index if not exists idx_employees_reporting_manager on employees(reporting_manager_id);
+create index if not exists idx_employees_teams_user_id on employees(teams_user_id);
+create index if not exists idx_employees_entra_object_id on employees(entra_object_id);
 create index if not exists idx_client_cd_map_cd on client_country_director_map(country_director_id);
 create index if not exists idx_catalog_items_type_active on catalog_items(catalog_type, active, name);
 create index if not exists idx_projects_client_id on projects(client_id);
@@ -203,8 +220,23 @@ create index if not exists idx_audit_logs_created_at on audit_logs(created_at de
 create index if not exists idx_import_export_logs_created_at on import_export_logs(created_at desc);
 
 alter table users add column if not exists must_change_password boolean not null default false;
+alter table users add column if not exists entra_object_id text;
 
 alter table employees add column if not exists utilization_eligible boolean not null default true;
+alter table employees add column if not exists reporting_manager_id text references employees(id) on delete set null;
+alter table employees add column if not exists joining_date date;
+alter table employees add column if not exists exit_date date;
+alter table employees add column if not exists standard_weekly_hours numeric not null default 40;
+alter table employees add column if not exists capacity_type text not null default 'Delivery';
+alter table employees add column if not exists contract_type text not null default 'Permanent';
+alter table employees add column if not exists leave_policy_id text;
+alter table employees add column if not exists entra_object_id text;
+alter table employees add column if not exists teams_user_id text;
+
+alter table audit_logs add column if not exists active_role text;
+alter table audit_logs add column if not exists source text not null default 'Web';
+alter table audit_logs add column if not exists ip_address text;
+alter table audit_logs add column if not exists session_id text;
 
 update employees
 set utilization_eligible = false

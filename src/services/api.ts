@@ -88,9 +88,18 @@ export const employeeService = {
         designation: emp.designation,
         department: emp.department,
         country: emp.country,
+        reporting_manager_id: emp.reportingManagerId || null,
         primary_country_director_id: emp.primaryCountryDirectorId,
         mapped_country_director_ids: emp.mappedCountryDirectorIds,
         utilization_eligible: emp.utilizationEligible ?? getDefaultUtilizationEligible(emp),
+        joining_date: emp.joiningDate || null,
+        exit_date: emp.exitDate || null,
+        standard_weekly_hours: emp.standardWeeklyHours ?? null,
+        capacity_type: emp.capacityType || null,
+        contract_type: emp.contractType || null,
+        leave_policy_id: emp.leavePolicyId || null,
+        entra_object_id: emp.entraObjectId || null,
+        teams_user_id: emp.teamsUserId || null,
         status: emp.status,
       });
       return;
@@ -670,6 +679,12 @@ export const adminService = {
     if (await checkBackend()) return; // backend auto-audits mutations
     const s = authService.getCurrentUser();
     DataStorage.logAction(s?.id || 'sys', s?.name || 'System', s?.role || 'Admin', action, module, details);
+  },
+  getDataQualityReport: async (): Promise<Record<string, unknown> | null> => {
+    if (await checkBackend()) {
+      return api.get<Record<string, unknown>>('/api/reports/data-quality');
+    }
+    return null;
   },
 };
 

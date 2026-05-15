@@ -11,6 +11,10 @@ services:
         value: 22
       - key: NODE_ENV
         value: production
+      - key: APP_MODE
+        value: production
+      - key: DISABLE_DEMO_FALLBACK
+        value: "true"
       - key: PGSSLMODE
         value: require
       - key: LOGIN_RATE_LIMIT

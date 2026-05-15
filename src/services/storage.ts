@@ -398,7 +398,7 @@ export class DataStorage {
     action: string,
     module: string,
     details: string,
-    metadata: Partial<Pick<AuditLog, 'entityType' | 'entityId' | 'oldValue' | 'newValue' | 'reason'>> = {}
+    metadata: Partial<Pick<AuditLog, 'entityType' | 'entityId' | 'oldValue' | 'newValue' | 'reason' | 'source' | 'activeRole'>> = {}
   ) {
     const logs = this.get<AuditLog[]>(STORAGE_KEYS.AUDIT_LOGS, []);
     const newLog: AuditLog = {
@@ -406,6 +406,8 @@ export class DataStorage {
       userId,
       userName,
       userRole,
+      activeRole: metadata.activeRole || userRole,
+      source: metadata.source || 'Web',
       action,
       module,
       details,

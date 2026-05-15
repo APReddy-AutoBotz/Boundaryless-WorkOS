@@ -150,6 +150,12 @@ export const ImportExport = () => {
         if (!row.name) addError(errors, rowNumber, 'name', 'Employee name is required.');
         if (!row.email) addError(errors, rowNumber, 'email', 'Email is required.');
         if (row.email && !row.email.includes('@')) addError(errors, rowNumber, 'email', 'Email format is invalid.');
+        if (row.reportingManagerId && !employeeIds.has(row.reportingManagerId)) addError(errors, rowNumber, 'reportingManagerId', 'Reporting manager employee record does not exist.');
+        if (row.joiningDate && !isValidDate(row.joiningDate)) addError(errors, rowNumber, 'joiningDate', 'Joining date must use YYYY-MM-DD.');
+        if (row.exitDate && !isValidDate(row.exitDate)) addError(errors, rowNumber, 'exitDate', 'Exit date must use YYYY-MM-DD.');
+        if (row.standardWeeklyHours && (Number.isNaN(Number(row.standardWeeklyHours)) || Number(row.standardWeeklyHours) <= 0 || Number(row.standardWeeklyHours) > 168)) {
+          addError(errors, rowNumber, 'standardWeeklyHours', 'Standard weekly hours must be between 1 and 168.');
+        }
         if (row.status && !employeeStatuses.includes(row.status as Employee['status'])) {
           addError(errors, rowNumber, 'status', `Status must be one of: ${employeeStatuses.join(', ')}.`);
         }
@@ -359,9 +365,20 @@ export const ImportExport = () => {
           designation: row.designation || current?.designation || 'Consultant',
           department: row.department || current?.department || 'Digital Transformation',
           country: row.country || current?.country || 'United Kingdom',
+          reportingManagerId: row.reportingManagerId || current?.reportingManagerId,
           primaryCountryDirectorId: row.primaryCountryDirectorId || current?.primaryCountryDirectorId || 'cd-1',
           mappedCountryDirectorIds: (row.mappedCountryDirectorIds || current?.mappedCountryDirectorIds?.join('|') || row.primaryCountryDirectorId || 'cd-1').split('|').filter(Boolean),
           status: (row.status as Employee['status']) || current?.status || 'Active',
+          utilizationEligible: row.utilizationEligible === undefined || row.utilizationEligible === ''
+            ? current?.utilizationEligible
+            : ['true', '1', 'yes', 'y'].includes(String(row.utilizationEligible).toLowerCase()),
+          joiningDate: row.joiningDate || current?.joiningDate,
+          exitDate: row.exitDate || current?.exitDate,
+          standardWeeklyHours: row.standardWeeklyHours ? Number(row.standardWeeklyHours) : current?.standardWeeklyHours || 40,
+          capacityType: row.capacityType || current?.capacityType || 'Delivery',
+          contractType: row.contractType || current?.contractType || 'Permanent',
+          entraObjectId: row.entraObjectId || current?.entraObjectId,
+          teamsUserId: row.teamsUserId || current?.teamsUserId,
           plannedUtilization: current?.plannedUtilization || 0,
           actualUtilization: current?.actualUtilization || 0,
           activeProjectCount: current?.activeProjectCount || 0,
@@ -521,8 +538,19 @@ export const ImportExport = () => {
         designation: 'Consultant',
         department: 'Digital Transformation',
         country: 'United Kingdom',
+        reportingManagerId: 'PM-9001',
         primaryCountryDirectorId: 'cd-1',
         mappedCountryDirectorIds: 'cd-1|cd-3',
+        utilizationEligible: true,
+        joiningDate: '2026-01-01',
+        exitDate: '',
+        standardWeeklyHours: 40,
+        capacityType: 'Delivery',
+        contractType: 'Permanent',
+        entraObjectId: '',
+        teamsUserId: '',
+        roles: 'Employee',
+        initialPassword: '',
         status: 'Active'
       }], 
       clients: [{

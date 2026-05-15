@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const templateDir = join('templates', 'import');
 
 const requiredHeaders = {
-  'employees-template.csv': ['employeeId', 'name', 'email', 'designation', 'department', 'country', 'primaryCountryDirectorId', 'mappedCountryDirectorIds', 'utilizationEligible', 'roles', 'initialPassword', 'status'],
+  'employees-template.csv': ['employeeId', 'name', 'email', 'designation', 'department', 'country', 'reportingManagerId', 'primaryCountryDirectorId', 'mappedCountryDirectorIds', 'utilizationEligible', 'joiningDate', 'exitDate', 'standardWeeklyHours', 'capacityType', 'contractType', 'entraObjectId', 'teamsUserId', 'roles', 'initialPassword', 'status'],
   'clients-template.csv': ['id', 'name', 'industry', 'accountOwnerId', 'countryDirectorIds', 'status'],
   'projects-template.csv': ['projectCode', 'name', 'clientId', 'client', 'managerId', 'startDate', 'endDate', 'status', 'billable', 'projectType', 'country', 'notes'],
   'allocations-template.csv': ['id', 'employeeId', 'projectId', 'roleOnProject', 'percentage', 'startDate', 'endDate', 'billable', 'status', 'comments'],

@@ -8,7 +8,8 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'import.meta.env.VITE_APP_MODE': JSON.stringify(env.APP_MODE || env.VITE_APP_MODE || 'demo'),
+      'import.meta.env.VITE_DISABLE_DEMO_FALLBACK': JSON.stringify(env.DISABLE_DEMO_FALLBACK || env.VITE_DISABLE_DEMO_FALLBACK || 'false'),
     },
     resolve: {
       alias: {

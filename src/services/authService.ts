@@ -5,7 +5,7 @@
  */
 import { UserAccount, UserRole, UserSession, CountryDirector } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
-import { checkBackend, storeToken, clearToken, getToken, resetBackendCheck } from './apiClient';
+import { checkBackend, storeToken, clearToken, getToken, resetBackendCheck, isDemoFallbackAllowed } from './apiClient';
 
 const DEMO_PASSWORD = 'demo123';
 const SESSION_KEY = 'rut_session';
@@ -92,7 +92,14 @@ const loadSession = (): UserSession | null => {
 // ─── Public service ───────────────────────────────────────────────────────────
 export const authService = {
   login: async (identifier: string, password = '', requestedRole?: UserRole): Promise<UserSession | null> => {
-    if (await checkBackend()) {
+    let backendConnected = false;
+    try {
+      backendConnected = await checkBackend();
+    } catch {
+      return null;
+    }
+
+    if (backendConnected) {
       // ── API mode ──
       try {
         const res = await fetch('/api/auth/login', {
@@ -109,6 +116,8 @@ export const authService = {
         return session;
       } catch { return null; }
     }
+
+    if (!isDemoFallbackAllowed()) return null;
 
     // ── Demo / localStorage mode ──
     DataStorage.ensureUserAccounts();
@@ -143,7 +152,13 @@ export const authService = {
 
   logout: async () => {
     const session = authService.getCurrentUser();
-    if (await checkBackend()) {
+    let backendConnected = false;
+    try {
+      backendConnected = await checkBackend();
+    } catch {
+      backendConnected = false;
+    }
+    if (backendConnected) {
       try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch { /* ok */ }
       clearToken();
       resetBackendCheck();
@@ -172,7 +187,13 @@ export const authService = {
   getDemoPassword: () => DEMO_PASSWORD,
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<boolean> => {
-    if (await checkBackend()) {
+    let backendConnected = false;
+    try {
+      backendConnected = await checkBackend();
+    } catch {
+      return false;
+    }
+    if (backendConnected) {
       try {
         const res = await fetch('/api/auth/change-password', {
           method: 'POST',
@@ -196,6 +217,7 @@ export const authService = {
       }
     }
 
+    if (!isDemoFallbackAllowed()) return false;
     DataStorage.ensureUserAccounts();
     const session = authService.getCurrentUser();
     if (!session) return false;

@@ -16,6 +16,10 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
     status: 'Active',
     primaryCountryDirectorId: '',
     mappedCountryDirectorIds: [],
+    reportingManagerId: '',
+    standardWeeklyHours: 40,
+    capacityType: 'Delivery',
+    contractType: 'Permanent',
     plannedUtilization: 0,
     actualUtilization: 0,
     activeProjectCount: 0,
@@ -26,6 +30,7 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
   const [departments, setDepartments] = useState<CatalogItem[]>([]);
   const [countries, setCountries] = useState<CatalogItem[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -33,17 +38,19 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
     let mounted = true;
     const loadOptions = async () => {
       try {
-        const [directorData, roleData, departmentData, countryData] = await Promise.all([
+        const [directorData, roleData, departmentData, countryData, employeeData] = await Promise.all([
           adminService.getCountryDirectors(),
           adminService.getRoleDefinitions(),
           adminService.getDepartments(),
           adminService.getCountries(),
+          employeeService.getAll(),
         ]);
         if (!mounted) return;
         setCds(directorData);
         setRoleDefinitions(roleData);
         setDepartments(departmentData);
         setCountries(countryData);
+        setEmployees(employeeData);
       } catch (error) {
         console.error('Failed to load employee form options', error);
       }
@@ -67,6 +74,7 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
     if (!formData.employeeId) newErrors.employeeId = 'Employee ID is required';
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.primaryCountryDirectorId) newErrors.cd = 'Primary Director is required';
+    if (!formData.standardWeeklyHours || formData.standardWeeklyHours < 1) newErrors.standardWeeklyHours = 'Standard weekly hours are required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -228,7 +236,7 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
                   </label>
                 ))}
              </div>
-             <div className="space-y-1 mt-4">
+            <div className="space-y-1 mt-4">
                 <label className="text-xs font-bold text-heading uppercase tracking-wider">Primary Country Director</label>
                 <select 
                   value={formData.primaryCountryDirectorId}
@@ -237,6 +245,19 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
                 >
                   <option value="">Select Primary Director</option>
                   {cds.map(cd => <option key={cd.id} value={cd.id}>{cd.name}</option>)}
+                </select>
+             </div>
+             <div className="space-y-1">
+                <label className="text-xs font-bold text-heading uppercase tracking-wider">Reporting Manager</label>
+                <select
+                  value={formData.reportingManagerId || ''}
+                  onChange={(e) => setFormData({ ...formData, reportingManagerId: e.target.value || undefined })}
+                  className="w-full bg-white border border-border-light rounded-xl px-4 py-2.5 text-xs outline-none transition-all cursor-pointer shadow-sm focus:border-primary"
+                >
+                  <option value="">Unassigned</option>
+                  {employees
+                    .filter(item => item.id !== employee?.id && item.status !== 'Exited')
+                    .map(item => <option key={item.id} value={item.id}>{item.name} ({item.employeeId})</option>)}
                 </select>
              </div>
              <div className="flex items-start gap-2 p-3 bg-bg-secondary rounded-xl border border-border-light mt-4">
@@ -278,6 +299,61 @@ export const EmployeeForm = ({ employee, onClose, onSave }: { employee?: Employe
               <div className="w-full bg-slate-50 border border-border-light rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold">
                 Calculated from active allocations
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-heading uppercase tracking-wider">Standard Weekly Hours</label>
+              <input
+                type="number"
+                min={1}
+                max={168}
+                value={formData.standardWeeklyHours || 40}
+                onChange={(e) => setFormData({ ...formData, standardWeeklyHours: Number(e.target.value) })}
+                className={cn("w-full bg-white border rounded-xl px-4 py-2.5 text-xs outline-none transition-all shadow-sm", errors.standardWeeklyHours ? "border-danger" : "border-border-light focus:border-primary")}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-heading uppercase tracking-wider">Capacity Type</label>
+              <select
+                value={formData.capacityType || 'Delivery'}
+                onChange={(e) => setFormData({ ...formData, capacityType: e.target.value })}
+                className="w-full bg-white border border-border-light rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer shadow-sm"
+              >
+                <option>Delivery</option>
+                <option>Governance</option>
+                <option>Shared</option>
+                <option>NonDelivery</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-heading uppercase tracking-wider">Contract Type</label>
+              <select
+                value={formData.contractType || 'Permanent'}
+                onChange={(e) => setFormData({ ...formData, contractType: e.target.value })}
+                className="w-full bg-white border border-border-light rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer shadow-sm"
+              >
+                <option>Permanent</option>
+                <option>Contractor</option>
+                <option>FixedTerm</option>
+                <option>Intern</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-heading uppercase tracking-wider">Joining Date</label>
+              <input
+                type="date"
+                value={formData.joiningDate || ''}
+                onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value || undefined })}
+                className="w-full bg-white border border-border-light rounded-xl px-4 py-2.5 text-xs outline-none transition-all shadow-sm focus:border-primary"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-heading uppercase tracking-wider">Exit Date</label>
+              <input
+                type="date"
+                value={formData.exitDate || ''}
+                onChange={(e) => setFormData({ ...formData, exitDate: e.target.value || undefined })}
+                className="w-full bg-white border border-border-light rounded-xl px-4 py-2.5 text-xs outline-none transition-all shadow-sm focus:border-primary"
+              />
             </div>
           </div>
         </section>

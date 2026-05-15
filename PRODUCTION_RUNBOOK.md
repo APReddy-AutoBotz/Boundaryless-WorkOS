@@ -1,6 +1,6 @@
-# Production Runbook
+# StaffPulse Production Core Runbook
 
-This runbook covers production-style operation for the Boundaryless Resource Utilization Tracker before and after company-owned infrastructure is available.
+This runbook covers production-style operation for StaffPulse Workforce Operations Core before and after company-owned infrastructure is available.
 
 ## 1. Release Modes
 
@@ -21,6 +21,8 @@ Render UAT proves the application path, but it is not company production until t
 | `API_SESSION_SECRET` | Yes | Long random secret, at least 32 characters. Do not reuse DB passwords. |
 | `NODE_ENV` | Yes | `production` for production deployments. |
 | `APP_URL` | Yes | Public/internal HTTPS app URL. Required for CORS and cookie planning. |
+| `APP_MODE` | Yes | Use `production` for company production and `demo` only for local demos. |
+| `DISABLE_DEMO_FALLBACK` | Yes | Use `true` for company production so localStorage demo data is never used as a fallback. |
 | `LOGIN_RATE_LIMIT` | Recommended | Default is `8` attempts per 15-minute window. |
 | `AUTO_MIGRATE` | Optional | `true` allows startup migrations. Keep enabled only when operationally approved. |
 | `AUTO_SEED_DEMO` | Demo only | Use only for disposable demo databases. Must be `false` for real data. |
@@ -30,7 +32,7 @@ Render UAT proves the application path, but it is not company production until t
 ## 3. Standard Deployment
 
 1. Confirm the deployment branch is `main` or the approved release branch.
-2. Confirm `AUTO_SEED_DEMO=false` for any database containing real company data.
+2. Confirm `APP_MODE=production`, `DISABLE_DEMO_FALLBACK=true`, and `AUTO_SEED_DEMO=false` for any database containing real company data.
 3. Run the readiness suite locally:
 
 ```bash
@@ -65,7 +67,7 @@ Use migrations before starting the production service if startup migrations are 
 npm run api:migrate
 ```
 
-Migration failure is a release blocker. Do not seed or import data until migrations complete.
+Migration failure is a release blocker. Do not seed or import data until migrations complete. The baseline schema is followed by versioned SQL files in `server/migrations`.
 
 ## 5. Real Data Load Procedure
 
