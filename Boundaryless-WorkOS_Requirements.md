@@ -297,6 +297,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | Employee production fields | Complete foundation | Production-core migration adds manager, weekly hours, capacity, contract, Entra/Teams placeholders, and related fields. |
 | Data-quality report | Complete foundation | UI route and backend endpoint exist; export is audited. |
 | Dashboard report endpoint | Complete foundation | Backend endpoint exists for command-center style summary. |
+| Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
 | Password change/reset foundation | Complete foundation | Self-service change, Admin/HR reset endpoints, hashing, and audit exist. |
@@ -316,7 +317,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | P0 | Backup/restore | Define backup frequency, retention, restore owner, and run at least one restore test. | Yes |
 | P0 | Monitoring/logging | Add production log ownership, health monitoring, and alert channel. | Yes |
 | P0 | Audit governance | Finalize retention, export permissions, and immutable audit expectations. | Yes |
-| P1 | Backend report parity | Add deeper DB-backed fixtures and browser validation for dashboard/client/CD report parity. | No |
+| P1 | Backend report parity | Hosted smoke coverage now includes core report endpoints. Remaining work: DB-backed calculation fixtures, client/CD report reconciliation, and browser validation against real/UAT data. | No |
 | P1 | Import hardening | Validate real CSV files, duplicate handling, rejected-row handling, and operational import runbook. | Partly |
 | P1 | Automated browser QA | Add Playwright or equivalent workflows for core roles and high-risk journeys. | No |
 | P2 | Code consolidation | Continue reducing table/filter/report duplication after UAT stabilizes requirements. | No |

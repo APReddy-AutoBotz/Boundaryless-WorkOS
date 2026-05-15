@@ -79,6 +79,17 @@ for (const label of sessions.keys()) {
   await expectGet(label, '/api/reports/forecast-utilization?months=3');
 }
 
+for (const label of ['Admin', 'HR', 'ProjectManager', 'CountryDirector', 'TeamLead']) {
+  if (!sessions.has(label)) continue;
+  await expectGet(label, '/api/reports/data-quality');
+  await expectGet(label, '/api/reports/dashboard');
+}
+
+if (sessions.has('Employee')) {
+  await expectGet('Employee', '/api/reports/data-quality', 403);
+  await expectGet('Employee', '/api/reports/dashboard', 403);
+}
+
 await expectGet('Admin', '/api/audit-logs');
 await expectGet('Admin', '/api/import-export-logs');
 

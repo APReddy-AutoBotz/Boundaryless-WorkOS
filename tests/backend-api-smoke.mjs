@@ -58,6 +58,10 @@ const [plannedReport, actualReport, forecastReport] = await Promise.all([
   request('/api/reports/actual-utilization'),
   request('/api/reports/forecast-utilization?months=3'),
 ]);
+const [dataQualityReport, dashboardReport] = await Promise.all([
+  request('/api/reports/data-quality'),
+  request('/api/reports/dashboard'),
+]);
 
 assert.ok(employees.length > 0, 'employees endpoint should return seeded records');
 assert.ok(projects.length > 0, 'projects endpoint should return seeded records');
@@ -73,6 +77,18 @@ assert.ok(Array.isArray(plannedReport.rows), 'planned report should include rows
 assert.ok(Array.isArray(actualReport.rows), 'actual report should include rows');
 assert.ok(Array.isArray(forecastReport.rows), 'forecast report should include rows');
 assert.ok(plannedReport.summary.rows > 0, 'planned report should summarize utilization rows');
+assert.equal(typeof dataQualityReport.score, 'number', 'data-quality report should include a score');
+assert.equal(typeof dataQualityReport.totalRecords, 'number', 'data-quality report should include total record count');
+assert.equal(typeof dataQualityReport.issueCount, 'number', 'data-quality report should include issue count');
+assert.ok(Array.isArray(dataQualityReport.issues), 'data-quality report should include issue rows');
+assert.ok(dataQualityReport.generatedAt, 'data-quality report should include generated timestamp');
+assert.ok(dashboardReport.generatedAt, 'dashboard report should include generated timestamp');
+assert.equal(typeof dashboardReport.workforce?.active_people, 'number', 'dashboard report should include active workforce count');
+assert.equal(typeof dashboardReport.workforce?.utilization_eligible_fte, 'number', 'dashboard report should include utilization-eligible FTE');
+assert.equal(typeof dashboardReport.workforce?.governance_users, 'number', 'dashboard report should include governance user count');
+assert.equal(typeof dashboardReport.projectStaffingRisks, 'number', 'dashboard report should include project staffing risk count');
+assert.equal(typeof dashboardReport.pendingTimesheets, 'number', 'dashboard report should include pending timesheet count');
+assert.equal(typeof dashboardReport.dataQuality?.score, 'number', 'dashboard report should embed data-quality score');
 
 if (allowMutations) {
   const settingsMap = Object.fromEntries(settings.map(row => [row.key, row.value]));
@@ -99,5 +115,7 @@ console.log(JSON.stringify({
   allocations: allocations.length,
   timesheets: timesheets.length,
   reportRows: plannedReport.summary.rows,
+  dataQualityScore: dataQualityReport.score,
+  dashboardActivePeople: dashboardReport.workforce.active_people,
   mutations: allowMutations,
 }, null, 2));
