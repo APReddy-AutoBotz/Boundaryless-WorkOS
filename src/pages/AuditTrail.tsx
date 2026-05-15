@@ -113,6 +113,7 @@ export const AuditTrail = () => {
       newValue: selectedLog.newVal,
       details: selectedLog.details,
     }]);
+    adminService.logAction('Export', 'Audit Trail', `Exported single audit entry ${selectedLog.id}`).then(() => {});
     setNotice(`Exported audit entry ${selectedLog.id}.`);
   };
 

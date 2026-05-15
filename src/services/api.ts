@@ -403,6 +403,22 @@ export const adminService = {
         errorRows: log.errorRows,
         errors: log.errors,
       });
+      await api.post('/api/audit-events', {
+        action: log.operation,
+        module: 'Import / Export',
+        details: `${log.operation} ${log.fileName} through ${log.channel} with ${log.totalRows} row${log.totalRows === 1 ? '' : 's'} (${log.status})`,
+        entityType: 'ImportExportLog',
+        entityId: String(raw.id || log.fileName),
+        newValue: {
+          channel: log.channel,
+          fileName: log.fileName,
+          status: log.status,
+          totalRows: log.totalRows,
+          validRows: log.validRows,
+          errorRows: log.errorRows,
+        },
+        source: log.operation,
+      }).catch(() => {});
       return normalizeImportExportLog(raw);
     }
     const u = actor();
@@ -677,7 +693,15 @@ export const adminService = {
   },
   resetDemoData: () => { DataStorage.resetDemoData(); },
   logAction: async (action: string, module: string, details: string): Promise<void> => {
-    if (await checkBackend()) return; // backend auto-audits mutations
+    if (await checkBackend()) {
+      await api.post('/api/audit-events', {
+        action,
+        module,
+        details,
+        source: action === 'Export' ? 'Export' : 'Web',
+      }).catch(() => {});
+      return;
+    }
     const s = authService.getCurrentUser();
     DataStorage.logAction(s?.id || 'sys', s?.name || 'System', s?.role || 'Admin', action, module, details);
   },

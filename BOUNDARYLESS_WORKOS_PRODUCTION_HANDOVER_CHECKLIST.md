@@ -29,6 +29,7 @@ Use this checklist for the first company production handover. Teams, leave manag
 - Demo records are removed or clearly isolated from company records.
 - Reporting manager, standard weekly hours, capacity type, contract type, and utilization eligibility are populated for active employees.
 - Data quality report is reviewed and blockers are assigned.
+- Production exports are sampled from Employee Master, utilization, timesheet governance, and audit trail; matching backend audit events are verified.
 
 ## 4. Role UAT
 

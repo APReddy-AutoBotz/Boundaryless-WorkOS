@@ -33,6 +33,7 @@ assert.match(schema, /create table if not exists import_export_logs/, 'import/ex
 assert.match(server, /app\.post\('\/api\/settings'/, 'settings save route must exist');
 assert.match(server, /app\.get\('\/api\/import-export-logs'/, 'import/export history GET route must exist');
 assert.match(server, /app\.post\('\/api\/import-export-logs'/, 'import/export history POST route must exist');
+assert.match(server, /app\.post\('\/api\/audit-events'/, 'manual audit event POST route must exist for UI exports');
 assert.match(server, /app\.post\('\/api\/imports\/employees\/apply'/, 'employee import apply route must exist');
 assert.match(server, /app\.post\('\/api\/imports\/clients\/apply'/, 'client import apply route must exist');
 assert.match(server, /app\.post\('\/api\/imports\/projects\/apply'/, 'project import apply route must exist');

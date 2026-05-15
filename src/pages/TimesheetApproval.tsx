@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Badge } from '../components/ui/Badge';
-import { timesheetService, employeeService, projectService } from '../services/api';
+import { timesheetService, employeeService, projectService, adminService } from '../services/api';
 import { authService } from '../services/authService';
 import { TimesheetSummary, Employee, Project } from '../types';
 import { 
@@ -196,6 +196,7 @@ export const TimesheetApproval = () => {
     link.download = `timesheet-approval-export-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    adminService.logAction('Export', 'Timesheet Governance', `Exported ${rows.length} timesheet approval rows from current filter scope`);
     setActionNotice(`Exported ${rows.length} timesheet entr${rows.length === 1 ? 'y' : 'ies'} from the current filter scope.`);
   };
 

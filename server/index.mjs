@@ -403,7 +403,14 @@ app.post('/api/auth/switch-role', requireDatabase, requireAuth, async (req, res)
       exp: Date.now() + 8 * 60 * 60 * 1000,
     });
     res.cookie?.('rut_session', token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
-    await audit(req, 'Switch Role', 'Auth', `Switched active role to ${activeRole}`, { entityType: 'User', entityId: user.id, newValue: { activeRole } });
+    await audit(pool, req, {
+      module: 'Auth',
+      action: 'Switch Role',
+      entityType: 'User',
+      entityId: user.id,
+      details: `Switched active role to ${activeRole}`,
+      newValue: { activeRole },
+    });
     res.json({
       id: user.id,
       username: user.username,
@@ -1935,6 +1942,32 @@ app.delete('/api/role-definitions/:id', requireDatabase, requireAuth, requireRol
   }
 });
 app.get('/api/audit-logs', requireDatabase, requireAuth, requireRoles('Admin'), (_req, res) => run(res, 'select * from audit_logs order by created_at desc limit 500'));
+
+app.post('/api/audit-events', requireDatabase, requireAuth, async (req, res) => {
+  const schema = z.object({
+    action: z.string().min(1).max(80),
+    module: z.string().min(1).max(120),
+    details: z.string().min(1).max(1000),
+    entityType: z.string().max(120).optional(),
+    entityId: z.string().max(160).optional(),
+    oldValue: z.unknown().optional(),
+    newValue: z.unknown().optional(),
+    reason: z.string().max(1000).optional(),
+    source: z.string().max(40).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    await audit(pool, req, parsed.data);
+    res.status(201).json({ status: 'ok' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Audit event failed' });
+  }
+});
 
 const utilizationReportSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

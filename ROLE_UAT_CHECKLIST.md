@@ -15,6 +15,8 @@ Run this checklist in backend mode before production go-live. Record tester name
 - Open My Timesheet and Timesheet Governance.
 - Open Import / Export and download templates.
 - Open Audit Trail and export logs.
+- Open Data Quality and record score/issues before and after UAT data cleanup.
+- Export one employee, utilization, timesheet governance, and audit report; confirm each creates an audit event.
 - Open Governance Settings and verify catalogs/settings.
 
 ## HR
@@ -24,6 +26,7 @@ Run this checklist in backend mode before production go-live. Record tester name
 - Confirm Audit Trail and Import / Export are not visible unless explicitly approved later.
 - Open Employee Detail and reset password.
 - Open utilization reports.
+- Open Data Quality and confirm visible issues are scoped to allowed data.
 - Confirm scoped navigation does not expose Admin-only controls.
 
 ## Country Director
@@ -35,6 +38,7 @@ Run this checklist in backend mode before production go-live. Record tester name
 - Open Client Portfolio if allowed.
 - Open Allocation Control and verify scoped allocation behavior.
 - Open Timesheet Governance and approve/reject a submitted timesheet in UAT only.
+- Open Data Quality and confirm visible issues are scoped to the Country Director region.
 - Confirm Admin Settings, Audit Trail, and Import / Export are not visible.
 
 ## Project Manager
@@ -45,6 +49,7 @@ Run this checklist in backend mode before production go-live. Record tester name
 - Confirm unmanaged project detail is blocked or unavailable.
 - Open Allocation Control and manage only allowed project allocations in UAT.
 - Open Timesheet Governance and verify approval scope.
+- If the account has multiple roles, switch active role from the profile menu and confirm navigation/data scope changes.
 - Confirm Admin-only controls are hidden.
 
 ## Team Lead

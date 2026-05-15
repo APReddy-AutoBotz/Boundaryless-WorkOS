@@ -38,6 +38,7 @@ for (const column of [
 assert.match(server, /app\.get\('\/api\/reports\/data-quality'/, 'data quality report endpoint must exist');
 assert.match(server, /app\.get\('\/api\/reports\/dashboard'/, 'dashboard report endpoint must exist');
 assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
+assert.match(server, /app\.post\('\/api\/audit-events'/, 'backend audit event endpoint must exist for UI-triggered exports');
 assert.match(server, /Missing reporting manager/, 'data quality report must detect missing reporting manager');
 assert.match(server, /Demo data remnant/, 'data quality report must detect demo data remnants');
 assert.match(app, /\/reports\/data-quality/, 'data quality report must have a routed UI page');
