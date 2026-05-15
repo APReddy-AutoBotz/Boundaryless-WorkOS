@@ -25,6 +25,7 @@ Use this checklist for the company production handover. Production Core remains 
 - `npm run test:approvals` passes if approval features are enabled.
 - `npm run test:notifications` passes if `FEATURE_NOTIFICATIONS=true`.
 - `npm run test:integrations` passes if `FEATURE_TEAMS=true` or `FEATURE_ENTRA=true`.
+- `npm run test:planning` passes if `FEATURE_PLANNING=true`.
 - `npm run test:requirements` passes.
 - `npm run test:import-templates` passes.
 - `npm run test:prod-hardening` passes.
@@ -48,6 +49,7 @@ Use this checklist for the company production handover. Production Core remains 
 - Scoped reads and writes are tested for PM and Country Director users.
 - If `FEATURE_LEAVE=true`, ESS, My Leave, Team Leave Calendar, Leave Administration, balance impact, availability impact, and leave audit entries are tested for every approved role.
 - If `FEATURE_TEAMS=true` or `FEATURE_ENTRA=true`, Identity Mapping, Teams Mapping, deterministic action-token execution, integration health, event logs, and audit entries are tested for Admin/HR.
+- If `FEATURE_PLANNING=true`, Resource Planning Board, Workforce Command Center, availability timeline, roll-off, overload/underload, client footprint, and command-center risk counts are tested for scoped roles.
 
 ## 5. Operations
 

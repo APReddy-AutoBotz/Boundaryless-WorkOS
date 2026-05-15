@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport, NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt, IdentityProviderLink, EntraRoleMapping, TeamsUserLink, TeamsActionToken, IntegrationEventLog, IntegrationHealthReport } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport, NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt, IdentityProviderLink, EntraRoleMapping, TeamsUserLink, TeamsActionToken, IntegrationEventLog, IntegrationHealthReport, ResourcePlanningReport, WorkforceCommandCenterReport } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -19,8 +19,9 @@ import {
   normalizeNotificationPreference, normalizeNotificationDeliveryAttempt,
   normalizeIdentityProviderLink, normalizeEntraRoleMapping, normalizeTeamsUserLink,
   normalizeTeamsActionToken, normalizeIntegrationEventLog, normalizeIntegrationHealthReport,
+  normalizeResourcePlanningReport, normalizeWorkforceCommandCenterReport,
 } from './apiClient';
-import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
+import { buildResourcePlanningReport, getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
@@ -1679,5 +1680,85 @@ export const dashboardService = {
   getReport: async (): Promise<DashboardReport | null> => {
     if (!(await checkBackend())) return null;
     return normalizeDashboardReport(await api.get<Record<string, unknown>>('/api/reports/dashboard'));
+  },
+};
+
+const buildLocalWorkforceCommandCenter = async (): Promise<WorkforceCommandCenterReport> => {
+  const [planning, dataQuality, sla, notifications, integrationHealth] = await Promise.all([
+    planningService.getResourcePlanning(),
+    adminService.getDataQualityReport(),
+    approvalService.getSlaReport(),
+    notificationService.getDeliveryAttempts(),
+    integrationService.getHealth(),
+  ]);
+  const [projects, allocations] = await Promise.all([projectService.getAll(), allocationService.getAll()]);
+  const failedDeliveries = notifications.filter(attempt => attempt.status === 'Failed').length;
+  const asOfDate = planning.asOfDate;
+  const staffedProjectIds = new Set(allocations
+    .filter(allocation => allocation.status === 'Active' && allocation.startDate <= asOfDate && allocation.endDate >= asOfDate)
+    .map(allocation => allocation.projectId));
+  const projectStaffingRisks = projects.filter(project =>
+    (project.status === 'Active' || project.status === 'Proposed') &&
+    project.startDate <= asOfDate &&
+    project.endDate >= asOfDate &&
+    !staffedProjectIds.has(project.id)
+  ).length;
+  const topRisks = [
+    ...planning.rows
+      .filter(row => row.overloaded)
+      .slice(0, 4)
+      .map(row => ({
+        riskType: 'Overload',
+        severity: 'Critical',
+        description: `${row.employeeName} is planned at ${row.plannedUtilization}%.`,
+        owner: row.department,
+      })),
+    ...planning.rows
+      .filter(row => row.bench)
+      .slice(0, 3)
+      .map(row => ({
+        riskType: 'Bench',
+        severity: 'Warning',
+        description: `${row.employeeName} has ${row.plannedUtilization}% planned load.`,
+        owner: row.department,
+      })),
+  ];
+  return {
+    generatedAt: new Date().toISOString(),
+    dataConfidenceScore: dataQuality.score,
+    leaveAdjustedAvailabilityHours: planning.rows.reduce((sum, row) => sum + row.availabilityHours, 0),
+    pendingApprovalLoad: sla.pendingCount,
+    overdueApprovalLoad: sla.overdueCount,
+    notificationDeliveryRisk: failedDeliveries,
+    missingIdentityLinks: integrationHealth.missingIdentityLinks,
+    missingTeamsLinks: integrationHealth.missingTeamsLinks,
+    projectStaffingRisks,
+    benchCount: planning.summary.benchCount,
+    overloadedCount: planning.summary.overloadedCount,
+    underloadedCount: planning.summary.underloadedCount,
+    topRisks,
+  };
+};
+
+export const planningService = {
+  getResourcePlanning: async (): Promise<ResourcePlanningReport> => {
+    if (await checkBackend()) {
+      return normalizeResourcePlanningReport(await api.get<Record<string, unknown>>('/api/reports/resource-planning'));
+    }
+    const [employees, allocations, projects, availability, settings] = await Promise.all([
+      employeeService.getAll(),
+      allocationService.getAll(),
+      projectService.getAll(),
+      leaveService.getAvailability(),
+      adminService.getSettings(),
+    ]);
+    return buildResourcePlanningReport({ employees, allocations, projects, availability, settings });
+  },
+  getAvailability: async (): Promise<LeaveAvailabilityEntry[]> => leaveService.getAvailability(),
+  getWorkforceCommandCenter: async (): Promise<WorkforceCommandCenterReport> => {
+    if (await checkBackend()) {
+      return normalizeWorkforceCommandCenterReport(await api.get<Record<string, unknown>>('/api/reports/workforce-command-center'));
+    }
+    return buildLocalWorkforceCommandCenter();
   },
 };

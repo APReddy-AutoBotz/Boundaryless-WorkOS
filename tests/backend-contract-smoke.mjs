@@ -88,6 +88,9 @@ assert.match(server, /app\.get\('\/api\/integrations\/health'/, 'integration hea
 assert.match(integrationMigration, /create table if not exists identity_provider_links/, 'integration migration must create identity provider links');
 assert.match(integrationMigration, /create table if not exists teams_action_tokens/, 'integration migration must create Teams action tokens');
 assert.match(integrationMigration, /action text not null check \(action in \('approve', 'reject', 'open_portal'\)\)/, 'Teams action tokens must be deterministic action-only');
+assert.match(server, /app\.get\('\/api\/reports\/resource-planning'/, 'resource planning report route must exist');
+assert.match(server, /app\.get\('\/api\/reports\/workforce-command-center'/, 'workforce command center route must exist');
+assert.match(server, /getResourcePlanningPayload/, 'command center must reuse the resource planning payload');
 assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
@@ -102,6 +105,7 @@ console.log(JSON.stringify({
   approvalRoutes: true,
   notificationRoutes: true,
   integrationRoutes: true,
+  planningRoutes: true,
   employeeImportApply: true,
   clientImportApply: true,
   projectImportApply: true,

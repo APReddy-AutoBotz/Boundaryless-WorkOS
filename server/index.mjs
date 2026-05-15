@@ -3597,6 +3597,242 @@ app.get('/api/reports/forecast-utilization', requireDatabase, requireAuth, requi
   getUtilizationReport(req, res, 'forecast');
 });
 
+const getResourcePlanningPayload = async (req) => {
+  const asOfDate = String(req.query.date || todayIso()).slice(0, 10);
+  const employeeParams = [];
+  const employeeScopeWhere = buildEmployeeScopeWhere(req, employeeParams, 'e');
+  const settingsRows = (await pool.query('select key, value from system_settings')).rows;
+  const settings = Object.fromEntries(settingsRows.map(row => [row.key, row.value]));
+  const highThreshold = Number(settings.utilizationThresholdHigh || 100);
+  const lowThreshold = Number(settings.utilizationThresholdLow || 80);
+  const benchThreshold = Number(settings.benchThreshold || 20);
+
+  const employees = (await pool.query(`
+    select e.*,
+      coalesce(array_agg(distinct ecdm.country_director_id) filter (where ecdm.country_director_id is not null), '{}') as mapped_country_director_ids
+    from employees e
+    left join employee_country_director_map ecdm on ecdm.employee_id = e.id
+    where e.status = 'Active' and e.utilization_eligible = true and ${employeeScopeWhere}
+    group by e.id
+    order by e.name
+  `, employeeParams)).rows;
+  const employeeIds = employees.map(employee => employee.id);
+  if (employeeIds.length === 0) {
+    return {
+      generatedAt: new Date().toISOString(),
+      asOfDate,
+      summary: {
+        people: 0,
+        averagePlanned: 0,
+        averageAvailabilityAdjustedCapacity: 0,
+        benchCount: 0,
+        overloadedCount: 0,
+        underloadedCount: 0,
+        rollOffSoonCount: 0,
+      },
+      rows: [],
+    };
+  }
+
+  const [allocationsResult, availabilityResult, actualResult] = await Promise.all([
+    pool.query(`
+      select
+        pa.id as allocation_id,
+        pa.employee_id,
+        pa.project_id,
+        pa.percentage::numeric as percentage,
+        pa.billable and p.billable as billable,
+        pa.start_date,
+        pa.end_date,
+        p.project_code,
+        p.name as project_name,
+        p.client,
+        p.manager_name
+      from project_allocations pa
+      join projects p on p.id = pa.project_id
+      where pa.employee_id = any($1)
+        and pa.status = 'Active'
+        and p.status in ('Active', 'Proposed')
+        and p.start_date <= $2::date
+        and p.end_date >= $2::date
+        and pa.start_date <= $2::date
+        and pa.end_date >= $2::date
+      order by pa.percentage desc, p.name
+    `, [employeeIds, asOfDate]),
+    pool.query(`
+      select
+        e.id as employee_id,
+        e.standard_weekly_hours,
+        coalesce(l.approved_leave_days, 0)::numeric as approved_leave_days,
+        coalesce(h.holiday_days, 0)::numeric as holiday_days,
+        greatest(0, (e.standard_weekly_hours * 52) - ((coalesce(l.approved_leave_days, 0) + coalesce(h.holiday_days, 0)) * (e.standard_weekly_hours / 5)))::numeric as availability_hours
+      from employees e
+      left join (
+        select employee_id, sum(total_days) as approved_leave_days
+        from leave_requests
+        where status = 'Approved' and extract(year from start_date)::int = extract(year from $2::date)::int
+        group by employee_id
+      ) l on l.employee_id = e.id
+      left join lateral (
+        select count(*) as holiday_days
+        from holiday_calendars hc
+        join holidays h on h.calendar_id = hc.id
+        where hc.status = 'Active'
+          and hc.calendar_year = extract(year from $2::date)::int
+          and (hc.country = e.country or hc.country = 'Global')
+      ) h on true
+      where e.id = any($1)
+    `, [employeeIds, asOfDate]),
+    pool.query(`
+      select distinct on (employee_id)
+        employee_id,
+        round((billable_hours / nullif($1::numeric, 0)) * 1000) / 10 as actual_utilization
+      from timesheets
+      where status = 'Approved' and employee_id = any($2)
+      order by employee_id, week_ending desc
+    `, [Number(settings.expectedWeeklyHours || 40), employeeIds]),
+  ]);
+
+  const allocationsByEmployee = new Map();
+  allocationsResult.rows.forEach(allocation => {
+    const list = allocationsByEmployee.get(allocation.employee_id) || [];
+    list.push({
+      allocation_id: allocation.allocation_id,
+      project_id: allocation.project_id,
+      project_code: allocation.project_code,
+      project_name: allocation.project_name,
+      client: allocation.client,
+      manager_name: allocation.manager_name,
+      percentage: Number(allocation.percentage || 0),
+      billable: Boolean(allocation.billable),
+      start_date: toIsoDate(allocation.start_date),
+      end_date: toIsoDate(allocation.end_date),
+    });
+    allocationsByEmployee.set(allocation.employee_id, list);
+  });
+  const availabilityByEmployee = new Map(availabilityResult.rows.map(row => [row.employee_id, row]));
+  const actualByEmployee = new Map(actualResult.rows.map(row => [row.employee_id, Number(row.actual_utilization || 0)]));
+
+  const rows = employees.map(employee => {
+    const allocations = allocationsByEmployee.get(employee.id) || [];
+    const availability = availabilityByEmployee.get(employee.id);
+    const standardWeeklyHours = Number(availability?.standard_weekly_hours || employee.standard_weekly_hours || settings.expectedWeeklyHours || 40);
+    const annualCapacityHours = Math.max(standardWeeklyHours * 52, 1);
+    const availabilityHours = round1(Number(availability?.availability_hours ?? annualCapacityHours));
+    const plannedUtilization = round1(allocations.reduce((sum, allocation) => sum + allocation.percentage, 0));
+    const billableAllocationPercent = round1(allocations.filter(allocation => allocation.billable).reduce((sum, allocation) => sum + allocation.percentage, 0));
+    const rollOffDate = allocations.length ? allocations.map(allocation => allocation.end_date).sort()[0] : null;
+    return {
+      employee_id: employee.id,
+      employee_code: employee.employee_id,
+      employee_name: employee.name,
+      department: employee.department,
+      country: employee.country,
+      capacity_type: employee.capacity_type,
+      contract_type: employee.contract_type,
+      standard_weekly_hours: standardWeeklyHours,
+      planned_utilization: plannedUtilization,
+      actual_utilization: actualByEmployee.get(employee.id) || 0,
+      availability_hours: availabilityHours,
+      availability_adjusted_capacity_percent: round1((availabilityHours / annualCapacityHours) * 100),
+      approved_leave_days: Number(availability?.approved_leave_days || 0),
+      holiday_days: Number(availability?.holiday_days || 0),
+      active_project_count: allocations.length,
+      billable_allocation_percent: billableAllocationPercent,
+      bench: plannedUtilization <= benchThreshold,
+      overloaded: plannedUtilization > highThreshold,
+      underloaded: plannedUtilization < lowThreshold && plannedUtilization > benchThreshold,
+      roll_off_date: rollOffDate,
+      allocations,
+    };
+  }).sort((a, b) => b.planned_utilization - a.planned_utilization || a.employee_name.localeCompare(b.employee_name));
+
+  const rollOffLimit = new Date(`${asOfDate}T00:00:00`);
+  rollOffLimit.setDate(rollOffLimit.getDate() + 45);
+  const rollOffSoonCount = rows.filter(row => row.roll_off_date && new Date(`${row.roll_off_date}T00:00:00`) <= rollOffLimit).length;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    asOfDate,
+    summary: {
+      people: rows.length,
+      averagePlanned: rows.length ? round1(rows.reduce((sum, row) => sum + row.planned_utilization, 0) / rows.length) : 0,
+      averageAvailabilityAdjustedCapacity: rows.length ? round1(rows.reduce((sum, row) => sum + row.availability_adjusted_capacity_percent, 0) / rows.length) : 0,
+      benchCount: rows.filter(row => row.bench).length,
+      overloadedCount: rows.filter(row => row.overloaded).length,
+      underloadedCount: rows.filter(row => row.underloaded).length,
+      rollOffSoonCount,
+    },
+    rows,
+  };
+};
+
+app.get('/api/reports/resource-planning', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  try {
+    res.json(await getResourcePlanningPayload(req));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Resource planning report failed' });
+  }
+});
+
+app.get('/api/reports/workforce-command-center', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  try {
+    const [planning, quality, sla, integrations, notificationRiskResult, staffingRiskResult] = await Promise.all([
+      getResourcePlanningPayload(req),
+      getDataQualityPayload(req),
+      pool.query('select count(*)::int as pending, count(*) filter (where due_at is not null and due_at < now())::int as overdue from approval_records where status = $1', ['Pending']),
+      pool.query(`
+        select
+          (select count(*)::int from employees e where e.status = 'Active' and not exists (select 1 from identity_provider_links ipl where ipl.employee_id = e.id and ipl.status = 'Linked')) as missing_identity_links,
+          (select count(*)::int from employees e where e.status = 'Active' and not exists (select 1 from teams_user_links tul where tul.employee_id = e.id and tul.status = 'Linked')) as missing_teams_links
+      `),
+      pool.query("select count(*)::int as failed from notification_delivery_attempts where status = 'Failed'"),
+      pool.query(`
+        select count(*)::int as staffing_risks
+        from projects p
+        where p.status in ('Active', 'Proposed')
+          and not exists (
+            select 1 from project_allocations pa
+            where pa.project_id = p.id and pa.status = 'Active' and pa.start_date <= current_date and pa.end_date >= current_date
+          )
+      `),
+    ]);
+    const topRisks = [
+      ...planning.rows.filter(row => row.overloaded).slice(0, 4).map(row => ({
+        riskType: 'Overload',
+        severity: 'Critical',
+        description: `${row.employee_name} is planned at ${row.planned_utilization}%.`,
+        owner: row.department,
+      })),
+      ...quality.issues.slice(0, 4).map(issue => ({
+        riskType: issue.issueType,
+        severity: 'Warning',
+        description: issue.impact,
+        owner: issue.owner,
+      })),
+    ];
+    res.json({
+      generatedAt: new Date().toISOString(),
+      dataConfidenceScore: quality.score,
+      leaveAdjustedAvailabilityHours: round1(planning.rows.reduce((sum, row) => sum + row.availability_hours, 0)),
+      pendingApprovalLoad: sla.rows[0]?.pending || 0,
+      overdueApprovalLoad: sla.rows[0]?.overdue || 0,
+      notificationDeliveryRisk: notificationRiskResult.rows[0]?.failed || 0,
+      missingIdentityLinks: integrations.rows[0]?.missing_identity_links || 0,
+      missingTeamsLinks: integrations.rows[0]?.missing_teams_links || 0,
+      projectStaffingRisks: staffingRiskResult.rows[0]?.staffing_risks || 0,
+      benchCount: planning.summary.benchCount,
+      overloadedCount: planning.summary.overloadedCount,
+      underloadedCount: planning.summary.underloadedCount,
+      topRisks,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Workforce command center report failed' });
+  }
+});
+
 const getDataQualityPayload = async (req) => {
   const params = [];
   const employeeScopeWhere = buildEmployeeScopeWhere(req, params, 'e');

@@ -65,11 +65,11 @@ const rows: TraceabilityRow[] = [
   {
     module: 'Workforce Command Center',
     brdIntent: 'Expose executive workforce KPIs, attention items, utilization health, and data confidence.',
-    phase: 'Production Core',
+    phase: 'Workforce OS Phase',
     deliveryStatus: 'Partial',
     uiStatus: 'Available',
-    apiDataStatus: 'Dashboard, dashboard report endpoint, data-quality endpoint, and data-quality UI exist.',
-    nextAction: 'Validate dashboard and data-quality outputs against real or UAT data.',
+    apiDataStatus: 'Dashboard, data-quality, resource planning, and workforce command-center endpoints exist with leave-adjusted availability, approval load, notification risk, identity gaps, Teams gaps, and staffing risk.',
+    nextAction: 'Validate command-center outputs against real or UAT data and add hosted calculation fixtures.',
   },
   {
     module: 'Reports',
@@ -77,8 +77,17 @@ const rows: TraceabilityRow[] = [
     phase: 'Production Core',
     deliveryStatus: 'Partial',
     uiStatus: 'Available',
-    apiDataStatus: 'Planned, actual, forecast, dashboard, data-quality, import/export history, and audit surfaces exist.',
+    apiDataStatus: 'Planned, actual, forecast, dashboard, data-quality, availability, planning, command-center, import/export history, and audit surfaces exist.',
     nextAction: 'Add DB-backed calculation fixtures and browser workflow coverage.',
+  },
+  {
+    module: 'Resource Planning Board',
+    brdIntent: 'Plan workforce capacity using employees, allocations, projects, leave, holidays, utilization, bench, roll-off, and client delivery footprint.',
+    phase: 'Workforce OS Phase',
+    deliveryStatus: 'Partial',
+    uiStatus: 'Available',
+    apiDataStatus: 'Resource planning API and UI compose employee master, allocations, projects, leave availability, actual utilization, and thresholds without a separate planning data copy.',
+    nextAction: 'Add scenario planning, browser UAT evidence, and hosted backend calculation fixtures.',
   },
   {
     module: 'Import / Export',
@@ -210,8 +219,8 @@ export const BRDTraceability = () => (
           <h2 className="text-sm font-black uppercase tracking-widest text-heading">Scope Control</h2>
           <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-body/70">
             Production Core remains focused on workforce master data, projects, clients, allocations, timesheets, utilization, reports,
-            imports, exports, audit, and handover readiness. Leave, approvals, notifications, Teams, and Entra now have feature-flagged
-            Workforce OS foundations, with Planning and Command Center upgrades next.
+            imports, exports, audit, and handover readiness. Leave, approvals, notifications, Teams, Entra, Planning, and Command Center now have
+            feature-flagged Workforce OS foundations, with production hardening and company UAT next.
           </p>
         </div>
       </div>

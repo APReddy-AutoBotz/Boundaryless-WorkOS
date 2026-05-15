@@ -38,6 +38,7 @@ IDENTITY_PROVIDER=local
 
 `FEATURE_LEAVE` enables the Phase 2 ESS/leave foundation: `/ess`, `/leave/my`, `/leave/team-calendar`, `/leave/admin`, leave APIs, holiday calendars, balances, and the availability report. Keep it enabled only after leave role UAT is complete in the target environment.
 `FEATURE_TEAMS` and `FEATURE_ENTRA` enable the Phase 5 integration foundation: identity provider links, Entra group-role mappings, Teams user links, deterministic Teams action tokens, integration health, and event logs. Keep providers set to `mock`/`local` until company Microsoft credentials are handed over.
+`FEATURE_PLANNING` enables the Phase 6 planning foundation: `/planning/resources`, `/reports/command-center`, resource planning reports, leave-adjusted availability, bench/roll-off views, overload/underload views, client footprint, and command-center risks.
 
 ## Prerequisites
 
@@ -119,6 +120,7 @@ npm run test:leave
 npm run test:approvals
 npm run test:notifications
 npm run test:integrations
+npm run test:planning
 npm run test:requirements
 npm run test:backend-api
 npm run test:backend-roles

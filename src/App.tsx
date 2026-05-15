@@ -31,6 +31,8 @@ const ApprovalsWorkspace = lazy(() => import('./pages/ApprovalsWorkspace').then(
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
 const IdentityIntegration = lazy(() => import('./pages/IntegrationsWorkspace').then(module => ({ default: module.IdentityIntegration })));
 const TeamsIntegration = lazy(() => import('./pages/IntegrationsWorkspace').then(module => ({ default: module.TeamsIntegration })));
+const ResourcePlanningBoard = lazy(() => import('./pages/PlanningWorkspace').then(module => ({ default: module.ResourcePlanningBoard })));
+const WorkforceCommandCenter = lazy(() => import('./pages/PlanningWorkspace').then(module => ({ default: module.WorkforceCommandCenter })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -237,24 +239,12 @@ export default function App() {
                 } />
                 <Route path="/planning/resources" element={
                   <FeatureRoute flag="planning" roles={ROUTE_ROLES.resourcePlanning}>
-                    <EnterpriseModuleShell
-                      module="Planning"
-                      phase="Phase 6"
-                      subtitle="Resource planning board backed by employees, allocations, utilization, leave, and holidays."
-                      capabilities={['Availability timeline', 'Bench and roll-off view', 'Overload and underload view']}
-                      nextMilestone="Add planning report APIs and visual board after leave availability data is available."
-                    />
+                    <ResourcePlanningBoard />
                   </FeatureRoute>
                 } />
                 <Route path="/reports/command-center" element={
                   <FeatureRoute flag="planning" roles={ROUTE_ROLES.workforceCommandCenter}>
-                    <EnterpriseModuleShell
-                      module="Command Center"
-                      phase="Phase 6"
-                      subtitle="Enterprise command center for capacity, approvals, notifications, identity, and data confidence."
-                      capabilities={['Leave-adjusted availability', 'Approval and notification risk', 'Identity and Teams readiness']}
-                      nextMilestone="Extend dashboard reports into workforce command-center APIs and UI."
-                    />
+                    <WorkforceCommandCenter />
                   </FeatureRoute>
                 } />
 

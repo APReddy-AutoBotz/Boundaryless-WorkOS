@@ -15,6 +15,7 @@ const leaveManagement = readFileSync('src/pages/LeaveManagement.tsx', 'utf8');
 const approvalsWorkspace = readFileSync('src/pages/ApprovalsWorkspace.tsx', 'utf8');
 const notificationCenter = readFileSync('src/pages/NotificationCenter.tsx', 'utf8');
 const integrationsWorkspace = readFileSync('src/pages/IntegrationsWorkspace.tsx', 'utf8');
+const planningWorkspace = readFileSync('src/pages/PlanningWorkspace.tsx', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
 const notificationMigration = readFileSync('server/migrations/009_workforce_os_notifications.sql', 'utf8');
@@ -66,6 +67,8 @@ assert.match(server, /app\.get\('\/api\/integrations\/entra-role-mappings'/, 'En
 assert.match(server, /app\.get\('\/api\/integrations\/teams-user-links'/, 'Teams user mapping API must exist');
 assert.match(server, /app\.post\('\/api\/integrations\/teams-action-tokens'/, 'Teams deterministic action token API must exist');
 assert.match(server, /app\.get\('\/api\/integrations\/health'/, 'integration health API must exist');
+assert.match(server, /app\.get\('\/api\/reports\/resource-planning'/, 'resource planning API must exist');
+assert.match(server, /app\.get\('\/api\/reports\/workforce-command-center'/, 'workforce command center API must exist');
 assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
 assert.match(server, /app\.post\('\/api\/audit-events'/, 'backend audit event endpoint must exist for UI-triggered exports');
 assert.match(server, /action: z\.enum\(\['Export', 'Import', 'Notify'\]\)/, 'client audit events must be constrained to approved UI event actions');
@@ -85,6 +88,7 @@ assert.match(app, /<ESSHome \/>[\s\S]*<MyLeave \/>[\s\S]*<TeamLeaveCalendar \/>[
 assert.match(app, /<ApprovalsWorkspace \/>/, 'Phase 3 approvals route must render real approval workspace');
 assert.match(app, /<NotificationCenter \/>/, 'Phase 4 notifications route must render real notification center');
 assert.match(app, /<IdentityIntegration \/>[\s\S]*<TeamsIntegration \/>/, 'Phase 5 integration routes must render real integration workspaces');
+assert.match(app, /<ResourcePlanningBoard \/>[\s\S]*<WorkforceCommandCenter \/>/, 'Phase 6 planning routes must render real planning workspaces');
 assert.match(sidebar, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS navigation must be feature-gated');
 assert.match(header, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS search entries must be feature-gated');
 assert.match(leaveManagement, /Leave Balance[\s\S]*Submit Request[\s\S]*Team Leave Calendar[\s\S]*Leave Administration/, 'Phase 2 leave UI must include self-service, balances, team calendar, and admin views');
@@ -92,6 +96,9 @@ assert.match(approvalsWorkspace, /Approval Inbox[\s\S]*Approval History[\s\S]*Ap
 assert.match(notificationCenter, /Notification Inbox[\s\S]*Notification Preferences[\s\S]*Admin Notification Templates[\s\S]*Delivery Monitoring/, 'Phase 4 notification UI must include inbox, preferences, templates, and delivery monitoring');
 for (const label of ['Identity Provider Links', 'Entra Role Mapping', 'Teams User Mapping', 'Teams Action Tokens', 'Integration Event Logs']) {
   assert.match(integrationsWorkspace, new RegExp(label), `Phase 5 integration UI must include ${label}`);
+}
+for (const label of ['Availability Timeline', 'Bench and Roll-Off View', 'Overload / Underload View', 'Client Delivery Footprint', 'Risk Stack', 'Top Risks']) {
+  assert.match(planningWorkspace, new RegExp(label), `Phase 6 planning UI must include ${label}`);
 }
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
@@ -140,4 +147,5 @@ console.log(JSON.stringify({
   approvalEngine: true,
   notificationCenter: true,
   integrationAdapters: true,
+  resourcePlanning: true,
 }, null, 2));

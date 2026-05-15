@@ -20,6 +20,7 @@
     "test:approvals": "node --import tsx tests/approval-engine-smoke.mjs",
     "test:notifications": "node --import tsx tests/notification-center-smoke.mjs",
     "test:integrations": "node --import tsx tests/integration-adapters-smoke.mjs",
+    "test:planning": "node --import tsx tests/resource-planning-smoke.mjs",
     "test:backend-api": "node tests/backend-api-smoke.mjs",
     "test:backend-roles": "node tests/backend-role-smoke.mjs",
     "test:import-templates": "node tests/import-template-smoke.mjs",

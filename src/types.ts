@@ -364,6 +364,79 @@ export interface IntegrationHealthReport {
   events: IntegrationEventLog[];
 }
 
+export interface ResourcePlanningAllocation {
+  allocationId: string;
+  projectId: string;
+  projectCode?: string;
+  projectName: string;
+  client: string;
+  managerName: string;
+  percentage: number;
+  billable: boolean;
+  startDate: string;
+  endDate: string;
+}
+
+export interface ResourcePlanningRow {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  department: string;
+  country: string;
+  capacityType?: string;
+  contractType?: string;
+  standardWeeklyHours: number;
+  plannedUtilization: number;
+  actualUtilization: number;
+  availabilityHours: number;
+  availabilityAdjustedCapacityPercent: number;
+  approvedLeaveDays: number;
+  holidayDays: number;
+  activeProjectCount: number;
+  billableAllocationPercent: number;
+  bench: boolean;
+  overloaded: boolean;
+  underloaded: boolean;
+  rollOffDate?: string;
+  allocations: ResourcePlanningAllocation[];
+}
+
+export interface ResourcePlanningReport {
+  generatedAt: string;
+  asOfDate: string;
+  summary: {
+    people: number;
+    averagePlanned: number;
+    averageAvailabilityAdjustedCapacity: number;
+    benchCount: number;
+    overloadedCount: number;
+    underloadedCount: number;
+    rollOffSoonCount: number;
+  };
+  rows: ResourcePlanningRow[];
+}
+
+export interface WorkforceCommandCenterReport {
+  generatedAt: string;
+  dataConfidenceScore: number;
+  leaveAdjustedAvailabilityHours: number;
+  pendingApprovalLoad: number;
+  overdueApprovalLoad: number;
+  notificationDeliveryRisk: number;
+  missingIdentityLinks: number;
+  missingTeamsLinks: number;
+  projectStaffingRisks: number;
+  benchCount: number;
+  overloadedCount: number;
+  underloadedCount: number;
+  topRisks: Array<{
+    riskType: string;
+    severity: 'Critical' | 'Warning' | 'Info' | string;
+    description: string;
+    owner: string;
+  }>;
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

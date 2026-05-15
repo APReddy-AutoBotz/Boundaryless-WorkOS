@@ -84,9 +84,9 @@ One trusted operational layer for employees, capacity, availability, allocations
 | Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Phase 4 in progress | In-app notification events, templates, preferences, delivery attempts, mock provider logging, and notification center UI are implemented. |
 | Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 5 complete foundation | Teams user links, deterministic action tokens, mock action execution, event logs, and health UI/API are implemented; real Graph credentials remain company handover work. |
 | Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Phase 5 complete foundation | Identity provider links, Entra group-role mappings, mock/local adapter surface, event logs, and health UI/API are implemented; production SSO remains company handover work. |
-| Resource Planning Board | Availability-aware allocation planning and bench/roll-off visibility. | Phase 1 foundation | Feature-flagged route foundation now; planning reports/UI in Phase 6. |
-| Workforce Command Center | Executive dashboard with utilization, availability, attention items, and data confidence. | Partial | Current dashboard exists; enterprise command-center route foundation now; upgraded reports in Phase 6. |
-| Reports | Utilization, allocation, timesheet, data-quality, leave, notification, and audit reports. | Partial | Core reports exist; leave/notification/approval/planning reports added by phase. |
+| Resource Planning Board | Availability-aware allocation planning and bench/roll-off visibility. | Phase 6 complete foundation | Resource planning report, availability timeline, bench/roll-off view, overload/underload view, and client delivery footprint are implemented. |
+| Workforce Command Center | Executive dashboard with utilization, availability, attention items, and data confidence. | Phase 6 complete foundation | Command-center report and UI aggregate data confidence, availability, approvals, notifications, identity gaps, Teams gaps, and staffing risk. |
+| Reports | Utilization, allocation, timesheet, data-quality, leave, notification, planning, command-center, and audit reports. | Partial | Core and Workforce OS reports exist; remaining work is hosted data fixtures, browser UAT, and company data reconciliation. |
 
 This preserves the stable Production Core while making the career-grade Workforce OS implementation explicit and actionable.
 
@@ -286,6 +286,8 @@ VITE_FEATURE_PLANNING=true|false
 - `GET /api/reports/data-quality`
 - `GET /api/reports/dashboard`
 - `GET /api/reports/availability`
+- `GET /api/reports/resource-planning`
+- `GET /api/reports/workforce-command-center`
 - `GET/POST /api/leave/requests`
 - `PATCH /api/leave/requests/:id/status`
 - `GET/POST /api/leave/policies`
@@ -340,6 +342,9 @@ VITE_FEATURE_PLANNING=true|false
 | Teams integration foundation | Phase 5 complete foundation | `/integrations/teams` renders Teams user links, deterministic Teams action tokens, integration health, and event logs behind `FEATURE_TEAMS`. |
 | Integration data model and migration | Phase 5 complete foundation | `010_workforce_os_integrations.sql` adds identity provider links, Entra group-role mappings, Teams user links, Teams action tokens, and integration event logs. |
 | Integration adapter smoke coverage | Complete | `test:integrations` covers local/mock identity links, Entra role mappings, Teams links, action token execution, health, and integration events. |
+| Resource planning report and UI | Phase 6 complete foundation | `/planning/resources` renders availability timeline, bench/roll-off view, overload/underload view, and client delivery footprint using employee, allocation, project, and leave availability data. |
+| Workforce command center report and UI | Phase 6 complete foundation | `/reports/command-center` aggregates data confidence, leave-adjusted availability, approval load, notification risk, identity/Teams gaps, and staffing risk. |
+| Planning smoke coverage | Complete | `test:planning` proves planning load derives from active allocations, availability derives from leave availability, and command-center risk counts derive from planning summaries. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -379,15 +384,15 @@ VITE_FEATURE_PLANNING=true|false
 | Client and Project Master | Included now | Client Portfolio, Project Master, Project Detail | Backend client/project APIs and imports exist | Complete foundation; UAT pending |
 | Allocation Management | Included now | Allocation Control and project/employee allocation entry points | Backend allocation APIs and import guardrails exist | Partial; deeper UAT pending |
 | Timesheet Management | Included now | My Timesheet and Timesheet Governance | Backend timesheet, entries, status, approval, import APIs exist | Partial; PM/Team Lead rules pending |
-| Workforce Command Center | Included now | Dashboard and Data Quality | Dashboard and data-quality report endpoints exist | Partial; real-data validation pending |
-| Reports | Included now for core reports | Planned, Actual, Forecast, Data Quality, Audit, Import/Export | Core report endpoints and hosted smoke coverage exist | Partial; DB fixtures/browser QA pending |
+| Workforce Command Center | Included now and extended by Workforce OS | Dashboard, Data Quality, Command Center | Dashboard, data-quality, and workforce command-center report endpoints exist | Phase 6 complete foundation; real-data validation pending |
+| Reports | Included now for core and Workforce OS reports | Planned, Actual, Forecast, Data Quality, Audit, Import/Export, Planning, Command Center | Core report endpoints, planning report, command-center report, and smoke coverage exist | Partial; DB fixtures/browser QA pending |
 | Import / Export | Included now as CSV-first | Import / Export center with dry run, errors, history, and exports | Backend apply endpoints, duplicate-row guardrails, logs | Partial; real-file UAT pending |
 | Audit and Governance | Included now | Audit Trail, Governance Settings, Data Quality | Backend audit metadata and constrained audit events exist | Partial; retention/sign-off pending |
 | Leave Management | Feature-flagged Workforce OS phase | ESS, My Leave, Team Calendar, and Leave Admin available when `FEATURE_LEAVE` is enabled | Leave tables, APIs, approvals, balances, holidays, and availability report exist | Phase 2 complete foundation; UAT/hardening pending |
 | Notification Center | Feature-flagged Workforce OS phase | Notification center available when `FEATURE_NOTIFICATIONS` is enabled | Events, templates, preferences, delivery attempts, and mock delivery logging exist | Phase 4 complete foundation; production adapters pending |
 | Microsoft Teams | Feature-flagged Workforce OS phase | Teams Mapping available when `FEATURE_TEAMS` is enabled | Teams user links, deterministic action tokens, mock execution, health, and event logs exist | Phase 5 complete foundation; Graph credentials/UAT pending |
 | Microsoft Entra SSO | Feature-flagged Workforce OS phase | Identity Mapping available when `FEATURE_ENTRA` is enabled | Identity provider links, Entra group-role mappings, health, and event logs exist | Phase 5 complete foundation; production SSO credentials/UAT pending |
-| Resource Planning Board | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_PLANNING` is enabled | Allocation/report data can support implementation | Phase 6 implementation pending |
+| Resource Planning Board | Feature-flagged Workforce OS phase | Resource Planning Board available when `FEATURE_PLANNING` is enabled | Employee, allocation, project, leave availability, and utilization report data are composed into one report | Phase 6 complete foundation; browser UAT pending |
 
 The same mapping is available in the application at `/governance/brd-traceability` for reviewers and UAT leads.
 
@@ -548,7 +553,7 @@ Implement these in order behind feature flags, updating BRD traceability, tests,
 3. Phase 3: generic approval engine. Shared records, APIs, approval workspace, delegation model, SLA report, and timesheet/leave approval linkage are complete; remaining hardening is allocation-change approvals, delegation enforcement in decision routing, and browser UAT evidence.
 4. Phase 4: notification center with in-app, mock email, and mock Teams adapters. In-app events, templates, preferences, delivery attempts, mock delivery logging, UI, and smoke coverage are complete; remaining hardening is SMTP/Graph adapter implementation, Teams provider credentials, template variable rendering, and browser UAT evidence.
 5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation. Identity links, group-role mappings, Teams user links, deterministic action tokens, mock execution, event logs, integration health, UI, migration, and smoke coverage are complete; remaining hardening is Microsoft Graph/Entra credential wiring, action-token external URL signing policy, and browser UAT evidence.
-6. Phase 6: resource planning board and upgraded workforce command center.
+6. Phase 6: resource planning board and upgraded workforce command center. Resource planning report/API, availability timeline, bench and roll-off view, overload/underload view, client delivery footprint, command-center report/API, and smoke coverage are complete; remaining hardening is richer scenario planning, browser UAT evidence, hosted backend fixtures, and company data reconciliation.
 7. Phase 7: production readiness hardening for all new modules.
 
 Billing, AI, and Kanban/task management remain excluded from this enterprise build.

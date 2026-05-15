@@ -1,4 +1,4 @@
-import { Allocation, Employee, Project, SystemSettings, TimesheetSummary } from '../types';
+import { Allocation, Employee, LeaveAvailabilityEntry, Project, ResourcePlanningReport, SystemSettings, TimesheetSummary } from '../types';
 import { roundMetric } from '../lib/format';
 
 export const toDateOnly = (date: Date) => date.toISOString().split('T')[0];
@@ -140,5 +140,109 @@ export const getCompanyMetrics = (employees: Employee[], settings: SystemSetting
       const band = getUtilizationBand(employee.plannedUtilization, settings);
       return band === 'Underutilized' || band === 'Bench';
     }).length,
+  };
+};
+
+export const buildResourcePlanningReport = ({
+  employees,
+  allocations,
+  projects,
+  availability,
+  settings,
+  asOfDate = toDateOnly(new Date()),
+  includeProposedProjects = true,
+}: {
+  employees: Employee[];
+  allocations: Allocation[];
+  projects: Project[];
+  availability: LeaveAvailabilityEntry[];
+  settings: SystemSettings;
+  asOfDate?: string;
+  includeProposedProjects?: boolean;
+}): ResourcePlanningReport => {
+  const projectsById = new Map(projects.map(project => [project.id, project]));
+  const availabilityByEmployeeId = new Map(availability.map(entry => [entry.employeeId, entry]));
+  const activeEmployees = getUtilizationEligibleEmployees(employees, allocations, projects, asOfDate, includeProposedProjects);
+
+  const rows = activeEmployees.map(employee => {
+    const relevantAllocations = allocations
+      .filter(allocation => {
+        const project = projectsById.get(allocation.projectId);
+        return allocation.employeeId === employee.id &&
+          allocation.status === 'Active' &&
+          !!project &&
+          isProjectAvailableForPlanning(project, asOfDate, asOfDate, includeProposedProjects) &&
+          overlapsDateRange(allocation.startDate, allocation.endDate, asOfDate, asOfDate);
+      })
+      .map(allocation => {
+        const project = projectsById.get(allocation.projectId);
+        return {
+          allocationId: allocation.id,
+          projectId: allocation.projectId,
+          projectCode: project?.projectCode,
+          projectName: project?.name || allocation.projectName,
+          client: project?.client || '',
+          managerName: project?.managerName || allocation.projectManager,
+          percentage: allocation.percentage,
+          billable: allocation.billable && Boolean(project?.billable ?? true),
+          startDate: allocation.startDate,
+          endDate: allocation.endDate,
+        };
+      })
+      .sort((a, b) => b.percentage - a.percentage || a.projectName.localeCompare(b.projectName));
+
+    const plannedUtilization = roundMetric(relevantAllocations.reduce((sum, allocation) => sum + allocation.percentage, 0));
+    const billableAllocationPercent = roundMetric(relevantAllocations.filter(allocation => allocation.billable).reduce((sum, allocation) => sum + allocation.percentage, 0));
+    const availabilityEntry = availabilityByEmployeeId.get(employee.id);
+    const standardWeeklyHours = availabilityEntry?.standardWeeklyHours || employee.standardWeeklyHours || settings.expectedWeeklyHours || 40;
+    const annualCapacityHours = Math.max(standardWeeklyHours * 52, 1);
+    const availabilityHours = roundMetric(availabilityEntry?.availabilityHours ?? annualCapacityHours);
+    const availabilityAdjustedCapacityPercent = roundMetric((availabilityHours / annualCapacityHours) * 100);
+    const rollOffDate = relevantAllocations.length
+      ? relevantAllocations.map(allocation => allocation.endDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+      : undefined;
+
+    return {
+      employeeId: employee.id,
+      employeeCode: employee.employeeId,
+      employeeName: employee.name,
+      department: employee.department,
+      country: employee.country,
+      capacityType: employee.capacityType,
+      contractType: employee.contractType,
+      standardWeeklyHours,
+      plannedUtilization,
+      actualUtilization: employee.actualUtilization || 0,
+      availabilityHours,
+      availabilityAdjustedCapacityPercent,
+      approvedLeaveDays: availabilityEntry?.approvedLeaveDays || 0,
+      holidayDays: availabilityEntry?.holidayDays || 0,
+      activeProjectCount: relevantAllocations.length,
+      billableAllocationPercent,
+      bench: plannedUtilization <= settings.benchThreshold,
+      overloaded: plannedUtilization > settings.utilizationThresholdHigh,
+      underloaded: plannedUtilization < settings.utilizationThresholdLow && plannedUtilization > settings.benchThreshold,
+      rollOffDate,
+      allocations: relevantAllocations,
+    };
+  }).sort((a, b) => b.plannedUtilization - a.plannedUtilization || a.employeeName.localeCompare(b.employeeName));
+
+  const rollOffLimit = new Date(`${asOfDate}T00:00:00`);
+  rollOffLimit.setDate(rollOffLimit.getDate() + 45);
+  const rollOffSoonCount = rows.filter(row => row.rollOffDate && new Date(`${row.rollOffDate}T00:00:00`) <= rollOffLimit).length;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    asOfDate,
+    summary: {
+      people: rows.length,
+      averagePlanned: rows.length ? roundMetric(rows.reduce((sum, row) => sum + row.plannedUtilization, 0) / rows.length) : 0,
+      averageAvailabilityAdjustedCapacity: rows.length ? roundMetric(rows.reduce((sum, row) => sum + row.availabilityAdjustedCapacityPercent, 0) / rows.length) : 0,
+      benchCount: rows.filter(row => row.bench).length,
+      overloadedCount: rows.filter(row => row.overloaded).length,
+      underloadedCount: rows.filter(row => row.underloaded).length,
+      rollOffSoonCount,
+    },
+    rows,
   };
 };

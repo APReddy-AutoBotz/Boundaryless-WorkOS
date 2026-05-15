@@ -14,6 +14,7 @@ import type {
   NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt,
   IdentityProviderLink, EntraRoleMapping, TeamsUserLink, TeamsActionToken,
   IntegrationEventLog, IntegrationHealthReport,
+  ResourcePlanningReport, ResourcePlanningRow, WorkforceCommandCenterReport,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -623,6 +624,80 @@ export const normalizeIntegrationHealthReport = (r: Record<string, unknown>): In
   missingIdentityLinks: Number(r.missing_identity_links ?? r.missingIdentityLinks ?? 0),
   missingTeamsLinks: Number(r.missing_teams_links ?? r.missingTeamsLinks ?? 0),
   events: Array.isArray(r.events) ? (r.events as Record<string, unknown>[]).map(normalizeIntegrationEventLog) : [],
+});
+
+export const normalizeResourcePlanningRow = (r: Record<string, unknown>): ResourcePlanningRow => ({
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeCode: String(r.employee_code ?? r.employeeCode),
+  employeeName: String(r.employee_name ?? r.employeeName),
+  department: String(r.department ?? ''),
+  country: String(r.country ?? ''),
+  capacityType: r.capacity_type ? String(r.capacity_type) : r.capacityType ? String(r.capacityType) : undefined,
+  contractType: r.contract_type ? String(r.contract_type) : r.contractType ? String(r.contractType) : undefined,
+  standardWeeklyHours: Number(r.standard_weekly_hours ?? r.standardWeeklyHours ?? 40),
+  plannedUtilization: Number(r.planned_utilization ?? r.plannedUtilization ?? 0),
+  actualUtilization: Number(r.actual_utilization ?? r.actualUtilization ?? 0),
+  availabilityHours: Number(r.availability_hours ?? r.availabilityHours ?? 0),
+  availabilityAdjustedCapacityPercent: Number(r.availability_adjusted_capacity_percent ?? r.availabilityAdjustedCapacityPercent ?? 0),
+  approvedLeaveDays: Number(r.approved_leave_days ?? r.approvedLeaveDays ?? 0),
+  holidayDays: Number(r.holiday_days ?? r.holidayDays ?? 0),
+  activeProjectCount: Number(r.active_project_count ?? r.activeProjectCount ?? 0),
+  billableAllocationPercent: Number(r.billable_allocation_percent ?? r.billableAllocationPercent ?? 0),
+  bench: Boolean(r.bench),
+  overloaded: Boolean(r.overloaded),
+  underloaded: Boolean(r.underloaded),
+  rollOffDate: r.roll_off_date ? String(r.roll_off_date).slice(0, 10) : r.rollOffDate ? String(r.rollOffDate).slice(0, 10) : undefined,
+  allocations: Array.isArray(r.allocations) ? (r.allocations as Record<string, unknown>[]).map(allocation => ({
+    allocationId: String(allocation.allocation_id ?? allocation.allocationId),
+    projectId: String(allocation.project_id ?? allocation.projectId),
+    projectCode: allocation.project_code ? String(allocation.project_code) : allocation.projectCode ? String(allocation.projectCode) : undefined,
+    projectName: String(allocation.project_name ?? allocation.projectName),
+    client: String(allocation.client ?? ''),
+    managerName: String(allocation.manager_name ?? allocation.managerName ?? ''),
+    percentage: Number(allocation.percentage ?? 0),
+    billable: Boolean(allocation.billable),
+    startDate: String(allocation.start_date ?? allocation.startDate).slice(0, 10),
+    endDate: String(allocation.end_date ?? allocation.endDate).slice(0, 10),
+  })) : [],
+});
+
+export const normalizeResourcePlanningReport = (r: Record<string, unknown>): ResourcePlanningReport => {
+  const summary = r.summary as Record<string, unknown> | undefined;
+  const rows = Array.isArray(r.rows) ? (r.rows as Record<string, unknown>[]).map(normalizeResourcePlanningRow) : [];
+  return {
+    generatedAt: String(r.generated_at ?? r.generatedAt ?? new Date().toISOString()),
+    asOfDate: String(r.as_of_date ?? r.asOfDate ?? new Date().toISOString().slice(0, 10)).slice(0, 10),
+    summary: {
+      people: Number(summary?.people ?? rows.length),
+      averagePlanned: Number(summary?.average_planned ?? summary?.averagePlanned ?? 0),
+      averageAvailabilityAdjustedCapacity: Number(summary?.average_availability_adjusted_capacity ?? summary?.averageAvailabilityAdjustedCapacity ?? 0),
+      benchCount: Number(summary?.bench_count ?? summary?.benchCount ?? 0),
+      overloadedCount: Number(summary?.overloaded_count ?? summary?.overloadedCount ?? 0),
+      underloadedCount: Number(summary?.underloaded_count ?? summary?.underloadedCount ?? 0),
+      rollOffSoonCount: Number(summary?.roll_off_soon_count ?? summary?.rollOffSoonCount ?? 0),
+    },
+    rows,
+  };
+};
+
+export const normalizeWorkforceCommandCenterReport = (r: Record<string, unknown>): WorkforceCommandCenterReport => ({
+  generatedAt: String(r.generated_at ?? r.generatedAt ?? new Date().toISOString()),
+  dataConfidenceScore: Number(r.data_confidence_score ?? r.dataConfidenceScore ?? 0),
+  leaveAdjustedAvailabilityHours: Number(r.leave_adjusted_availability_hours ?? r.leaveAdjustedAvailabilityHours ?? 0),
+  pendingApprovalLoad: Number(r.pending_approval_load ?? r.pendingApprovalLoad ?? 0),
+  overdueApprovalLoad: Number(r.overdue_approval_load ?? r.overdueApprovalLoad ?? 0),
+  notificationDeliveryRisk: Number(r.notification_delivery_risk ?? r.notificationDeliveryRisk ?? 0),
+  missingIdentityLinks: Number(r.missing_identity_links ?? r.missingIdentityLinks ?? 0),
+  missingTeamsLinks: Number(r.missing_teams_links ?? r.missingTeamsLinks ?? 0),
+  projectStaffingRisks: Number(r.project_staffing_risks ?? r.projectStaffingRisks ?? 0),
+  benchCount: Number(r.bench_count ?? r.benchCount ?? 0),
+  overloadedCount: Number(r.overloaded_count ?? r.overloadedCount ?? 0),
+  underloadedCount: Number(r.underloaded_count ?? r.underloadedCount ?? 0),
+  topRisks: Array.isArray(r.top_risks)
+    ? r.top_risks as WorkforceCommandCenterReport['topRisks']
+    : Array.isArray(r.topRisks)
+      ? r.topRisks as WorkforceCommandCenterReport['topRisks']
+      : [],
 });
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {
