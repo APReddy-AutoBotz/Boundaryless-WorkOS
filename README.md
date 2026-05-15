@@ -106,8 +106,8 @@ npm run test:prod-readiness
 
 ## Handover Documents
 
-- `Boundaryless-WorkOS_Requirements.md`
-- `Boundaryless-WorkOS_Technical_Status.md`
+- `Boundaryless-WorkOS_Requirements.md` - single source of truth for BRD scope, completed items, pending items, and technical plan
+- `Boundaryless-WorkOS_Technical_Status.md` - short index pointing back to the source-of-truth BRD
 - `Boundaryless-WorkOS_User_Flow_Guide.md`
 - `DEPLOYMENT_SUPABASE_RENDER.md`
 - `PRODUCTION_RUNBOOK.md`
