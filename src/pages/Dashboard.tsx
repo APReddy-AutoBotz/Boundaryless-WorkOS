@@ -392,6 +392,18 @@ export const Dashboard = () => {
         />
       )}
 
+      {data.dashboardReport && (
+        <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50/70 px-5 py-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Production Evidence</p>
+            <p className="mt-1 text-xs font-bold text-heading">Review and export the scoped data-quality report before handover sign-off.</p>
+          </div>
+          <Link to="/reports/data-quality" className="btn-primary flex items-center gap-2 px-4 py-2.5 text-xs">
+            <ShieldCheck size={14} /> Data Quality
+          </Link>
+        </div>
+      )}
+
       {/* ROW 1 — GLOBAL COMPANY METRICS */}
       <section>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Database, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, Download, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { NoticeBanner } from '../components/ui/NoticeBanner';
 import { adminService } from '../services/api';
 import type { DataQualityReport } from '../types';
+import { downloadCsv } from '../lib/csv';
 
 const scoreVariant = (score: number): 'success' | 'warning' | 'danger' => {
   if (score >= 95) return 'success';
@@ -18,6 +19,7 @@ export const DataQuality = () => {
   const [report, setReport] = useState<DataQualityReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const loadReport = async () => {
     setLoading(true);
@@ -41,6 +43,36 @@ export const DataQuality = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6);
   }, [report]);
+
+  const exportReport = () => {
+    if (!report) return;
+    const rows = report.issues.map(issue => ({
+      generatedAt: report.generatedAt,
+      confidenceScore: report.score,
+      issueType: issue.issueType,
+      entityType: issue.entityType,
+      entityId: issue.entityId,
+      entity: issue.entity,
+      owner: issue.owner,
+      impact: issue.impact,
+      suggestedAction: issue.suggestedAction,
+    }));
+    const fallback = rows.length > 0 ? rows : [{
+      generatedAt: report.generatedAt,
+      confidenceScore: report.score,
+      issueType: 'No open issues',
+      entityType: '',
+      entityId: '',
+      entity: '',
+      owner: '',
+      impact: '',
+      suggestedAction: '',
+    }];
+    const fileName = `data-quality-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCsv(fileName, fallback);
+    adminService.logAction('Export', 'Data Quality', `Exported ${report.issueCount} data-quality issue rows with score ${report.score}%`);
+    setNotice(`Exported ${report.issueCount} data-quality issue${report.issueCount === 1 ? '' : 's'}.`);
+  };
 
   if (loading) {
     return (
@@ -70,11 +102,25 @@ export const DataQuality = () => {
         subtitle="Production handover checks for employee master, identity, capacity, and allocation integrity."
         breadcrumb={['Reports', 'Data Quality']}
         actions={
-          <button onClick={loadReport} className="btn-secondary flex items-center gap-2 px-4 py-2.5">
-            <RefreshCcw size={14} /> Refresh
-          </button>
+          <>
+            <button onClick={exportReport} className="btn-secondary flex items-center gap-2 px-4 py-2.5">
+              <Download size={14} /> Export CSV
+            </button>
+            <button onClick={loadReport} className="btn-secondary flex items-center gap-2 px-4 py-2.5">
+              <RefreshCcw size={14} /> Refresh
+            </button>
+          </>
         }
       />
+
+      {notice && (
+        <NoticeBanner
+          type="success"
+          title="Data Quality Export"
+          message={notice}
+          onClose={() => setNotice('')}
+        />
+      )}
 
       <NoticeBanner
         type={report.issueCount === 0 ? 'success' : report.score >= 85 ? 'warning' : 'danger'}
@@ -175,7 +221,7 @@ export const DataQuality = () => {
             </table>
             {report.issues.length > 200 && (
               <div className="border-t border-border-light bg-slate-50 px-5 py-3 text-xs font-bold text-body/60">
-                Showing first 200 exceptions. Export from backend report API for the full list.
+                Showing first 200 exceptions. Use Export CSV for the full issue list and audit evidence.
               </div>
             )}
           </div>
