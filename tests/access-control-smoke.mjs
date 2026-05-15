@@ -47,6 +47,8 @@ assert.equal(hasRouteRole(admin, ROUTE_ROLES.dashboard), true, 'admin should acc
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.importExport), true, 'admin should access import/export');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.auditTrail), true, 'admin should access audit trail');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.brdTraceability), true, 'admin should access BRD traceability');
+assert.equal(hasRouteRole(admin, ROUTE_ROLES.leaveAdmin), true, 'admin should access feature-gated leave administration when enabled');
+assert.equal(hasRouteRole(admin, ROUTE_ROLES.identityIntegrations), true, 'admin should access feature-gated identity integrations when enabled');
 assert.equal(canOpenImportExport(admin), true, 'admin should see import/export actions');
 assert.equal(canEditEmployeeData(admin), true, 'admin should see employee edit actions');
 assert.equal(canResetEmployeePassword(admin), true, 'admin should see password reset actions');
@@ -59,6 +61,8 @@ assert.equal(hasRouteRole(hr, ROUTE_ROLES.dashboard), true, 'HR should access th
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.adminSettings), true, 'HR should access governance settings');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.auditTrail), false, 'HR should not access audit trail');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.brdTraceability), true, 'HR should access BRD traceability');
+assert.equal(hasRouteRole(hr, ROUTE_ROLES.leaveAdmin), true, 'HR should access feature-gated leave administration when enabled');
+assert.equal(hasRouteRole(hr, ROUTE_ROLES.identityIntegrations), true, 'HR should access feature-gated identity integrations when enabled');
 assert.equal(canOpenImportExport(hr), false, 'HR should not see import/export actions');
 assert.equal(canEditEmployeeData(hr), true, 'HR should see employee edit actions');
 assert.equal(canEditProjectData(hr), true, 'HR should see project edit actions');
@@ -69,6 +73,8 @@ assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.dashboard), false, 'PM sho
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.projectManagerWorkspace), true, 'PM should access PM Workspace');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.utilization), true, 'PM should access scoped planned and actual utilization reports');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.brdTraceability), true, 'PM should access BRD traceability');
+assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.resourcePlanning), true, 'PM should access feature-gated resource planning when enabled');
+assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.identityIntegrations), false, 'PM should not access identity integrations');
 const managedProject = projects.find(project =>
   project.managerId === projectManager.id ||
   project.managerId === projectManager.employeeId ||
@@ -104,6 +110,8 @@ const countryDirector = await authService.login('cd-1', 'demo123', 'CountryDirec
 assert.ok(countryDirector?.cdId, 'Country Director session should include CD scope id');
 assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.dashboard), true, 'CD should access the scoped overview dashboard');
 assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.brdTraceability), true, 'CD should access BRD traceability');
+assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.leaveTeam), true, 'CD should access feature-gated team leave calendar when enabled');
+assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.workforceCommandCenter), true, 'CD should access feature-gated command center when enabled');
 const cdEmployeeIds = new Set(employees
   .filter(employee =>
     employee.primaryCountryDirectorId === countryDirector.cdId ||
@@ -154,6 +162,9 @@ assert.equal(hasRouteRole(employee, ROUTE_ROLES.dashboard), false, 'employee sho
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.employeeWorkspace), true, 'employee should access My Workspace');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.utilization), false, 'employee should not access global planned or actual utilization reports');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.brdTraceability), false, 'employee should not access BRD traceability');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.leaveSelfService), true, 'employee should access feature-gated leave self-service when enabled');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.leaveAdmin), false, 'employee should not access leave administration');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.resourcePlanning), false, 'employee should not access resource planning');
 assert.equal(canAccessEmployeeDetail({ user: employee, employeeId: allocatedEmployee.id, employees, allocations, projects }), true, 'employee should access own detail');
 assert.equal(canEditEmployeeData(employee), false, 'employee should not see employee edit actions');
 assert.equal(canManageAllocations(employee), false, 'employee should not see allocation controls');

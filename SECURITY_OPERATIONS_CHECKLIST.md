@@ -9,6 +9,8 @@ Use this checklist before production go-live. Items marked company-owned require
 | Company `DATABASE_URL` is stored only in the hosting secret manager. | Company-owned |
 | `API_SESSION_SECRET` is company-generated and at least 32 characters. | Company-owned |
 | `APP_MODE=production` and `DISABLE_DEMO_FALLBACK=true` are set for company production. | Required |
+| Enterprise feature flags are enabled only for phases that passed role UAT. | Required |
+| `EMAIL_PROVIDER`, `TEAMS_PROVIDER`, and `IDENTITY_PROVIDER` are set to approved provider modes. | Company-owned |
 | Demo or personal Supabase credentials are removed before handover. | Company-owned |
 | `.env` files and secret screenshots are not committed. | Must pass |
 | Any password shared in chat/email/screenshots is rotated. | Company-owned |

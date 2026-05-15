@@ -5,8 +5,11 @@ import {
   Users, 
   Briefcase, 
   Building2,
+  CalendarDays,
+  CheckCircle2,
   Link as LinkIcon, 
   Clock, 
+  MailCheck,
   BarChart3, 
   TrendingUp, 
   PieChart, 
@@ -22,6 +25,7 @@ import {
 import { cn } from '../../lib/utils';
 import { authService } from '../../services/authService';
 import { ROUTE_ROLES } from '../../services/accessControl';
+import { EnterpriseFeatureFlag, isEnterpriseFeatureEnabled } from '../../config/featureFlags';
 import { UserRole } from '../../types';
 
 interface SidebarItem {
@@ -29,6 +33,7 @@ interface SidebarItem {
   path: string;
   icon: React.ElementType;
   roles?: readonly UserRole[];
+  feature?: EnterpriseFeatureFlag;
 }
 
 interface SidebarGroup {
@@ -71,14 +76,39 @@ export const Sidebar = () => {
         },
       ]
     },
+    {
+      group: 'ESS',
+      items: [
+        { name: 'ESS Home', path: '/ess', icon: Users, roles: ROUTE_ROLES.ess, feature: 'leave' },
+        { name: 'My Leave', path: '/leave/my', icon: CalendarDays, roles: ROUTE_ROLES.leaveSelfService, feature: 'leave' },
+        { name: 'Team Leave Calendar', path: '/leave/team-calendar', icon: CalendarDays, roles: ROUTE_ROLES.leaveTeam, feature: 'leave' },
+        { name: 'Leave Administration', path: '/leave/admin', icon: Settings, roles: ROUTE_ROLES.leaveAdmin, feature: 'leave' },
+      ]
+    },
+    {
+      group: 'Workflow',
+      items: [
+        { name: 'My Approvals', path: '/approvals', icon: CheckCircle2, roles: ROUTE_ROLES.approvals, feature: 'notifications' },
+        { name: 'Notifications', path: '/notifications', icon: MailCheck, roles: ROUTE_ROLES.notifications, feature: 'notifications' },
+      ]
+    },
     { 
       group: 'Analytics', 
       items: [
         { name: 'Planned Utilization', path: '/utilization/planned', icon: BarChart3, roles: ROUTE_ROLES.utilization },
         { name: 'Actual Utilization', path: '/utilization/actual', icon: PieChart, roles: ROUTE_ROLES.utilization },
         { name: 'Forecast Utilization', path: '/utilization/forecast', icon: TrendingUp, roles: ROUTE_ROLES.utilization },
+        { name: 'Resource Planning', path: '/planning/resources', icon: ClipboardCheck, roles: ROUTE_ROLES.resourcePlanning, feature: 'planning' },
+        { name: 'Command Center', path: '/reports/command-center', icon: ShieldCheck, roles: ROUTE_ROLES.workforceCommandCenter, feature: 'planning' },
         { name: 'Data Quality', path: '/reports/data-quality', icon: ShieldCheck, roles: ROUTE_ROLES.dataQuality },
         { name: 'BRD Traceability', path: '/governance/brd-traceability', icon: ClipboardCheck, roles: ROUTE_ROLES.brdTraceability },
+      ]
+    },
+    {
+      group: 'Integrations',
+      items: [
+        { name: 'Identity Mapping', path: '/integrations/identity', icon: ShieldCheck, roles: ROUTE_ROLES.identityIntegrations, feature: 'entra' },
+        { name: 'Teams Mapping', path: '/integrations/teams', icon: LinkIcon, roles: ROUTE_ROLES.teamsIntegrations, feature: 'teams' },
       ]
     },
     { 
@@ -95,7 +125,10 @@ export const Sidebar = () => {
     if (!user) return [];
     return sidebarGroups.map(group => ({
       ...group,
-      items: group.items.filter(item => !item.roles || item.roles.includes(user.role))
+      items: group.items.filter(item =>
+        (!item.feature || isEnterpriseFeatureEnabled(item.feature)) &&
+        (!item.roles || item.roles.includes(user.role))
+      )
     })).filter(group => group.items.length > 0);
   }, [user, sidebarGroups]);
 

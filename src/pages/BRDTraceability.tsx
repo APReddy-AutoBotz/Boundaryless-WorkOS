@@ -9,7 +9,7 @@ type UiStatus = 'Available' | 'Partial' | 'Not in Production Core' | 'Not requir
 interface TraceabilityRow {
   module: string;
   brdIntent: string;
-  phase: 'Production Core' | 'Future Roadmap' | 'Company Handover';
+  phase: 'Production Core' | 'Workforce OS Phase' | 'Company Handover';
   deliveryStatus: DeliveryStatus;
   uiStatus: UiStatus;
   apiDataStatus: string;
@@ -101,38 +101,38 @@ const rows: TraceabilityRow[] = [
   {
     module: 'Leave Management',
     brdIntent: 'Leave requests, balances, policies, calendars, approvals, and availability-adjusted utilization.',
-    phase: 'Future Roadmap',
+    phase: 'Workforce OS Phase',
     deliveryStatus: 'Future phase',
-    uiStatus: 'Not in Production Core',
-    apiDataStatus: 'Only nullable employee placeholders exist for future leave policy/calendar linkage.',
-    nextAction: 'Start only after Production Core handover is accepted.',
+    uiStatus: 'Partial',
+    apiDataStatus: 'Feature-gated routes exist; nullable employee placeholders exist for leave policy/calendar linkage.',
+    nextAction: 'Add leave policies, types, holidays, balances, requests, approvals, APIs, and production UI.',
   },
   {
     module: 'Notification Center',
     brdIntent: 'Role, scope, event, email, and Teams notifications for approvals and operational follow-up.',
-    phase: 'Future Roadmap',
+    phase: 'Workforce OS Phase',
     deliveryStatus: 'Future phase',
-    uiStatus: 'Not in Production Core',
-    apiDataStatus: 'Audit source model is prepared; no notification queue or delivery engine is included.',
-    nextAction: 'Design event model and delivery channel ownership in a later phase.',
+    uiStatus: 'Partial',
+    apiDataStatus: 'Feature-gated routes exist; audit source model is prepared; no queue or delivery engine is included yet.',
+    nextAction: 'Add notification events, templates, preferences, delivery attempts, mock email adapter, and in-app inbox.',
   },
   {
     module: 'Microsoft Teams Integration',
     brdIntent: 'Teams personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens.',
-    phase: 'Future Roadmap',
+    phase: 'Workforce OS Phase',
     deliveryStatus: 'Future phase',
-    uiStatus: 'Not in Production Core',
-    apiDataStatus: 'Teams user/channel placeholders exist; no bot, cards, or Teams action tokens are implemented.',
-    nextAction: 'Implement after identity and notification foundations are approved.',
+    uiStatus: 'Partial',
+    apiDataStatus: 'Feature-gated routes exist; Teams user/channel placeholders exist; no bot, cards, or Teams action tokens are implemented yet.',
+    nextAction: 'Add Teams mapping, deterministic action tokens, mock adapter, and audit-backed action handling.',
   },
   {
     module: 'Microsoft Entra SSO',
     brdIntent: 'Enterprise SSO and group-to-role mapping.',
-    phase: 'Future Roadmap',
+    phase: 'Workforce OS Phase',
     deliveryStatus: 'Future phase',
-    uiStatus: 'Not in Production Core',
-    apiDataStatus: 'Entra object placeholder exists; username/password remains the Production Core auth path.',
-    nextAction: 'Add after company identity owner confirms tenant, app registration, and role mapping policy.',
+    uiStatus: 'Partial',
+    apiDataStatus: 'Feature-gated routes exist; Entra object placeholder exists; username/password remains supported.',
+    nextAction: 'Add identity provider links, Entra group-role mappings, mock adapter, and credential handover docs.',
   },
   {
     module: 'Company Production Handover',
@@ -153,7 +153,7 @@ const statusVariant = (status: DeliveryStatus): 'success' | 'warning' | 'info' |
 };
 
 const coreRows = rows.filter(row => row.phase === 'Production Core');
-const futureRows = rows.filter(row => row.phase === 'Future Roadmap');
+const futureRows = rows.filter(row => row.phase === 'Workforce OS Phase');
 const handoverRows = rows.filter(row => row.phase === 'Company Handover');
 
 export const BRDTraceability = () => (
@@ -185,7 +185,7 @@ export const BRDTraceability = () => (
       <Card className="p-5">
         <p className="text-[10px] font-black uppercase tracking-widest text-body/50">Future Modules</p>
         <p className="mt-3 text-4xl font-black text-heading">{futureRows.length}</p>
-        <p className="mt-3 text-xs font-semibold text-body/60">Planned after Production Core acceptance</p>
+        <p className="mt-3 text-xs font-semibold text-body/60">Feature-flagged enterprise phases</p>
       </Card>
       <Card className="p-5">
         <p className="text-[10px] font-black uppercase tracking-widest text-body/50">Company Blockers</p>
@@ -202,7 +202,7 @@ export const BRDTraceability = () => (
           <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-body/70">
             Production Core remains focused on workforce master data, projects, clients, allocations, timesheets, utilization, reports,
             imports, exports, audit, and handover readiness. Leave, notifications, Teams, and Entra are preserved in the roadmap,
-            but they are not release blockers for the first production handover.
+            and are now controlled by enterprise feature flags so each phase can be implemented without destabilizing the current handover path.
           </p>
         </div>
       </div>
@@ -236,7 +236,7 @@ export const BRDTraceability = () => (
                   <p className="mt-2 text-xs font-medium leading-relaxed text-body/60">{row.brdIntent}</p>
                 </td>
                 <td className="px-5 py-4">
-                  <Badge variant={row.phase === 'Production Core' ? 'success' : row.phase === 'Company Handover' ? 'info' : 'neutral'}>
+                  <Badge variant={row.phase === 'Production Core' ? 'success' : row.phase === 'Company Handover' ? 'info' : 'warning'}>
                     {row.phase}
                   </Badge>
                 </td>

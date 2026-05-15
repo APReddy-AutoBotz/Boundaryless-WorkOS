@@ -4,6 +4,7 @@ import { AppLayout } from './components/Layout/AppLayout';
 import { authService } from './services/authService';
 import { hasRouteRole, ROUTE_ROLES } from './services/accessControl';
 import { UserRole } from './types';
+import { EnterpriseFeatureFlag, isEnterpriseFeatureEnabled } from './config/featureFlags';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const EmployeeMaster = lazy(() => import('./pages/EmployeeMaster').then(module => ({ default: module.EmployeeMaster })));
@@ -21,6 +22,7 @@ const ActualUtilization = lazy(() => import('./pages/ActualUtilization').then(mo
 const ForecastUtilization = lazy(() => import('./pages/ForecastUtilization').then(module => ({ default: module.ForecastUtilization })));
 const DataQuality = lazy(() => import('./pages/DataQuality').then(module => ({ default: module.DataQuality })));
 const BRDTraceability = lazy(() => import('./pages/BRDTraceability').then(module => ({ default: module.BRDTraceability })));
+const EnterpriseModuleShell = lazy(() => import('./pages/EnterpriseModuleShell').then(module => ({ default: module.EnterpriseModuleShell })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -39,6 +41,21 @@ const RoleRoute = ({ children, roles }: { children: React.ReactNode; roles: read
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
+};
+
+const FeatureRoute = ({
+  children,
+  flag,
+  roles,
+}: {
+  children: React.ReactNode;
+  flag: EnterpriseFeatureFlag;
+  roles: readonly UserRole[];
+}) => {
+  if (!isEnterpriseFeatureEnabled(flag)) {
+    return <Navigate to="/governance/brd-traceability" replace />;
+  }
+  return <RoleRoute roles={roles}>{children}</RoleRoute>;
 };
 
 const getRoleHomePath = (role: UserRole) => {
@@ -169,6 +186,116 @@ export default function App() {
                   <RoleRoute roles={ROUTE_ROLES.brdTraceability}>
                     <BRDTraceability />
                   </RoleRoute>
+                } />
+                <Route path="/ess" element={
+                  <FeatureRoute flag="leave" roles={ROUTE_ROLES.ess}>
+                    <EnterpriseModuleShell
+                      module="ESS"
+                      phase="Phase 2"
+                      subtitle="Employee self-service for profile, leave, timesheets, notifications, and work context."
+                      capabilities={['My profile and work context', 'Leave and balance surface', 'Timesheet and notification entry point']}
+                      nextMilestone="Build ESS profile, leave balance, and employee-facing leave request workflows."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/leave/my" element={
+                  <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveSelfService}>
+                    <EnterpriseModuleShell
+                      module="Leave"
+                      phase="Phase 2"
+                      subtitle="Employee leave requests, balances, approval status, and availability impact."
+                      capabilities={['Leave request workflow', 'Leave balances and policies', 'Availability-adjusted capacity inputs']}
+                      nextMilestone="Add leave tables, request APIs, balance APIs, and employee leave UI."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/leave/team-calendar" element={
+                  <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveTeam}>
+                    <EnterpriseModuleShell
+                      module="Leave"
+                      phase="Phase 2"
+                      subtitle="Team leave calendar for managers, Country Directors, HR, and Admin."
+                      capabilities={['Scoped team availability', 'Pending leave visibility', 'Holiday-aware calendar view']}
+                      nextMilestone="Implement scoped team leave calendar after leave request storage is in place."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/leave/admin" element={
+                  <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveAdmin}>
+                    <EnterpriseModuleShell
+                      module="Leave"
+                      phase="Phase 2"
+                      subtitle="Leave policy, holiday calendar, balance, and administration workspace."
+                      capabilities={['Leave policy configuration', 'Holiday calendar administration', 'Balance adjustments with audit']}
+                      nextMilestone="Implement policy, holiday, and balance admin APIs with audit coverage."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/approvals" element={
+                  <FeatureRoute flag="notifications" roles={ROUTE_ROLES.approvals}>
+                    <EnterpriseModuleShell
+                      module="Approvals"
+                      phase="Phase 3"
+                      subtitle="Shared approval inbox and history for timesheets, leave, allocations, and future workflows."
+                      capabilities={['My approvals inbox', 'Approval history and comments', 'Delegation and SLA foundation']}
+                      nextMilestone="Create generic approval records and migrate timesheet approvals onto the shared model."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/notifications" element={
+                  <FeatureRoute flag="notifications" roles={ROUTE_ROLES.notifications}>
+                    <EnterpriseModuleShell
+                      module="Notifications"
+                      phase="Phase 4"
+                      subtitle="In-app notification center with adapter-ready email and Teams delivery."
+                      capabilities={['Notification inbox', 'Templates and preferences', 'Delivery attempts and audit']}
+                      nextMilestone="Add notification events, templates, preferences, delivery attempts, and mock providers."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/integrations/identity" element={
+                  <FeatureRoute flag="entra" roles={ROUTE_ROLES.identityIntegrations}>
+                    <EnterpriseModuleShell
+                      module="Identity"
+                      phase="Phase 5"
+                      subtitle="Microsoft Entra-ready identity mapping and role synchronization."
+                      capabilities={['Identity provider links', 'Entra group-role mapping', 'Integration health checks']}
+                      nextMilestone="Add identity provider link tables, Entra mapping UI, and local/mock adapter."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/integrations/teams" element={
+                  <FeatureRoute flag="teams" roles={ROUTE_ROLES.teamsIntegrations}>
+                    <EnterpriseModuleShell
+                      module="Teams"
+                      phase="Phase 5"
+                      subtitle="Deterministic Teams action layer for approvals and portal links."
+                      capabilities={['Teams user mapping', 'Teams action tokens', 'Mock Teams adapter and action audit']}
+                      nextMilestone="Add Teams mapping, deterministic action token model, and mock provider adapter."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/planning/resources" element={
+                  <FeatureRoute flag="planning" roles={ROUTE_ROLES.resourcePlanning}>
+                    <EnterpriseModuleShell
+                      module="Planning"
+                      phase="Phase 6"
+                      subtitle="Resource planning board backed by employees, allocations, utilization, leave, and holidays."
+                      capabilities={['Availability timeline', 'Bench and roll-off view', 'Overload and underload view']}
+                      nextMilestone="Add planning report APIs and visual board after leave availability data is available."
+                    />
+                  </FeatureRoute>
+                } />
+                <Route path="/reports/command-center" element={
+                  <FeatureRoute flag="planning" roles={ROUTE_ROLES.workforceCommandCenter}>
+                    <EnterpriseModuleShell
+                      module="Command Center"
+                      phase="Phase 6"
+                      subtitle="Enterprise command center for capacity, approvals, notifications, identity, and data confidence."
+                      capabilities={['Leave-adjusted availability', 'Approval and notification risk', 'Identity and Teams readiness']}
+                      nextMilestone="Extend dashboard reports into workforce command-center APIs and UI."
+                    />
+                  </FeatureRoute>
                 } />
 
                 {/* System Routes */}

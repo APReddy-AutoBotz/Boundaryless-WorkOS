@@ -10,6 +10,7 @@ const app = readFileSync('src/App.tsx', 'utf8');
 const header = readFileSync('src/components/Layout/Header.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Layout/Sidebar.tsx', 'utf8');
 const brdTraceability = readFileSync('src/pages/BRDTraceability.tsx', 'utf8');
+const featureFlags = readFileSync('src/config/featureFlags.ts', 'utf8');
 const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
 const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
 const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
@@ -54,7 +55,11 @@ assert.match(app, /\/governance\/brd-traceability/, 'BRD traceability must have 
 assert.match(sidebar, /BRD Traceability/, 'BRD traceability must be visible in navigation for reviewer roles');
 assert.match(header, /page-brd-traceability/, 'BRD traceability must be searchable from the header');
 assert.match(brdTraceability, /Traceability Matrix/, 'BRD traceability UI must include a traceability matrix');
-assert.match(brdTraceability, /Leave Management[\s\S]*Future Roadmap[\s\S]*Microsoft Teams Integration[\s\S]*Future Roadmap[\s\S]*Microsoft Entra SSO[\s\S]*Future Roadmap/, 'BRD traceability UI must cross-check deferred strategic modules');
+assert.match(brdTraceability, /Leave Management[\s\S]*Workforce OS Phase[\s\S]*Microsoft Teams Integration[\s\S]*Workforce OS Phase[\s\S]*Microsoft Entra SSO[\s\S]*Workforce OS Phase/, 'BRD traceability UI must cross-check feature-flagged strategic modules');
+assert.match(featureFlags, /FEATURE_LEAVE[\s\S]*FEATURE_NOTIFICATIONS[\s\S]*FEATURE_TEAMS[\s\S]*FEATURE_ENTRA[\s\S]*FEATURE_PLANNING/, 'enterprise feature flags must cover all Workforce OS modules');
+assert.match(app, /\/ess[\s\S]*\/leave\/my[\s\S]*\/approvals[\s\S]*\/notifications[\s\S]*\/integrations\/identity[\s\S]*\/planning\/resources[\s\S]*\/reports\/command-center/, 'Workforce OS route foundations must exist');
+assert.match(sidebar, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS navigation must be feature-gated');
+assert.match(header, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS search entries must be feature-gated');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
@@ -62,8 +67,9 @@ assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'),
 assert.match(requirements, /Single source of truth for product scope, production-core requirements, implementation status, and next technical plan\./, 'requirements document must be the BRD source of truth');
 assert.match(requirements, /## 8\. Completed vs Pending Status/, 'requirements must mark completed and pending status');
 assert.match(requirements, /## 9\. Updated Technical Plan/, 'requirements must include the updated technical plan');
-assert.match(requirements, /Leave management workflow[\s\S]*Microsoft Teams bot[\s\S]*Microsoft Entra SSO[\s\S]*Email\/Teams notification delivery engine/, 'Production Core must explicitly defer leave, Teams, Entra, and notifications');
-assert.match(requirements, /Long-Term Module[\s\S]*Leave Management[\s\S]*Pending[\s\S]*Microsoft Teams[\s\S]*Pending[\s\S]*Microsoft Entra SSO[\s\S]*Pending/, 'long-term BRD roadmap must preserve deferred strategic modules');
+assert.match(requirements, /Workforce OS Implementation Vision/, 'requirements must reposition future roadmap as Workforce OS implementation');
+assert.match(requirements, /VITE_FEATURE_LEAVE[\s\S]*VITE_FEATURE_NOTIFICATIONS[\s\S]*VITE_FEATURE_TEAMS[\s\S]*VITE_FEATURE_ENTRA[\s\S]*VITE_FEATURE_PLANNING/, 'requirements must document browser feature flags');
+assert.match(requirements, /Phase 2: ESS and Leave Management[\s\S]*Phase 3: generic approval engine[\s\S]*Phase 4: notification center[\s\S]*Phase 5: Entra-ready identity mapping[\s\S]*Phase 6: resource planning board/, 'requirements must preserve phased Workforce OS implementation order');
 assert.match(requirements, /APP_MODE=production\|demo[\s\S]*DISABLE_DEMO_FALLBACK=true\|false[\s\S]*AUTO_SEED_DEMO=false/, 'requirements must document production environment safety flags');
 assert.match(requirements, /Multi-role users cannot use inactive roles to bypass permissions/, 'requirements must retain active-role UAT acceptance');
 assert.match(technicalStatus, /avoid a second, conflicting source of truth/, 'technical status must not duplicate the BRD source of truth');

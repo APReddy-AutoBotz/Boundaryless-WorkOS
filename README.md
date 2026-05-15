@@ -18,6 +18,24 @@ DISABLE_DEMO_FALLBACK=true
 
 With demo fallback disabled, the frontend fails closed if the backend is unavailable instead of silently using browser-local demo data.
 
+Workforce OS roadmap modules are controlled by feature flags so Production Core remains stable while ESS, leave, approvals, notifications, Teams, Entra, planning, and command-center capabilities are built in phases:
+
+```text
+FEATURE_LEAVE=false
+FEATURE_NOTIFICATIONS=false
+FEATURE_TEAMS=false
+FEATURE_ENTRA=false
+FEATURE_PLANNING=false
+VITE_FEATURE_LEAVE=false
+VITE_FEATURE_NOTIFICATIONS=false
+VITE_FEATURE_TEAMS=false
+VITE_FEATURE_ENTRA=false
+VITE_FEATURE_PLANNING=false
+EMAIL_PROVIDER=mock
+TEAMS_PROVIDER=mock
+IDENTITY_PROVIDER=local
+```
+
 ## Prerequisites
 
 - Node.js 22

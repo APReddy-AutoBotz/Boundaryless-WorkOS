@@ -1,9 +1,10 @@
-import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, KeyRound, X, ClipboardCheck, type LucideIcon } from 'lucide-react';
+import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, KeyRound, X, ClipboardCheck, CalendarDays, CheckCircle2, MailCheck, Link as LinkIcon, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { adminService, allocationService, clientService, employeeService, projectService } from '../../services/api';
 import { hasRouteRole, ROUTE_ROLES } from '../../services/accessControl';
+import { EnterpriseFeatureFlag, isEnterpriseFeatureEnabled } from '../../config/featureFlags';
 import type { UserRole } from '../../types';
 
 type SearchResult = {
@@ -13,6 +14,7 @@ type SearchResult = {
   path: string;
   icon: LucideIcon;
   keywords: string;
+  feature?: EnterpriseFeatureFlag;
 };
 
 
@@ -82,14 +84,24 @@ export const Header = () => {
       { id: 'page-dashboard', title: 'Overview Dashboard', subtitle: 'Company and regional utilization command center', path: '/', icon: BarChart3, keywords: 'dashboard overview kpi country director clients operations', roles: ROUTE_ROLES.dashboard },
       { id: 'page-my-workspace', title: 'My Workspace', subtitle: 'My projects, utilization, and timesheet status', path: '/my-workspace', icon: Users, keywords: 'my workspace employee assignments projects utilization timesheet', roles: ROUTE_ROLES.employeeWorkspace },
       { id: 'page-pm-workspace', title: 'PM Workspace', subtitle: 'Managed projects, team allocation, approvals, and risks', path: '/pm-workspace', icon: BriefcaseBusiness, keywords: 'pm workspace project manager team allocation approvals risks', roles: ROUTE_ROLES.projectManagerWorkspace },
+      { id: 'page-ess', title: 'ESS Home', subtitle: 'Employee self-service profile, leave, timesheet, and notifications hub', path: '/ess', icon: Users, keywords: 'ess employee self service profile leave notifications', roles: ROUTE_ROLES.ess, feature: 'leave' },
+      { id: 'page-my-leave', title: 'My Leave', subtitle: 'Leave requests, balances, and approval status', path: '/leave/my', icon: CalendarDays, keywords: 'leave request balance holiday calendar availability', roles: ROUTE_ROLES.leaveSelfService, feature: 'leave' },
+      { id: 'page-team-leave-calendar', title: 'Team Leave Calendar', subtitle: 'Scoped team availability and holiday-aware planning', path: '/leave/team-calendar', icon: CalendarDays, keywords: 'team leave calendar availability holidays manager country director', roles: ROUTE_ROLES.leaveTeam, feature: 'leave' },
+      { id: 'page-leave-admin', title: 'Leave Administration', subtitle: 'Leave policies, holiday calendars, and balances', path: '/leave/admin', icon: SettingsIcon, keywords: 'leave admin policies holidays balances', roles: ROUTE_ROLES.leaveAdmin, feature: 'leave' },
+      { id: 'page-approvals', title: 'My Approvals', subtitle: 'Shared approvals for timesheets, leave, allocations, and workflow items', path: '/approvals', icon: CheckCircle2, keywords: 'approvals inbox history delegation sla timesheet leave allocation', roles: ROUTE_ROLES.approvals, feature: 'notifications' },
+      { id: 'page-notifications', title: 'Notifications', subtitle: 'In-app notifications, preferences, and delivery monitoring', path: '/notifications', icon: MailCheck, keywords: 'notifications inbox preferences templates email teams delivery', roles: ROUTE_ROLES.notifications, feature: 'notifications' },
       { id: 'page-employees', title: 'Employee Master', subtitle: 'Resources, roles, CD mappings, utilization', path: '/employees', icon: Users, keywords: 'employees resources people consultants hr', roles: ['Admin', 'HR', 'CountryDirector', 'TeamLead'] },
       { id: 'page-projects', title: 'Project Master', subtitle: 'Processes, clients, project managers, resources', path: '/projects', icon: BriefcaseBusiness, keywords: 'projects processes clients pm delivery', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager'] },
       { id: 'page-clients', title: 'Client Portfolio', subtitle: 'Client, project, and resource coverage', path: '/clients', icon: Building2, keywords: 'clients portfolio accounts customer distribution', roles: ['Admin', 'HR', 'CountryDirector'] },
       { id: 'page-planned', title: 'Planned Utilization', subtitle: 'Allocation-derived capacity view', path: '/utilization/planned', icon: BarChart3, keywords: 'planned allocation utilization capacity', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-actual', title: 'Actual Utilization', subtitle: 'Approved timesheet reconciliation', path: '/utilization/actual', icon: BarChart3, keywords: 'actual utilization timesheet approved reconciliation', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-forecast', title: 'Forecast Utilization', subtitle: 'Forward allocation outlook', path: '/utilization/forecast', icon: BarChart3, keywords: 'forecast future utilization pipeline', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
+      { id: 'page-resource-planning', title: 'Resource Planning', subtitle: 'Availability timeline, bench, roll-off, and capacity planning', path: '/planning/resources', icon: ClipboardCheck, keywords: 'resource planning availability bench roll off overload underload', roles: ROUTE_ROLES.resourcePlanning, feature: 'planning' },
+      { id: 'page-command-center', title: 'Command Center', subtitle: 'Enterprise workforce command center and readiness indicators', path: '/reports/command-center', icon: ShieldCheck, keywords: 'command center workforce availability approval notification identity teams confidence', roles: ROUTE_ROLES.workforceCommandCenter, feature: 'planning' },
       { id: 'page-data-quality', title: 'Data Quality', subtitle: 'Production handover checks and data confidence', path: '/reports/data-quality', icon: ShieldCheck, keywords: 'data quality confidence production handover missing manager capacity teams identity', roles: ROUTE_ROLES.dataQuality },
       { id: 'page-brd-traceability', title: 'BRD Traceability', subtitle: 'BRD scope, UI, API, completed, pending, and future roadmap cross-check', path: '/governance/brd-traceability', icon: ClipboardCheck, keywords: 'brd traceability source truth roadmap completed pending ui api production core future leave teams entra', roles: ROUTE_ROLES.brdTraceability },
+      { id: 'page-identity-integration', title: 'Identity Mapping', subtitle: 'Entra-ready identity provider links and role mapping', path: '/integrations/identity', icon: ShieldCheck, keywords: 'identity mapping entra sso group role provider integration', roles: ROUTE_ROLES.identityIntegrations, feature: 'entra' },
+      { id: 'page-teams-integration', title: 'Teams Mapping', subtitle: 'Teams-ready user mapping and deterministic action foundation', path: '/integrations/teams', icon: LinkIcon, keywords: 'teams mapping adaptive cards action tokens deterministic approvals', roles: ROUTE_ROLES.teamsIntegrations, feature: 'teams' },
       { id: 'page-import', title: 'Import / Export', subtitle: 'CSV imports, exports, history', path: '/import-export', icon: Database, keywords: 'import export csv data bulk', roles: ['Admin'] },
       { id: 'page-audit', title: 'Audit Trail', subtitle: 'System activity and traceability', path: '/audit-trail', icon: ShieldCheck, keywords: 'audit logs history traceability', roles: ['Admin'] },
       { id: 'page-admin', title: 'Admin Settings', subtitle: 'Roles, directors, thresholds, policies', path: '/admin', icon: SettingsIcon, keywords: 'admin settings roles country directors thresholds', roles: ['Admin', 'HR'] },
@@ -174,7 +186,13 @@ export const Header = () => {
       keywords: `${director.name} ${director.region} country director cd`,
     })) : [];
 
-    const allResults = [...pages.filter(page => canAccess(page.roles)), ...employees, ...projects, ...clients, ...countryDirectors];
+    const allResults = [
+      ...pages.filter(page => canAccess(page.roles) && (!page.feature || isEnterpriseFeatureEnabled(page.feature))),
+      ...employees,
+      ...projects,
+      ...clients,
+      ...countryDirectors,
+    ];
     if (!query) return allResults.slice(0, 6);
     return allResults
       .filter(result => result.title.toLowerCase().includes(query) || result.subtitle.toLowerCase().includes(query) || result.keywords.toLowerCase().includes(query))

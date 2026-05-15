@@ -5,8 +5,8 @@
 **Product:** Boundaryless-WorkOS Workforce Operations Core  
 **Owner:** AP  
 **Last updated:** 15 May 2026  
-**Current release target:** Production Core handover candidate  
-**Current implementation state:** Strong controlled-UAT build; not final company production until company-owned infrastructure, real data, final UAT, security sign-off, backup/restore, and monitoring are complete.
+**Current release target:** Enterprise Workforce OS phased handover  
+**Current implementation state:** Production Core is a strong controlled-UAT build. Workforce OS roadmap implementation is now active behind feature flags; final company production still requires company-owned infrastructure, real data, final UAT, security sign-off, backup/restore, and monitoring.
 
 ---
 
@@ -30,7 +30,7 @@ If any supporting document conflicts with this BRD, this document wins.
 
 Boundaryless-WorkOS Workforce Operations Core is an internal workforce operations platform for employee master data, client/project allocation, timesheets, utilization reporting, import/export, audit, and governance.
 
-The first production handover must be premium, focused, and enterprise-safe. It must harden the current core platform instead of expanding into broad future modules.
+The first production handover must remain premium, focused, and enterprise-safe, while the broader Workforce OS modules are implemented in controlled phases behind feature flags.
 
 ### In Scope for Production Core
 
@@ -61,13 +61,13 @@ The first production handover must be premium, focused, and enterprise-safe. It 
 - Broad workflow engine
 - Payroll or HRMS replacement
 
-The out-of-scope items can be designed as future phases, but they must not block the Production Core handover.
+Out-of-scope commercial/product-adjacent items can be considered later, but they must not block the Workforce OS handover.
 
 ---
 
-## 3. Long-Term BRD Vision
+## 3. Workforce OS Implementation Vision
 
-The v4 strategic BRD positioned the product as an employee-first workforce operating system. That direction is accepted as the long-term product vision, but it is intentionally phased after Production Core.
+The v4 strategic BRD positioned the product as an employee-first workforce operating system. That direction is now accepted as the enterprise implementation target, delivered in phased, feature-flagged releases.
 
 Long-term product promise:
 
@@ -75,20 +75,20 @@ Long-term product promise:
 One trusted operational layer for employees, capacity, availability, allocations, time, approvals, notifications, reporting, and governance.
 ```
 
-| Long-Term Module | BRD Intent | Current Status | Production Core Decision |
+| Workforce OS Module | BRD Intent | Current Status | Implementation Decision |
 |---|---|---|---|
-| Employee Master as root | Employee data feeds identity, reporting, capacity, allocations, timesheets, approvals, future leave, notifications, and Teams identity. | Partially complete | Included now; future identity/leave/Teams fields remain nullable placeholders. |
-| ESS Portal | Employee self-service for profile, allocations, timesheets, future leave, notifications, and manager views. | Partial | Employee workspace and timesheets are included; leave and notifications are future. |
-| Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Pending | Future phase; only placeholders and availability-ready fields now. |
-| Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Partial | Timesheet approvals included; generic approval engine deferred. |
-| Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Pending | Future phase; audit/source model is being prepared now. |
-| Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Pending | Future phase; Teams identity placeholders only. |
-| Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Pending | Future phase; username/password remains Production Core auth. |
-| Resource Planning Board | Availability-aware allocation planning and bench/roll-off visibility. | Pending | Future phase after leave and allocation backend stability. |
-| Workforce Command Center | Executive dashboard with utilization, availability, attention items, and data confidence. | Partial | Dashboard and data-quality report included now; availability/leave metrics deferred. |
-| Reports | Utilization, allocation, timesheet, data-quality, future leave, notification, and audit reports. | Partial | Core workforce/utilization/data-quality/audit reports included now; leave/notification reports deferred. |
+| Employee Master as root | Employee data feeds identity, reporting, capacity, allocations, timesheets, approvals, leave, notifications, and Teams identity. | Partially complete | Included now; identity/leave/Teams fields are the bridge into Workforce OS phases. |
+| ESS Portal | Employee self-service for profile, allocations, timesheets, leave, notifications, and manager views. | Phase 1 foundation | Feature-flagged route foundation now; full ESS/leave UI in Phase 2. |
+| Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Phase 1 foundation | Feature-flagged route foundation now; data model, APIs, and UI in Phase 2. |
+| Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Phase 1 foundation | Feature-flagged route foundation now; shared approval model in Phase 3. |
+| Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Phase 1 foundation | Feature-flagged route foundation now; notification data and adapters in Phase 4. |
+| Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 1 foundation | Feature-flagged route foundation now; mock adapter and mapping in Phase 5. |
+| Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Phase 1 foundation | Feature-flagged route foundation now; mock identity adapter and mapping in Phase 5. |
+| Resource Planning Board | Availability-aware allocation planning and bench/roll-off visibility. | Phase 1 foundation | Feature-flagged route foundation now; planning reports/UI in Phase 6. |
+| Workforce Command Center | Executive dashboard with utilization, availability, attention items, and data confidence. | Partial | Current dashboard exists; enterprise command-center route foundation now; upgraded reports in Phase 6. |
+| Reports | Utilization, allocation, timesheet, data-quality, leave, notification, and audit reports. | Partial | Core reports exist; leave/notification/approval/planning reports added by phase. |
 
-This preserves the career-grade product direction without inflating the first production handover.
+This preserves the stable Production Core while making the career-grade Workforce OS implementation explicit and actionable.
 
 ---
 
@@ -263,6 +263,11 @@ Frontend deployments should use the matching Vite-prefixed values where required
 ```text
 VITE_APP_MODE=production
 VITE_DISABLE_DEMO_FALLBACK=true
+VITE_FEATURE_LEAVE=true|false
+VITE_FEATURE_NOTIFICATIONS=true|false
+VITE_FEATURE_TEAMS=true|false
+VITE_FEATURE_ENTRA=true|false
+VITE_FEATURE_PLANNING=true|false
 ```
 
 ### Implemented API Surface
@@ -299,6 +304,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | Data-quality report | Complete foundation | UI route and backend endpoint exist; export is audited. |
 | Dashboard report endpoint | Complete foundation | Backend endpoint exists for command-center style summary. |
 | BRD traceability UI | Complete foundation | `/governance/brd-traceability` maps new BRD modules to Production Core, future roadmap, UI status, API/data status, and next actions. |
+| Enterprise feature flag foundation | Complete foundation | ESS, Leave, Approvals, Notifications, Integrations, Planning, and Command Center routes/navigation are gated by Workforce OS feature flags. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -342,11 +348,11 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | Reports | Included now for core reports | Planned, Actual, Forecast, Data Quality, Audit, Import/Export | Core report endpoints and hosted smoke coverage exist | Partial; DB fixtures/browser QA pending |
 | Import / Export | Included now as CSV-first | Import / Export center with dry run, errors, history, and exports | Backend apply endpoints, duplicate-row guardrails, logs | Partial; real-file UAT pending |
 | Audit and Governance | Included now | Audit Trail, Governance Settings, Data Quality | Backend audit metadata and constrained audit events exist | Partial; retention/sign-off pending |
-| Leave Management | Deferred | Not in Production Core UI | Nullable placeholders only | Future phase |
-| Notification Center | Deferred | Not in Production Core UI | No queue/delivery engine | Future phase |
-| Microsoft Teams | Deferred | Not in Production Core UI | Teams identity placeholders only | Future phase |
-| Microsoft Entra SSO | Deferred | Not in Production Core UI | Entra object placeholder only | Future phase |
-| Resource Planning Board | Deferred | Not in Production Core UI | Allocation/report data can support later design | Future phase |
+| Leave Management | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_LEAVE` is enabled | Nullable placeholders only | Phase 2 implementation pending |
+| Notification Center | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_NOTIFICATIONS` is enabled | No queue/delivery engine yet | Phase 4 implementation pending |
+| Microsoft Teams | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_TEAMS` is enabled | Teams identity placeholders only | Phase 5 implementation pending |
+| Microsoft Entra SSO | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_ENTRA` is enabled | Entra object placeholder only | Phase 5 implementation pending |
+| Resource Planning Board | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_PLANNING` is enabled | Allocation/report data can support implementation | Phase 6 implementation pending |
 
 The same mapping is available in the application at `/governance/brd-traceability` for reviewers and UAT leads.
 
@@ -498,16 +504,16 @@ Production Core is acceptable for company handover only when:
 
 ---
 
-## 13. Future Roadmap After Production Core
+## 13. Workforce OS Phased Implementation
 
-Do not start these until Production Core is accepted unless the company explicitly changes priority:
+Implement these in order behind feature flags, updating BRD traceability, tests, runbooks, and UAT evidence after each phase:
 
-1. Microsoft Entra SSO.
-2. Teams notification and approval surfaces.
-3. Leave management and holiday calendars.
-4. Role/scope-based notification center.
-5. Advanced resource planning board.
-6. Generic workflow/approval engine.
-7. Billing/rate cards/invoicing.
-8. AI-assisted forecasting or recommendations.
-9. Kanban/task management.
+1. Phase 1: enterprise feature flags, route foundations, adapter-first configuration, and traceability.
+2. Phase 2: ESS and Leave Management.
+3. Phase 3: generic approval engine.
+4. Phase 4: notification center with in-app, mock email, and mock Teams adapters.
+5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation.
+6. Phase 6: resource planning board and upgraded workforce command center.
+7. Phase 7: production readiness hardening for all new modules.
+
+Billing, AI, and Kanban/task management remain excluded from this enterprise build.
