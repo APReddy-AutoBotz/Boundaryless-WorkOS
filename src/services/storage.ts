@@ -23,7 +23,12 @@ import {
   NotificationEvent,
   NotificationTemplate,
   NotificationPreference,
-  NotificationDeliveryAttempt
+  NotificationDeliveryAttempt,
+  IdentityProviderLink,
+  EntraRoleMapping,
+  TeamsUserLink,
+  TeamsActionToken,
+  IntegrationEventLog
 } from '../types';
 import { getActiveAllocationsForEmployee, getAllocationLoad, getLatestApprovedActualUtilization, overlapsDateRange } from './calculations';
 import {
@@ -63,6 +68,11 @@ const STORAGE_KEYS = {
   NOTIFICATION_TEMPLATES: 'bw_notification_templates',
   NOTIFICATION_PREFERENCES: 'bw_notification_preferences',
   NOTIFICATION_DELIVERY_ATTEMPTS: 'bw_notification_delivery_attempts',
+  INTEGRATION_IDENTITY_LINKS: 'bw_integration_identity_links',
+  INTEGRATION_ENTRA_ROLE_MAPPINGS: 'bw_integration_entra_role_mappings',
+  INTEGRATION_TEAMS_USER_LINKS: 'bw_integration_teams_user_links',
+  INTEGRATION_TEAMS_ACTION_TOKENS: 'bw_integration_teams_action_tokens',
+  INTEGRATION_EVENT_LOGS: 'bw_integration_event_logs',
   DEMO_DATA_VERSION: 'rt_demo_data_version'
 };
 
@@ -235,6 +245,38 @@ const defaultNotificationTemplates: NotificationTemplate[] = [
   },
 ];
 
+const defaultEntraRoleMappings: EntraRoleMapping[] = (['Employee', 'TeamLead', 'ProjectManager', 'CountryDirector', 'HR', 'Admin'] as UserRole[]).map(role => ({
+  id: `entra-role-map-${role.toLowerCase()}`,
+  groupId: `mock-entra-group-${role.toLowerCase()}`,
+  groupName: `Boundaryless WorkOS ${role}`,
+  roleName: role,
+  active: true,
+}));
+
+const buildDefaultIdentityLinks = (employees: Employee[]): IdentityProviderLink[] => employees
+  .filter(employee => employee.entraObjectId)
+  .map(employee => ({
+    id: `identity-link-${employee.id}`,
+    employeeId: employee.id,
+    employeeName: employee.name,
+    provider: 'entra',
+    providerSubject: employee.entraObjectId || '',
+    providerUpn: employee.email,
+    status: 'Linked',
+  }));
+
+const buildDefaultTeamsLinks = (employees: Employee[]): TeamsUserLink[] => employees
+  .filter(employee => employee.teamsUserId)
+  .map(employee => ({
+    id: `teams-link-${employee.id}`,
+    employeeId: employee.id,
+    employeeName: employee.name,
+    teamsUserId: employee.teamsUserId || '',
+    teamsUpn: employee.email,
+    teamsTenantId: 'mock-tenant',
+    status: 'Linked',
+  }));
+
 const todayIso = () => new Date().toISOString().split('T')[0];
 const DEMO_PASSWORD_HASH = 'sha256:d3ad9315b7be5dd53b31a273b3b3aba5defe700808305aa16a3062b76658a791';
 
@@ -337,6 +379,7 @@ export class DataStorage {
       this.set<ImportExportLog[]>(STORAGE_KEYS.IMPORT_EXPORT_LOGS, []);
     }
     this.ensureLeaveFoundation();
+    this.ensureIntegrationFoundation();
     this.ensureUserAccounts();
     this.recalculateUtilization();
   }
@@ -367,6 +410,11 @@ export class DataStorage {
     this.set(STORAGE_KEYS.NOTIFICATION_TEMPLATES, defaultNotificationTemplates);
     this.set<NotificationPreference[]>(STORAGE_KEYS.NOTIFICATION_PREFERENCES, []);
     this.set<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
+    this.set(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, buildDefaultIdentityLinks(dataset.employees));
+    this.set(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, defaultEntraRoleMappings);
+    this.set(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, buildDefaultTeamsLinks(dataset.employees));
+    this.set<TeamsActionToken[]>(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, []);
+    this.set<IntegrationEventLog[]>(STORAGE_KEYS.INTEGRATION_EVENT_LOGS, []);
     localStorage.removeItem(STORAGE_KEYS.AUTH);
     localStorage.removeItem(STORAGE_KEYS.USER_ACCOUNTS);
     this.set(STORAGE_KEYS.DEMO_DATA_VERSION, DEMO_DATA_VERSION);
@@ -417,6 +465,25 @@ export class DataStorage {
     }
     if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS)) {
       this.set<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
+    }
+  }
+
+  static ensureIntegrationFoundation() {
+    const employees = this.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+    if (!localStorage.getItem(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS)) {
+      this.set(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, buildDefaultIdentityLinks(employees));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS)) {
+      this.set(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, defaultEntraRoleMappings);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS)) {
+      this.set(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, buildDefaultTeamsLinks(employees));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS)) {
+      this.set<TeamsActionToken[]>(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, []);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.INTEGRATION_EVENT_LOGS)) {
+      this.set<IntegrationEventLog[]>(STORAGE_KEYS.INTEGRATION_EVENT_LOGS, []);
     }
   }
 

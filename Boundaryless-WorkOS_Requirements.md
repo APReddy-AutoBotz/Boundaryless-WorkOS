@@ -52,9 +52,9 @@ The first production handover must remain premium, focused, and enterprise-safe,
 
 - Leave management workflow
 - Employee self-service leave balance and leave calendar
-- Microsoft Teams bot, Adaptive Cards, or Teams action tokens
-- Microsoft Entra SSO
-- Email/Teams notification delivery engine
+- Microsoft Teams chatbot behavior or production Graph-connected Adaptive Cards
+- Production Microsoft Entra SSO sign-in
+- Production email/Teams delivery credentials
 - Billing, invoicing, rate cards, or revenue recognition
 - AI, Gemini, assistants, forecasting intelligence, or recommendations
 - Kanban/task management
@@ -82,8 +82,8 @@ One trusted operational layer for employees, capacity, availability, allocations
 | Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Phase 2 in progress | Leave data model, backend APIs, local/demo services, self-service UI, team calendar, admin policy view, balance report, and availability report are implemented. |
 | Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Phase 3 in progress | Shared approval records, approval inbox/history, delegation model, SLA report, and timesheet/leave approval linkage are implemented. |
 | Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Phase 4 in progress | In-app notification events, templates, preferences, delivery attempts, mock provider logging, and notification center UI are implemented. |
-| Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 1 foundation | Feature-flagged route foundation now; mock adapter and mapping in Phase 5. |
-| Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Phase 1 foundation | Feature-flagged route foundation now; mock identity adapter and mapping in Phase 5. |
+| Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 5 complete foundation | Teams user links, deterministic action tokens, mock action execution, event logs, and health UI/API are implemented; real Graph credentials remain company handover work. |
+| Microsoft Entra SSO | Enterprise identity and group-to-role mapping. | Phase 5 complete foundation | Identity provider links, Entra group-role mappings, mock/local adapter surface, event logs, and health UI/API are implemented; production SSO remains company handover work. |
 | Resource Planning Board | Availability-aware allocation planning and bench/roll-off visibility. | Phase 1 foundation | Feature-flagged route foundation now; planning reports/UI in Phase 6. |
 | Workforce Command Center | Executive dashboard with utilization, availability, attention items, and data confidence. | Partial | Current dashboard exists; enterprise command-center route foundation now; upgraded reports in Phase 6. |
 | Reports | Utilization, allocation, timesheet, data-quality, leave, notification, and audit reports. | Partial | Core reports exist; leave/notification/approval/planning reports added by phase. |
@@ -336,6 +336,10 @@ VITE_FEATURE_PLANNING=true|false
 | Notification center UI | Phase 4 complete foundation | `/notifications` renders inbox, preferences, admin templates, and delivery monitoring behind the Workforce OS feature flag. |
 | Mock notification delivery | Phase 4 complete foundation | Approval request/decision events create in-app notification events, mock delivery attempts, and notification audit records. |
 | Notification smoke coverage | Complete | `test:notifications` covers notification events, read state, template editing, and mock delivery logging. |
+| Identity integration foundation | Phase 5 complete foundation | `/integrations/identity` renders identity provider links, Entra role mappings, integration health, and event logs behind `FEATURE_ENTRA`. |
+| Teams integration foundation | Phase 5 complete foundation | `/integrations/teams` renders Teams user links, deterministic Teams action tokens, integration health, and event logs behind `FEATURE_TEAMS`. |
+| Integration data model and migration | Phase 5 complete foundation | `010_workforce_os_integrations.sql` adds identity provider links, Entra group-role mappings, Teams user links, Teams action tokens, and integration event logs. |
+| Integration adapter smoke coverage | Complete | `test:integrations` covers local/mock identity links, Entra role mappings, Teams links, action token execution, health, and integration events. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -379,10 +383,10 @@ VITE_FEATURE_PLANNING=true|false
 | Reports | Included now for core reports | Planned, Actual, Forecast, Data Quality, Audit, Import/Export | Core report endpoints and hosted smoke coverage exist | Partial; DB fixtures/browser QA pending |
 | Import / Export | Included now as CSV-first | Import / Export center with dry run, errors, history, and exports | Backend apply endpoints, duplicate-row guardrails, logs | Partial; real-file UAT pending |
 | Audit and Governance | Included now | Audit Trail, Governance Settings, Data Quality | Backend audit metadata and constrained audit events exist | Partial; retention/sign-off pending |
-| Leave Management | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_LEAVE` is enabled | Nullable placeholders only | Phase 2 implementation pending |
-| Notification Center | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_NOTIFICATIONS` is enabled | No queue/delivery engine yet | Phase 4 implementation pending |
-| Microsoft Teams | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_TEAMS` is enabled | Teams identity placeholders only | Phase 5 implementation pending |
-| Microsoft Entra SSO | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_ENTRA` is enabled | Entra object placeholder only | Phase 5 implementation pending |
+| Leave Management | Feature-flagged Workforce OS phase | ESS, My Leave, Team Calendar, and Leave Admin available when `FEATURE_LEAVE` is enabled | Leave tables, APIs, approvals, balances, holidays, and availability report exist | Phase 2 complete foundation; UAT/hardening pending |
+| Notification Center | Feature-flagged Workforce OS phase | Notification center available when `FEATURE_NOTIFICATIONS` is enabled | Events, templates, preferences, delivery attempts, and mock delivery logging exist | Phase 4 complete foundation; production adapters pending |
+| Microsoft Teams | Feature-flagged Workforce OS phase | Teams Mapping available when `FEATURE_TEAMS` is enabled | Teams user links, deterministic action tokens, mock execution, health, and event logs exist | Phase 5 complete foundation; Graph credentials/UAT pending |
+| Microsoft Entra SSO | Feature-flagged Workforce OS phase | Identity Mapping available when `FEATURE_ENTRA` is enabled | Identity provider links, Entra group-role mappings, health, and event logs exist | Phase 5 complete foundation; production SSO credentials/UAT pending |
 | Resource Planning Board | Feature-flagged Workforce OS phase | Route foundation available when `FEATURE_PLANNING` is enabled | Allocation/report data can support implementation | Phase 6 implementation pending |
 
 The same mapping is available in the application at `/governance/brd-traceability` for reviewers and UAT leads.
@@ -543,7 +547,7 @@ Implement these in order behind feature flags, updating BRD traceability, tests,
 2. Phase 2: ESS and Leave Management. Core leave model, APIs, ESS, self-service leave, team calendar, admin policy view, balance report, availability report, and smoke test are complete; remaining hardening is richer manager hierarchy, accrual automation, calendar UX, and browser UAT evidence.
 3. Phase 3: generic approval engine. Shared records, APIs, approval workspace, delegation model, SLA report, and timesheet/leave approval linkage are complete; remaining hardening is allocation-change approvals, delegation enforcement in decision routing, and browser UAT evidence.
 4. Phase 4: notification center with in-app, mock email, and mock Teams adapters. In-app events, templates, preferences, delivery attempts, mock delivery logging, UI, and smoke coverage are complete; remaining hardening is SMTP/Graph adapter implementation, Teams provider credentials, template variable rendering, and browser UAT evidence.
-5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation.
+5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation. Identity links, group-role mappings, Teams user links, deterministic action tokens, mock execution, event logs, integration health, UI, migration, and smoke coverage are complete; remaining hardening is Microsoft Graph/Entra credential wiring, action-token external URL signing policy, and browser UAT evidence.
 6. Phase 6: resource planning board and upgraded workforce command center.
 7. Phase 7: production readiness hardening for all new modules.
 

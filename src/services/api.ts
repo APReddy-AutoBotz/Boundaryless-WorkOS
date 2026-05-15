@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport, NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry, ApprovalRecord, ApprovalDelegation, ApprovalSlaReport, NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt, IdentityProviderLink, EntraRoleMapping, TeamsUserLink, TeamsActionToken, IntegrationEventLog, IntegrationHealthReport } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -17,6 +17,8 @@ import {
   normalizeLeaveRequest, normalizeApprovalRecord, normalizeApprovalDelegation,
   normalizeApprovalSlaReport, normalizeNotificationEvent, normalizeNotificationTemplate,
   normalizeNotificationPreference, normalizeNotificationDeliveryAttempt,
+  normalizeIdentityProviderLink, normalizeEntraRoleMapping, normalizeTeamsUserLink,
+  normalizeTeamsActionToken, normalizeIntegrationEventLog, normalizeIntegrationHealthReport,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
@@ -942,6 +944,249 @@ export const notificationService = {
       return raw.map(normalizeNotificationDeliveryAttempt);
     }
     return DataStorage.get<NotificationDeliveryAttempt[]>(STORAGE_KEYS.NOTIFICATION_DELIVERY_ATTEMPTS, []);
+  },
+};
+
+export interface IdentityProviderAdapter {
+  provider: string;
+  linkIdentity(link: IdentityProviderLink): Promise<IdentityProviderLink>;
+}
+
+export interface NotificationProviderAdapter {
+  provider: string;
+  send(event: NotificationEvent): Promise<IntegrationEventLog>;
+}
+
+export interface TeamsActionAdapter {
+  provider: string;
+  createActionToken(token: Omit<TeamsActionToken, 'id' | 'token' | 'createdAt'>): Promise<TeamsActionToken>;
+  executeActionToken(token: string, comments?: string): Promise<TeamsActionToken>;
+}
+
+const getLocalIntegrationLogs = () => DataStorage.get<IntegrationEventLog[]>(STORAGE_KEYS.INTEGRATION_EVENT_LOGS, []);
+
+const writeLocalIntegrationLog = (log: Omit<IntegrationEventLog, 'id' | 'createdAt'>) => {
+  const next: IntegrationEventLog = {
+    ...log,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  DataStorage.set(STORAGE_KEYS.INTEGRATION_EVENT_LOGS, [next, ...getLocalIntegrationLogs()].slice(0, 300));
+  const u = actor();
+  DataStorage.logAction(u.id, u.name, u.role, log.eventType, 'Integrations', `${log.provider} ${log.eventType}`, {
+    entityType: log.entityType,
+    entityId: log.entityId,
+    newValue: log.responsePayload,
+    source: log.provider === 'teams' ? 'Teams' : 'System',
+  });
+  return next;
+};
+
+const getLocalIntegrationHealth = (): IntegrationHealthReport => {
+  const employees = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+  const identityLinks = DataStorage.get<IdentityProviderLink[]>(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, []);
+  const roleMappings = DataStorage.get<EntraRoleMapping[]>(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, []);
+  const teamsLinks = DataStorage.get<TeamsUserLink[]>(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, []);
+  const tokens = DataStorage.get<TeamsActionToken[]>(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, []);
+  const events = getLocalIntegrationLogs();
+  const activeEmployees = employees.filter(employee => employee.status === 'Active');
+  const linkedIdentityEmployeeIds = new Set(identityLinks.filter(link => link.status === 'Linked').map(link => link.employeeId));
+  const linkedTeamsEmployeeIds = new Set(teamsLinks.filter(link => link.status === 'Linked').map(link => link.employeeId));
+  const now = new Date().toISOString();
+  return {
+    generatedAt: now,
+    identityProvider: 'local',
+    teamsProvider: 'mock',
+    emailProvider: 'mock',
+    linkedIdentityCount: linkedIdentityEmployeeIds.size,
+    linkedTeamsCount: linkedTeamsEmployeeIds.size,
+    activeRoleMappings: roleMappings.filter(mapping => mapping.active).length,
+    openActionTokens: tokens.filter(token => !token.usedAt && token.expiresAt > now).length,
+    recentFailures: events.filter(event => event.status === 'Failed').length,
+    missingIdentityLinks: activeEmployees.filter(employee => !linkedIdentityEmployeeIds.has(employee.id)).length,
+    missingTeamsLinks: activeEmployees.filter(employee => !linkedTeamsEmployeeIds.has(employee.id)).length,
+    events: events.slice(0, 25),
+  };
+};
+
+export const integrationService = {
+  getIdentityLinks: async (): Promise<IdentityProviderLink[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/integrations/identity-links');
+      return raw.map(normalizeIdentityProviderLink);
+    }
+    return DataStorage.get<IdentityProviderLink[]>(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, []);
+  },
+  saveIdentityLink: async (link: IdentityProviderLink): Promise<IdentityProviderLink> => {
+    if (await checkBackend()) {
+      return normalizeIdentityProviderLink(await api.post<Record<string, unknown>>('/api/integrations/identity-links', {
+        id: link.id,
+        employee_id: link.employeeId,
+        provider: link.provider,
+        provider_subject: link.providerSubject,
+        provider_upn: link.providerUpn || null,
+        status: link.status,
+      }));
+    }
+    const links = DataStorage.get<IdentityProviderLink[]>(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, []);
+    const employees = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+    const employee = employees.find(item => item.id === link.employeeId);
+    const next = {
+      ...link,
+      id: link.id || crypto.randomUUID(),
+      employeeName: employee?.name || link.employeeName,
+      linkedAt: link.linkedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    DataStorage.set(STORAGE_KEYS.INTEGRATION_IDENTITY_LINKS, [next, ...links.filter(item => item.id !== next.id && item.employeeId !== next.employeeId)]);
+    DataStorage.set(STORAGE_KEYS.EMPLOYEES, employees.map(item => item.id === next.employeeId ? { ...item, entraObjectId: next.providerSubject } : item));
+    writeLocalIntegrationLog({
+      provider: next.provider,
+      eventType: 'IdentityLinkUpserted',
+      entityType: 'IdentityProviderLink',
+      entityId: next.id,
+      status: 'Success',
+      responsePayload: { employeeId: next.employeeId, providerSubject: next.providerSubject },
+    });
+    return next;
+  },
+  getEntraRoleMappings: async (): Promise<EntraRoleMapping[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/integrations/entra-role-mappings');
+      return raw.map(normalizeEntraRoleMapping);
+    }
+    return DataStorage.get<EntraRoleMapping[]>(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, []);
+  },
+  saveEntraRoleMapping: async (mapping: EntraRoleMapping): Promise<EntraRoleMapping> => {
+    if (await checkBackend()) {
+      return normalizeEntraRoleMapping(await api.post<Record<string, unknown>>('/api/integrations/entra-role-mappings', {
+        id: mapping.id,
+        group_id: mapping.groupId,
+        group_name: mapping.groupName,
+        role_name: mapping.roleName,
+        active: mapping.active,
+      }));
+    }
+    const mappings = DataStorage.get<EntraRoleMapping[]>(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, []);
+    const next = { ...mapping, id: mapping.id || crypto.randomUUID(), updatedAt: new Date().toISOString() };
+    DataStorage.set(STORAGE_KEYS.INTEGRATION_ENTRA_ROLE_MAPPINGS, [next, ...mappings.filter(item => item.id !== next.id && item.groupId !== next.groupId)]);
+    writeLocalIntegrationLog({
+      provider: 'entra',
+      eventType: 'RoleMappingUpserted',
+      entityType: 'EntraRoleMapping',
+      entityId: next.id,
+      status: 'Success',
+      responsePayload: { roleName: next.roleName, groupName: next.groupName },
+    });
+    return next;
+  },
+  getTeamsUserLinks: async (): Promise<TeamsUserLink[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/integrations/teams-user-links');
+      return raw.map(normalizeTeamsUserLink);
+    }
+    return DataStorage.get<TeamsUserLink[]>(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, []);
+  },
+  saveTeamsUserLink: async (link: TeamsUserLink): Promise<TeamsUserLink> => {
+    if (await checkBackend()) {
+      return normalizeTeamsUserLink(await api.post<Record<string, unknown>>('/api/integrations/teams-user-links', {
+        id: link.id,
+        employee_id: link.employeeId,
+        teams_user_id: link.teamsUserId,
+        teams_upn: link.teamsUpn || null,
+        teams_tenant_id: link.teamsTenantId || null,
+        status: link.status,
+      }));
+    }
+    const links = DataStorage.get<TeamsUserLink[]>(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, []);
+    const employees = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+    const employee = employees.find(item => item.id === link.employeeId);
+    const next = {
+      ...link,
+      id: link.id || crypto.randomUUID(),
+      employeeName: employee?.name || link.employeeName,
+      linkedAt: link.linkedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    DataStorage.set(STORAGE_KEYS.INTEGRATION_TEAMS_USER_LINKS, [next, ...links.filter(item => item.id !== next.id && item.employeeId !== next.employeeId)]);
+    DataStorage.set(STORAGE_KEYS.EMPLOYEES, employees.map(item => item.id === next.employeeId ? { ...item, teamsUserId: next.teamsUserId } : item));
+    writeLocalIntegrationLog({
+      provider: 'teams',
+      eventType: 'TeamsUserLinkUpserted',
+      entityType: 'TeamsUserLink',
+      entityId: next.id,
+      status: 'Success',
+      responsePayload: { employeeId: next.employeeId, teamsUserId: next.teamsUserId },
+    });
+    return next;
+  },
+  createTeamsActionToken: async (token: Omit<TeamsActionToken, 'id' | 'token' | 'createdAt'>): Promise<TeamsActionToken> => {
+    if (await checkBackend()) {
+      return normalizeTeamsActionToken(await api.post<Record<string, unknown>>('/api/integrations/teams-action-tokens', {
+        entity_type: token.entityType,
+        entity_id: token.entityId,
+        action: token.action,
+        target_url: token.targetUrl || null,
+        expires_at: token.expiresAt,
+      }));
+    }
+    const u = actor();
+    const next: TeamsActionToken = {
+      ...token,
+      id: crypto.randomUUID(),
+      token: crypto.randomUUID(),
+      createdBy: u.id,
+      createdAt: new Date().toISOString(),
+    };
+    const tokens = DataStorage.get<TeamsActionToken[]>(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, []);
+    DataStorage.set(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, [next, ...tokens]);
+    writeLocalIntegrationLog({
+      provider: 'teams',
+      eventType: 'TeamsActionTokenCreated',
+      entityType: token.entityType,
+      entityId: token.entityId,
+      status: 'Success',
+      responsePayload: { action: token.action, deterministic: true },
+    });
+    return next;
+  },
+  executeTeamsActionToken: async (token: string, comments?: string): Promise<TeamsActionToken> => {
+    if (await checkBackend()) {
+      return normalizeTeamsActionToken(await api.post<Record<string, unknown>>(`/api/integrations/teams-action-tokens/${encodeURIComponent(token)}/execute`, { comments }));
+    }
+    const tokens = DataStorage.get<TeamsActionToken[]>(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, []);
+    const existing = tokens.find(item => item.token === token);
+    if (!existing) throw new Error('Teams action token was not found.');
+    if (existing.usedAt) throw new Error('Teams action token has already been used.');
+    if (existing.expiresAt < new Date().toISOString()) throw new Error('Teams action token has expired.');
+    if (existing.entityType === 'ApprovalRecord' && (existing.action === 'approve' || existing.action === 'reject')) {
+      await approvalService.decide(existing.entityId, existing.action === 'approve' ? 'Approved' : 'Rejected', comments || 'Decided from deterministic Teams action.');
+    }
+    const next = { ...existing, usedAt: new Date().toISOString() };
+    DataStorage.set(STORAGE_KEYS.INTEGRATION_TEAMS_ACTION_TOKENS, tokens.map(item => item.id === next.id ? next : item));
+    writeLocalIntegrationLog({
+      provider: 'teams',
+      eventType: 'TeamsActionTokenExecuted',
+      entityType: existing.entityType,
+      entityId: existing.entityId,
+      status: 'Success',
+      requestPayload: { action: existing.action },
+      responsePayload: { deterministic: true, usedAt: next.usedAt },
+    });
+    return next;
+  },
+  getIntegrationEvents: async (): Promise<IntegrationEventLog[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/integrations/events');
+      return raw.map(normalizeIntegrationEventLog);
+    }
+    return getLocalIntegrationLogs();
+  },
+  getHealth: async (): Promise<IntegrationHealthReport> => {
+    if (await checkBackend()) {
+      return normalizeIntegrationHealthReport(await api.get<Record<string, unknown>>('/api/integrations/health'));
+    }
+    return getLocalIntegrationHealth();
   },
 };
 

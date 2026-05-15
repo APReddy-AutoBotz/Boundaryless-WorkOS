@@ -290,6 +290,80 @@ export interface NotificationDeliveryAttempt {
   attemptedAt: string;
 }
 
+export interface IdentityProviderLink {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  provider: 'local' | 'entra' | string;
+  providerSubject: string;
+  providerUpn?: string;
+  status: 'Linked' | 'Pending' | 'Disabled' | string;
+  linkedAt?: string;
+  updatedAt?: string;
+}
+
+export interface EntraRoleMapping {
+  id: string;
+  groupId: string;
+  groupName: string;
+  roleName: UserRole | string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TeamsUserLink {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  teamsUserId: string;
+  teamsUpn?: string;
+  teamsTenantId?: string;
+  status: 'Linked' | 'Pending' | 'Disabled' | string;
+  linkedAt?: string;
+  updatedAt?: string;
+}
+
+export interface TeamsActionToken {
+  id: string;
+  token: string;
+  entityType: 'ApprovalRecord' | 'LeaveRequest' | 'Timesheet' | 'PortalLink' | string;
+  entityId: string;
+  action: 'approve' | 'reject' | 'open_portal';
+  targetUrl?: string;
+  expiresAt: string;
+  usedAt?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface IntegrationEventLog {
+  id: string;
+  provider: 'local' | 'entra' | 'teams' | 'email' | string;
+  eventType: string;
+  entityType?: string;
+  entityId?: string;
+  status: 'Success' | 'Failed' | 'Pending' | string;
+  requestPayload?: Record<string, unknown>;
+  responsePayload?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface IntegrationHealthReport {
+  generatedAt: string;
+  identityProvider: string;
+  teamsProvider: string;
+  emailProvider: string;
+  linkedIdentityCount: number;
+  linkedTeamsCount: number;
+  activeRoleMappings: number;
+  openActionTokens: number;
+  recentFailures: number;
+  missingIdentityLinks: number;
+  missingTeamsLinks: number;
+  events: IntegrationEventLog[];
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

@@ -29,6 +29,8 @@ const TeamLeaveCalendar = lazy(() => import('./pages/LeaveManagement').then(modu
 const LeaveAdmin = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.LeaveAdmin })));
 const ApprovalsWorkspace = lazy(() => import('./pages/ApprovalsWorkspace').then(module => ({ default: module.ApprovalsWorkspace })));
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
+const IdentityIntegration = lazy(() => import('./pages/IntegrationsWorkspace').then(module => ({ default: module.IdentityIntegration })));
+const TeamsIntegration = lazy(() => import('./pages/IntegrationsWorkspace').then(module => ({ default: module.TeamsIntegration })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -225,24 +227,12 @@ export default function App() {
                 } />
                 <Route path="/integrations/identity" element={
                   <FeatureRoute flag="entra" roles={ROUTE_ROLES.identityIntegrations}>
-                    <EnterpriseModuleShell
-                      module="Identity"
-                      phase="Phase 5"
-                      subtitle="Microsoft Entra-ready identity mapping and role synchronization."
-                      capabilities={['Identity provider links', 'Entra group-role mapping', 'Integration health checks']}
-                      nextMilestone="Add identity provider link tables, Entra mapping UI, and local/mock adapter."
-                    />
+                    <IdentityIntegration />
                   </FeatureRoute>
                 } />
                 <Route path="/integrations/teams" element={
                   <FeatureRoute flag="teams" roles={ROUTE_ROLES.teamsIntegrations}>
-                    <EnterpriseModuleShell
-                      module="Teams"
-                      phase="Phase 5"
-                      subtitle="Deterministic Teams action layer for approvals and portal links."
-                      capabilities={['Teams user mapping', 'Teams action tokens', 'Mock Teams adapter and action audit']}
-                      nextMilestone="Add Teams mapping, deterministic action token model, and mock provider adapter."
-                    />
+                    <TeamsIntegration />
                   </FeatureRoute>
                 } />
                 <Route path="/planning/resources" element={

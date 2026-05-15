@@ -12,6 +12,8 @@ import type {
   LeaveType, LeavePolicy, HolidayCalendar, Holiday, LeaveBalance, LeaveRequest,
   ApprovalRecord, ApprovalDelegation, ApprovalSlaReport,
   NotificationEvent, NotificationTemplate, NotificationPreference, NotificationDeliveryAttempt,
+  IdentityProviderLink, EntraRoleMapping, TeamsUserLink, TeamsActionToken,
+  IntegrationEventLog, IntegrationHealthReport,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -539,6 +541,88 @@ export const normalizeNotificationDeliveryAttempt = (r: Record<string, unknown>)
       ? r.responseMetadata as Record<string, unknown>
       : undefined,
   attemptedAt: String(r.attempted_at ?? r.attemptedAt ?? new Date().toISOString()),
+});
+
+export const normalizeIdentityProviderLink = (r: Record<string, unknown>): IdentityProviderLink => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeName: r.employee_name ? String(r.employee_name) : r.employeeName ? String(r.employeeName) : undefined,
+  provider: String(r.provider ?? 'entra'),
+  providerSubject: String(r.provider_subject ?? r.providerSubject),
+  providerUpn: r.provider_upn ? String(r.provider_upn) : r.providerUpn ? String(r.providerUpn) : undefined,
+  status: String(r.status ?? 'Linked') as IdentityProviderLink['status'],
+  linkedAt: r.linked_at ? String(r.linked_at) : r.linkedAt ? String(r.linkedAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeEntraRoleMapping = (r: Record<string, unknown>): EntraRoleMapping => ({
+  id: String(r.id),
+  groupId: String(r.group_id ?? r.groupId),
+  groupName: String(r.group_name ?? r.groupName),
+  roleName: String(r.role_name ?? r.roleName),
+  active: r.active === undefined ? true : Boolean(r.active),
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeTeamsUserLink = (r: Record<string, unknown>): TeamsUserLink => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeName: r.employee_name ? String(r.employee_name) : r.employeeName ? String(r.employeeName) : undefined,
+  teamsUserId: String(r.teams_user_id ?? r.teamsUserId),
+  teamsUpn: r.teams_upn ? String(r.teams_upn) : r.teamsUpn ? String(r.teamsUpn) : undefined,
+  teamsTenantId: r.teams_tenant_id ? String(r.teams_tenant_id) : r.teamsTenantId ? String(r.teamsTenantId) : undefined,
+  status: String(r.status ?? 'Linked') as TeamsUserLink['status'],
+  linkedAt: r.linked_at ? String(r.linked_at) : r.linkedAt ? String(r.linkedAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeTeamsActionToken = (r: Record<string, unknown>): TeamsActionToken => ({
+  id: String(r.id),
+  token: String(r.token),
+  entityType: String(r.entity_type ?? r.entityType) as TeamsActionToken['entityType'],
+  entityId: String(r.entity_id ?? r.entityId),
+  action: String(r.action) as TeamsActionToken['action'],
+  targetUrl: r.target_url ? String(r.target_url) : r.targetUrl ? String(r.targetUrl) : undefined,
+  expiresAt: String(r.expires_at ?? r.expiresAt),
+  usedAt: r.used_at ? String(r.used_at) : r.usedAt ? String(r.usedAt) : undefined,
+  createdBy: r.created_by ? String(r.created_by) : r.createdBy ? String(r.createdBy) : undefined,
+  createdAt: String(r.created_at ?? r.createdAt ?? new Date().toISOString()),
+});
+
+export const normalizeIntegrationEventLog = (r: Record<string, unknown>): IntegrationEventLog => ({
+  id: String(r.id),
+  provider: String(r.provider ?? 'mock'),
+  eventType: String(r.event_type ?? r.eventType),
+  entityType: r.entity_type ? String(r.entity_type) : r.entityType ? String(r.entityType) : undefined,
+  entityId: r.entity_id ? String(r.entity_id) : r.entityId ? String(r.entityId) : undefined,
+  status: String(r.status ?? 'Success') as IntegrationEventLog['status'],
+  requestPayload: r.request_payload && typeof r.request_payload === 'object'
+    ? r.request_payload as Record<string, unknown>
+    : r.requestPayload && typeof r.requestPayload === 'object'
+      ? r.requestPayload as Record<string, unknown>
+      : undefined,
+  responsePayload: r.response_payload && typeof r.response_payload === 'object'
+    ? r.response_payload as Record<string, unknown>
+    : r.responsePayload && typeof r.responsePayload === 'object'
+      ? r.responsePayload as Record<string, unknown>
+      : undefined,
+  createdAt: String(r.created_at ?? r.createdAt ?? new Date().toISOString()),
+});
+
+export const normalizeIntegrationHealthReport = (r: Record<string, unknown>): IntegrationHealthReport => ({
+  generatedAt: String(r.generated_at ?? r.generatedAt ?? new Date().toISOString()),
+  identityProvider: String(r.identity_provider ?? r.identityProvider ?? 'local'),
+  teamsProvider: String(r.teams_provider ?? r.teamsProvider ?? 'mock'),
+  emailProvider: String(r.email_provider ?? r.emailProvider ?? 'mock'),
+  linkedIdentityCount: Number(r.linked_identity_count ?? r.linkedIdentityCount ?? 0),
+  linkedTeamsCount: Number(r.linked_teams_count ?? r.linkedTeamsCount ?? 0),
+  activeRoleMappings: Number(r.active_role_mappings ?? r.activeRoleMappings ?? 0),
+  openActionTokens: Number(r.open_action_tokens ?? r.openActionTokens ?? 0),
+  recentFailures: Number(r.recent_failures ?? r.recentFailures ?? 0),
+  missingIdentityLinks: Number(r.missing_identity_links ?? r.missingIdentityLinks ?? 0),
+  missingTeamsLinks: Number(r.missing_teams_links ?? r.missingTeamsLinks ?? 0),
+  events: Array.isArray(r.events) ? (r.events as Record<string, unknown>[]).map(normalizeIntegrationEventLog) : [],
 });
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {

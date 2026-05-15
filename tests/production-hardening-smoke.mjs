@@ -14,9 +14,11 @@ const featureFlags = readFileSync('src/config/featureFlags.ts', 'utf8');
 const leaveManagement = readFileSync('src/pages/LeaveManagement.tsx', 'utf8');
 const approvalsWorkspace = readFileSync('src/pages/ApprovalsWorkspace.tsx', 'utf8');
 const notificationCenter = readFileSync('src/pages/NotificationCenter.tsx', 'utf8');
+const integrationsWorkspace = readFileSync('src/pages/IntegrationsWorkspace.tsx', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
 const notificationMigration = readFileSync('server/migrations/009_workforce_os_notifications.sql', 'utf8');
+const integrationMigration = readFileSync('server/migrations/010_workforce_os_integrations.sql', 'utf8');
 const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
 const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
 const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
@@ -59,6 +61,11 @@ assert.match(server, /app\.get\('\/api\/notifications'/, 'notification inbox API
 assert.match(server, /app\.patch\('\/api\/notifications\/:id\/read'/, 'notification read API must exist');
 assert.match(server, /app\.get\('\/api\/notification-templates'/, 'notification template API must exist');
 assert.match(server, /app\.get\('\/api\/notification-preferences'/, 'notification preference API must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/identity-links'/, 'identity provider link API must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/entra-role-mappings'/, 'Entra group-role mapping API must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/teams-user-links'/, 'Teams user mapping API must exist');
+assert.match(server, /app\.post\('\/api\/integrations\/teams-action-tokens'/, 'Teams deterministic action token API must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/health'/, 'integration health API must exist');
 assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
 assert.match(server, /app\.post\('\/api\/audit-events'/, 'backend audit event endpoint must exist for UI-triggered exports');
 assert.match(server, /action: z\.enum\(\['Export', 'Import', 'Notify'\]\)/, 'client audit events must be constrained to approved UI event actions');
@@ -77,17 +84,22 @@ assert.match(app, /\/ess[\s\S]*\/leave\/my[\s\S]*\/approvals[\s\S]*\/notificatio
 assert.match(app, /<ESSHome \/>[\s\S]*<MyLeave \/>[\s\S]*<TeamLeaveCalendar \/>[\s\S]*<LeaveAdmin \/>/, 'Phase 2 leave routes must render real leave screens');
 assert.match(app, /<ApprovalsWorkspace \/>/, 'Phase 3 approvals route must render real approval workspace');
 assert.match(app, /<NotificationCenter \/>/, 'Phase 4 notifications route must render real notification center');
+assert.match(app, /<IdentityIntegration \/>[\s\S]*<TeamsIntegration \/>/, 'Phase 5 integration routes must render real integration workspaces');
 assert.match(sidebar, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS navigation must be feature-gated');
 assert.match(header, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS search entries must be feature-gated');
 assert.match(leaveManagement, /Leave Balance[\s\S]*Submit Request[\s\S]*Team Leave Calendar[\s\S]*Leave Administration/, 'Phase 2 leave UI must include self-service, balances, team calendar, and admin views');
 assert.match(approvalsWorkspace, /Approval Inbox[\s\S]*Approval History[\s\S]*Approval Delegations/, 'Phase 3 approval UI must include inbox, history, and delegations');
 assert.match(notificationCenter, /Notification Inbox[\s\S]*Notification Preferences[\s\S]*Admin Notification Templates[\s\S]*Delivery Monitoring/, 'Phase 4 notification UI must include inbox, preferences, templates, and delivery monitoring');
+for (const label of ['Identity Provider Links', 'Entra Role Mapping', 'Teams User Mapping', 'Teams Action Tokens', 'Integration Event Logs']) {
+  assert.match(integrationsWorkspace, new RegExp(label), `Phase 5 integration UI must include ${label}`);
+}
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
 assert.ok(existsSync('server/migrations/007_workforce_os_leave.sql'), 'Workforce OS leave migration must exist');
 assert.ok(existsSync('server/migrations/008_workforce_os_approvals.sql'), 'Workforce OS approval migration must exist');
 assert.ok(existsSync('server/migrations/009_workforce_os_notifications.sql'), 'Workforce OS notification migration must exist');
+assert.ok(existsSync('server/migrations/010_workforce_os_integrations.sql'), 'Workforce OS integration migration must exist');
 for (const table of ['leave_types', 'leave_policies', 'holiday_calendars', 'leave_balances', 'leave_requests']) {
   assert.match(leaveMigration, new RegExp(`create table if not exists ${table}`), `leave migration must create ${table}`);
 }
@@ -97,6 +109,10 @@ for (const table of ['approval_records', 'approval_delegations']) {
 for (const table of ['notification_events', 'notification_templates', 'notification_preferences', 'notification_delivery_attempts']) {
   assert.match(notificationMigration, new RegExp(`create table if not exists ${table}`), `notification migration must create ${table}`);
 }
+for (const table of ['identity_provider_links', 'entra_group_role_mappings', 'teams_user_links', 'teams_action_tokens', 'integration_event_logs']) {
+  assert.match(integrationMigration, new RegExp(`create table if not exists ${table}`), `integration migration must create ${table}`);
+}
+assert.match(integrationMigration, /action text not null check \(action in \('approve', 'reject', 'open_portal'\)\)/, 'Teams actions must be deterministic approve/reject/open_portal only');
 
 assert.match(requirements, /Single source of truth for product scope, production-core requirements, implementation status, and next technical plan\./, 'requirements document must be the BRD source of truth');
 assert.match(requirements, /## 8\. Completed vs Pending Status/, 'requirements must mark completed and pending status');
@@ -123,4 +139,5 @@ console.log(JSON.stringify({
   leaveManagement: true,
   approvalEngine: true,
   notificationCenter: true,
+  integrationAdapters: true,
 }, null, 2));

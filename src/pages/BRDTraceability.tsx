@@ -32,8 +32,8 @@ const rows: TraceabilityRow[] = [
     phase: 'Production Core',
     deliveryStatus: 'Partial',
     uiStatus: 'Partial',
-    apiDataStatus: 'My Workspace and timesheet self-log exist. Leave, notifications, and profile self-service are future modules.',
-    nextAction: 'Complete role UAT for employee journeys and defer leave/notifications until after Production Core.',
+    apiDataStatus: 'My Workspace, timesheet self-log, ESS home, leave self-service, notifications, and profile-adjacent data are now available behind feature flags.',
+    nextAction: 'Complete role UAT for Employee journeys across core, leave, approvals, and notifications.',
   },
   {
     module: 'Client and Project Master',
@@ -129,19 +129,19 @@ const rows: TraceabilityRow[] = [
     module: 'Microsoft Teams Integration',
     brdIntent: 'Teams personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens.',
     phase: 'Workforce OS Phase',
-    deliveryStatus: 'Future phase',
-    uiStatus: 'Partial',
-    apiDataStatus: 'Feature-gated routes exist; Teams user/channel placeholders exist; no bot, cards, or Teams action tokens are implemented yet.',
-    nextAction: 'Add Teams mapping, deterministic action tokens, mock adapter, and audit-backed action handling.',
+    deliveryStatus: 'Partial',
+    uiStatus: 'Available',
+    apiDataStatus: 'Teams user links, deterministic approve/reject/open-portal action tokens, mock execution, integration event logs, health metrics, and audit-backed action handling exist.',
+    nextAction: 'Wire company Microsoft Graph credentials, finalize external action URL signing/expiry policy, and complete Teams browser/UAT evidence.',
   },
   {
     module: 'Microsoft Entra SSO',
     brdIntent: 'Enterprise SSO and group-to-role mapping.',
     phase: 'Workforce OS Phase',
-    deliveryStatus: 'Future phase',
-    uiStatus: 'Partial',
-    apiDataStatus: 'Feature-gated routes exist; Entra object placeholder exists; username/password remains supported.',
-    nextAction: 'Add identity provider links, Entra group-role mappings, mock adapter, and credential handover docs.',
+    deliveryStatus: 'Partial',
+    uiStatus: 'Available',
+    apiDataStatus: 'Identity provider links, Entra group-role mappings, local/mock adapter surface, integration event logs, and health metrics exist. Username/password remains supported.',
+    nextAction: 'Wire company Entra app credentials, validate group claims, and complete SSO/role-mapping UAT.',
   },
   {
     module: 'Company Production Handover',
@@ -210,8 +210,8 @@ export const BRDTraceability = () => (
           <h2 className="text-sm font-black uppercase tracking-widest text-heading">Scope Control</h2>
           <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-body/70">
             Production Core remains focused on workforce master data, projects, clients, allocations, timesheets, utilization, reports,
-            imports, exports, audit, and handover readiness. Leave, notifications, Teams, and Entra are preserved in the roadmap,
-            and are now controlled by enterprise feature flags so each phase can be implemented without destabilizing the current handover path.
+            imports, exports, audit, and handover readiness. Leave, approvals, notifications, Teams, and Entra now have feature-flagged
+            Workforce OS foundations, with Planning and Command Center upgrades next.
           </p>
         </div>
       </div>

@@ -6,6 +6,7 @@ const schema = readFileSync('server/schema.sql', 'utf8');
 const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const approvalMigration = readFileSync('server/migrations/008_workforce_os_approvals.sql', 'utf8');
 const notificationMigration = readFileSync('server/migrations/009_workforce_os_notifications.sql', 'utf8');
+const integrationMigration = readFileSync('server/migrations/010_workforce_os_integrations.sql', 'utf8');
 const seedDemo = readFileSync('server/seed-demo.mjs', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -77,6 +78,16 @@ assert.match(server, /app\.get\('\/api\/notification-preferences'/, 'notificatio
 assert.match(server, /app\.get\('\/api\/notification-delivery-attempts'/, 'notification delivery monitoring route must exist');
 assert.match(notificationMigration, /create table if not exists notification_events/, 'notification migration must create events');
 assert.match(notificationMigration, /create table if not exists notification_delivery_attempts/, 'notification migration must create delivery attempts');
+assert.match(server, /app\.get\('\/api\/integrations\/identity-links'/, 'identity provider link route must exist');
+assert.match(server, /app\.post\('\/api\/integrations\/identity-links'/, 'identity provider link save route must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/entra-role-mappings'/, 'Entra role mapping route must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/teams-user-links'/, 'Teams user link route must exist');
+assert.match(server, /app\.post\('\/api\/integrations\/teams-action-tokens'/, 'Teams action token creation route must exist');
+assert.match(server, /app\.post\('\/api\/integrations\/teams-action-tokens\/:token\/execute'/, 'Teams action token execution route must exist');
+assert.match(server, /app\.get\('\/api\/integrations\/health'/, 'integration health route must exist');
+assert.match(integrationMigration, /create table if not exists identity_provider_links/, 'integration migration must create identity provider links');
+assert.match(integrationMigration, /create table if not exists teams_action_tokens/, 'integration migration must create Teams action tokens');
+assert.match(integrationMigration, /action text not null check \(action in \('approve', 'reject', 'open_portal'\)\)/, 'Teams action tokens must be deterministic action-only');
 assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
@@ -90,6 +101,7 @@ console.log(JSON.stringify({
   leaveRoutes: true,
   approvalRoutes: true,
   notificationRoutes: true,
+  integrationRoutes: true,
   employeeImportApply: true,
   clientImportApply: true,
   projectImportApply: true,

@@ -12,6 +12,7 @@ Use this checklist for the company production handover. Production Core remains 
 - `AUTO_SEED_DEMO=false` for any database containing real records.
 - `FEATURE_LEAVE` / `VITE_FEATURE_LEAVE` are enabled only after Phase 2 leave UAT is approved.
 - `FEATURE_NOTIFICATIONS`, `FEATURE_TEAMS`, `FEATURE_ENTRA`, and `FEATURE_PLANNING` remain disabled until their phases pass UAT.
+- `EMAIL_PROVIDER=mock`, `TEAMS_PROVIDER=mock`, and `IDENTITY_PROVIDER=local` remain in place until company Microsoft/email credentials are approved.
 - `APP_URL` matches the final HTTPS URL.
 
 ## 2. Release Checks
@@ -21,6 +22,9 @@ Use this checklist for the company production handover. Production Core remains 
 - `npm run test:backend` passes.
 - `npm run test:access` passes.
 - `npm run test:leave` passes if `FEATURE_LEAVE=true`.
+- `npm run test:approvals` passes if approval features are enabled.
+- `npm run test:notifications` passes if `FEATURE_NOTIFICATIONS=true`.
+- `npm run test:integrations` passes if `FEATURE_TEAMS=true` or `FEATURE_ENTRA=true`.
 - `npm run test:requirements` passes.
 - `npm run test:import-templates` passes.
 - `npm run test:prod-hardening` passes.
@@ -32,6 +36,7 @@ Use this checklist for the company production handover. Production Core remains 
 - Demo records are removed or clearly isolated from company records.
 - Reporting manager, standard weekly hours, capacity type, contract type, and utilization eligibility are populated for active employees.
 - Leave policies, holiday calendars, annual balances, and approval owners are loaded before enabling `FEATURE_LEAVE`.
+- Identity provider links, Entra group-role mappings, and Teams user links are loaded before enabling `FEATURE_ENTRA` or `FEATURE_TEAMS`.
 - Data quality report is reviewed and blockers are assigned.
 - Availability report is reviewed after approved leave and holiday data are loaded.
 - Production exports are sampled from Employee Master, utilization, timesheet governance, and audit trail; matching backend audit events are verified.
@@ -42,6 +47,7 @@ Use this checklist for the company production handover. Production Core remains 
 - Multi-role accounts are tested to confirm only the selected active role authorizes backend actions.
 - Scoped reads and writes are tested for PM and Country Director users.
 - If `FEATURE_LEAVE=true`, ESS, My Leave, Team Leave Calendar, Leave Administration, balance impact, availability impact, and leave audit entries are tested for every approved role.
+- If `FEATURE_TEAMS=true` or `FEATURE_ENTRA=true`, Identity Mapping, Teams Mapping, deterministic action-token execution, integration health, event logs, and audit entries are tested for Admin/HR.
 
 ## 5. Operations
 

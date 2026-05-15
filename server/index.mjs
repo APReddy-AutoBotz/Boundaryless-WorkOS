@@ -2692,6 +2692,369 @@ app.post('/api/notification-preferences', requireDatabase, requireAuth, requireR
 app.get('/api/notification-delivery-attempts', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
   run(res, 'select * from notification_delivery_attempts order by attempted_at desc limit 300');
 });
+
+const logIntegrationEvent = async (client, {
+  provider,
+  eventType,
+  entityType = null,
+  entityId = null,
+  status = 'Success',
+  requestPayload = null,
+  responsePayload = null,
+}) => {
+  const result = await client.query(`
+    insert into integration_event_logs (provider, event_type, entity_type, entity_id, status, request_payload, response_payload)
+    values ($1,$2,$3,$4,$5,$6,$7)
+    returning *
+  `, [provider, eventType, entityType, entityId, status, requestPayload ? JSON.stringify(requestPayload) : null, responsePayload ? JSON.stringify(responsePayload) : null]);
+  return result.rows[0];
+};
+
+app.get('/api/integrations/identity-links', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, `
+    select ipl.*, e.name as employee_name
+    from identity_provider_links ipl
+    join employees e on e.id = ipl.employee_id
+    order by e.name, ipl.provider
+  `);
+});
+
+app.post('/api/integrations/identity-links', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    employee_id: z.string().min(1),
+    provider: z.enum(['local', 'entra']).default('entra'),
+    provider_subject: z.string().min(1),
+    provider_upn: z.string().optional().nullable(),
+    status: z.enum(['Linked', 'Pending', 'Disabled']).default('Linked'),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = (await client.query('select * from identity_provider_links where employee_id = $1 and provider = $2', [parsed.data.employee_id, parsed.data.provider])).rows[0];
+    const result = await client.query(`
+      insert into identity_provider_links (id, employee_id, provider, provider_subject, provider_upn, status)
+      values (coalesce($1, 'identity-link-' || gen_random_uuid()::text), $2, $3, $4, $5, $6)
+      on conflict (employee_id, provider) do update set
+        provider_subject = excluded.provider_subject,
+        provider_upn = excluded.provider_upn,
+        status = excluded.status,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.employee_id, parsed.data.provider, parsed.data.provider_subject, parsed.data.provider_upn || null, parsed.data.status]);
+    await client.query('update employees set entra_object_id = $2, updated_at = now() where id = $1', [parsed.data.employee_id, parsed.data.provider_subject]);
+    await logIntegrationEvent(client, {
+      provider: parsed.data.provider,
+      eventType: 'IdentityLinkUpserted',
+      entityType: 'IdentityProviderLink',
+      entityId: result.rows[0].id,
+      responsePayload: result.rows[0],
+    });
+    await audit(client, req, {
+      module: 'Integrations',
+      action: previous ? 'Update Identity Link' : 'Create Identity Link',
+      entityType: 'IdentityProviderLink',
+      entityId: result.rows[0].id,
+      oldValue: previous,
+      newValue: result.rows[0],
+      details: `${previous ? 'Updated' : 'Created'} ${parsed.data.provider} identity link`,
+      source: 'System',
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Identity link save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/integrations/entra-role-mappings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, 'select * from entra_group_role_mappings order by role_name, group_name');
+});
+
+app.post('/api/integrations/entra-role-mappings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    group_id: z.string().min(1),
+    group_name: z.string().min(1),
+    role_name: z.enum(['Employee', 'TeamLead', 'ProjectManager', 'CountryDirector', 'HR', 'Admin']),
+    active: z.boolean().default(true),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = (await client.query('select * from entra_group_role_mappings where group_id = $1', [parsed.data.group_id])).rows[0];
+    const result = await client.query(`
+      insert into entra_group_role_mappings (id, group_id, group_name, role_name, active)
+      values (coalesce($1, 'entra-role-map-' || gen_random_uuid()::text), $2, $3, $4, $5)
+      on conflict (group_id) do update set
+        group_name = excluded.group_name,
+        role_name = excluded.role_name,
+        active = excluded.active,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.group_id, parsed.data.group_name, parsed.data.role_name, parsed.data.active]);
+    await logIntegrationEvent(client, {
+      provider: 'entra',
+      eventType: 'RoleMappingUpserted',
+      entityType: 'EntraRoleMapping',
+      entityId: result.rows[0].id,
+      responsePayload: result.rows[0],
+    });
+    await audit(client, req, {
+      module: 'Integrations',
+      action: previous ? 'Update Entra Role Mapping' : 'Create Entra Role Mapping',
+      entityType: 'EntraRoleMapping',
+      entityId: result.rows[0].id,
+      oldValue: previous,
+      newValue: result.rows[0],
+      details: `${previous ? 'Updated' : 'Created'} Entra mapping for ${parsed.data.role_name}`,
+      source: 'System',
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Entra role mapping save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/integrations/teams-user-links', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, `
+    select tul.*, e.name as employee_name
+    from teams_user_links tul
+    join employees e on e.id = tul.employee_id
+    order by e.name
+  `);
+});
+
+app.post('/api/integrations/teams-user-links', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
+  const schema = z.object({
+    id: z.string().optional(),
+    employee_id: z.string().min(1),
+    teams_user_id: z.string().min(1),
+    teams_upn: z.string().optional().nullable(),
+    teams_tenant_id: z.string().optional().nullable(),
+    status: z.enum(['Linked', 'Pending', 'Disabled']).default('Linked'),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const previous = (await client.query('select * from teams_user_links where employee_id = $1', [parsed.data.employee_id])).rows[0];
+    const result = await client.query(`
+      insert into teams_user_links (id, employee_id, teams_user_id, teams_upn, teams_tenant_id, status)
+      values (coalesce($1, 'teams-link-' || gen_random_uuid()::text), $2, $3, $4, $5, $6)
+      on conflict (employee_id) do update set
+        teams_user_id = excluded.teams_user_id,
+        teams_upn = excluded.teams_upn,
+        teams_tenant_id = excluded.teams_tenant_id,
+        status = excluded.status,
+        updated_at = now()
+      returning *
+    `, [parsed.data.id || null, parsed.data.employee_id, parsed.data.teams_user_id, parsed.data.teams_upn || null, parsed.data.teams_tenant_id || null, parsed.data.status]);
+    await client.query('update employees set teams_user_id = $2, updated_at = now() where id = $1', [parsed.data.employee_id, parsed.data.teams_user_id]);
+    await logIntegrationEvent(client, {
+      provider: 'teams',
+      eventType: 'TeamsUserLinkUpserted',
+      entityType: 'TeamsUserLink',
+      entityId: result.rows[0].id,
+      responsePayload: result.rows[0],
+    });
+    await audit(client, req, {
+      module: 'Integrations',
+      action: previous ? 'Update Teams User Link' : 'Create Teams User Link',
+      entityType: 'TeamsUserLink',
+      entityId: result.rows[0].id,
+      oldValue: previous,
+      newValue: result.rows[0],
+      details: `${previous ? 'Updated' : 'Created'} Teams user link`,
+      source: 'System',
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Teams user link save failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/integrations/teams-action-tokens', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const schema = z.object({
+    entity_type: z.enum(['ApprovalRecord', 'LeaveRequest', 'Timesheet', 'PortalLink']),
+    entity_id: z.string().min(1),
+    action: z.enum(['approve', 'reject', 'open_portal']),
+    target_url: z.string().optional().nullable(),
+    expires_at: z.string().datetime(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const token = crypto.randomUUID();
+    const result = await client.query(`
+      insert into teams_action_tokens (token, entity_type, entity_id, action, target_url, expires_at, created_by)
+      values ($1,$2,$3,$4,$5,$6,$7)
+      returning *
+    `, [token, parsed.data.entity_type, parsed.data.entity_id, parsed.data.action, parsed.data.target_url || null, parsed.data.expires_at, req.user.sub]);
+    await logIntegrationEvent(client, {
+      provider: 'teams',
+      eventType: 'TeamsActionTokenCreated',
+      entityType: parsed.data.entity_type,
+      entityId: parsed.data.entity_id,
+      responsePayload: { action: parsed.data.action, deterministic: true },
+    });
+    await audit(client, req, {
+      module: 'Integrations',
+      action: 'Create Teams Action Token',
+      entityType: parsed.data.entity_type,
+      entityId: parsed.data.entity_id,
+      newValue: { action: parsed.data.action, expires_at: parsed.data.expires_at },
+      details: `Created deterministic Teams ${parsed.data.action} action token`,
+      source: 'Teams',
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Teams action token creation failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/integrations/teams-action-tokens/:token/execute', requireDatabase, requireAuth, requireRoles('Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'), async (req, res) => {
+  const schema = z.object({ comments: z.string().optional() });
+  const parsed = schema.safeParse(req.body || {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const lookup = await client.query('select * from teams_action_tokens where token = $1 for update', [req.params.token]);
+    const actionToken = lookup.rows[0];
+    if (!actionToken) {
+      await client.query('rollback');
+      res.status(404).json({ error: 'Teams action token not found' });
+      return;
+    }
+    if (actionToken.used_at) {
+      await client.query('rollback');
+      res.status(409).json({ error: 'Teams action token was already used' });
+      return;
+    }
+    if (new Date(actionToken.expires_at).getTime() < Date.now()) {
+      await client.query('rollback');
+      res.status(410).json({ error: 'Teams action token expired' });
+      return;
+    }
+    if (actionToken.entity_type === 'ApprovalRecord' && ['approve', 'reject'].includes(actionToken.action)) {
+      const approval = await client.query('select * from approval_records where id = $1', [actionToken.entity_id]);
+      if (!approval.rows[0]) {
+        await client.query('rollback');
+        res.status(404).json({ error: 'Approval record not found' });
+        return;
+      }
+      await decideApprovalRecord(client, req, {
+        entityType: approval.rows[0].entity_type,
+        entityId: approval.rows[0].entity_id,
+        status: actionToken.action === 'approve' ? 'Approved' : 'Rejected',
+        comments: parsed.data.comments || 'Decided from deterministic Teams action.',
+      });
+    }
+    const result = await client.query('update teams_action_tokens set used_at = now() where id = $1 returning *', [actionToken.id]);
+    await logIntegrationEvent(client, {
+      provider: 'teams',
+      eventType: 'TeamsActionTokenExecuted',
+      entityType: actionToken.entity_type,
+      entityId: actionToken.entity_id,
+      requestPayload: { action: actionToken.action },
+      responsePayload: { deterministic: true },
+    });
+    await audit(client, req, {
+      module: 'Integrations',
+      action: 'Execute Teams Action Token',
+      entityType: actionToken.entity_type,
+      entityId: actionToken.entity_id,
+      newValue: { action: actionToken.action, used_at: result.rows[0].used_at },
+      details: `Executed deterministic Teams ${actionToken.action} action`,
+      source: 'Teams',
+    });
+    await client.query('commit');
+    res.json(result.rows[0]);
+  } catch (error) {
+    await client.query('rollback');
+    console.error(error);
+    res.status(500).json({ error: 'Teams action execution failed' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/integrations/events', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), (_req, res) => {
+  run(res, 'select * from integration_event_logs order by created_at desc limit 300');
+});
+
+app.get('/api/integrations/health', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      with active_employees as (
+        select id from employees where status = 'Active'
+      )
+      select
+        $1::text as identity_provider,
+        $2::text as teams_provider,
+        $3::text as email_provider,
+        (select count(distinct employee_id)::int from identity_provider_links where status = 'Linked') as linked_identity_count,
+        (select count(distinct employee_id)::int from teams_user_links where status = 'Linked') as linked_teams_count,
+        (select count(*)::int from entra_group_role_mappings where active = true) as active_role_mappings,
+        (select count(*)::int from teams_action_tokens where used_at is null and expires_at > now()) as open_action_tokens,
+        (select count(*)::int from integration_event_logs where status = 'Failed') as recent_failures,
+        (select count(*)::int from active_employees ae where not exists (select 1 from identity_provider_links ipl where ipl.employee_id = ae.id and ipl.status = 'Linked')) as missing_identity_links,
+        (select count(*)::int from active_employees ae where not exists (select 1 from teams_user_links tul where tul.employee_id = ae.id and tul.status = 'Linked')) as missing_teams_links
+    `, [process.env.IDENTITY_PROVIDER || 'local', process.env.TEAMS_PROVIDER || 'mock', process.env.EMAIL_PROVIDER || 'mock']);
+    const events = await pool.query('select * from integration_event_logs order by created_at desc limit 25');
+    res.json({
+      generatedAt: new Date().toISOString(),
+      ...result.rows[0],
+      events: events.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Integration health report failed' });
+  }
+});
+
 app.get('/api/settings', requireDatabase, requireAuth, (_req, res) => run(res, 'select key, value from system_settings order by key'));
 app.post('/api/settings', requireDatabase, requireAuth, requireRoles('Admin', 'HR'), async (req, res) => {
   const schema = z.object({
