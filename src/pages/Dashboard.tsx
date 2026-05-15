@@ -8,7 +8,8 @@ import {
   projectService, 
   allocationService, 
   timesheetService,
-  adminService 
+  adminService,
+  dashboardService
 } from '../services/api';
 import { authService } from '../services/authService';
 import { 
@@ -19,7 +20,8 @@ import {
   AuditLog,
   TimesheetSummary,
   CountryDirector,
-  SystemSettings
+  SystemSettings,
+  DashboardReport
 } from '../types';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -74,6 +76,7 @@ export const Dashboard = () => {
     timesheets: TimesheetSummary[];
     directors: CountryDirector[];
     settings: SystemSettings;
+    dashboardReport: DashboardReport | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCDId, setSelectedCDId] = useState<string>('all');
@@ -82,7 +85,7 @@ export const Dashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [employees, projects, allocations, logs, timesheets, directors, settings] = await Promise.all([
+    const [employees, projects, allocations, logs, timesheets, directors, settings, dashboardReport] = await Promise.all([
       employeeService.getAll(),
       projectService.getAll(),
       allocationService.getAll(),
@@ -90,9 +93,10 @@ export const Dashboard = () => {
       timesheetService.getAll(),
       adminService.getCountryDirectors(),
       adminService.getSettings(),
+      dashboardService.getReport().catch(() => null),
     ]);
     const session = authService.getCurrentUser();
-    setData({ employees, projects, allocations, logs, timesheets, directors, settings });
+    setData({ employees, projects, allocations, logs, timesheets, directors, settings, dashboardReport });
     setCurrentUser(session);
     if (session?.role === 'CountryDirector' && session.cdId) {
       setSelectedCDId(session.cdId);
@@ -135,14 +139,16 @@ export const Dashboard = () => {
       : 0;
 
     const globalStats = {
-      totalEmployees: activeEmps.length,
-      utilizationEligibleEmployees: utilizationEmps.length,
-      governanceUsers: activeEmps.length - utilizationEmps.length,
+      totalEmployees: data.dashboardReport?.workforce.activePeople ?? activeEmps.length,
+      utilizationEligibleEmployees: data.dashboardReport?.workforce.utilizationEligibleFte ?? utilizationEmps.length,
+      governanceUsers: data.dashboardReport?.workforce.governanceUsers ?? activeEmps.length - utilizationEmps.length,
       avgPlanned: globalAvgPlanned,
       overloadedCount: globalOverloaded.length,
       underutilizedCount: globalUnderutilized.length + globalBench.length,
-      pendingTimesheets: data.timesheets.filter(t => t.status === 'Submitted').length,
-      projectsAtRisk: globalProjectsAtRisk.length
+      pendingTimesheets: data.dashboardReport?.pendingTimesheets ?? data.timesheets.filter(t => t.status === 'Submitted').length,
+      projectsAtRisk: data.dashboardReport?.projectStaffingRisks ?? globalProjectsAtRisk.length,
+      dataQualityScore: data.dashboardReport?.dataQuality.score,
+      dataQualityIssues: data.dashboardReport?.dataQuality.issueCount,
     };
     // ROW 2: Region stats for overview Matrix
     const regionStats = data.directors.map(cd => {
@@ -375,6 +381,14 @@ export const Dashboard = () => {
           title="Reminder"
           message={notice}
           onClose={() => setNotice('')}
+        />
+      )}
+
+      {data.dashboardReport && (
+        <NoticeBanner
+          type={(stats.globalStats.dataQualityIssues || 0) > 0 ? 'warning' : 'success'}
+          title="Backend command center data"
+          message={`Using scoped backend dashboard report generated ${new Date(data.dashboardReport.generatedAt).toLocaleString()}. Data confidence ${stats.globalStats.dataQualityScore ?? 0}% with ${stats.globalStats.dataQualityIssues ?? 0} open issue${stats.globalStats.dataQualityIssues === 1 ? '' : 's'}.`}
         />
       )}
 

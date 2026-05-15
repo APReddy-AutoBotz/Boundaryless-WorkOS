@@ -134,9 +134,39 @@ export const authService = {
     return session;
   },
 
-  switchRole: (role: UserRole): UserSession | null => {
+  switchRole: async (role: UserRole): Promise<UserSession | null> => {
     const session = authService.getCurrentUser();
     if (!session || !session.availableRoles.includes(role)) return null;
+    let backendConnected = false;
+    try {
+      backendConnected = await checkBackend();
+    } catch {
+      return null;
+    }
+    if (backendConnected) {
+      try {
+        const res = await fetch('/api/auth/switch-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ role }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json() as ApiLoginResponse;
+        const next = buildApiSession(data);
+        storeToken(data.token);
+        saveSession(next);
+        return next;
+      } catch {
+        return null;
+      }
+    }
+
+    if (!isDemoFallbackAllowed()) return null;
+
     const next = { ...session, role };
     if (role === 'CountryDirector') {
       const directors = DataStorage.get<CountryDirector[]>(STORAGE_KEYS.CDS, []);

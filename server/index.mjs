@@ -365,6 +365,64 @@ app.post('/api/auth/logout', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.post('/api/auth/switch-role', requireDatabase, requireAuth, async (req, res) => {
+  const schema = z.object({ role: z.string().min(1) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  if (!req.user.roles.includes(parsed.data.role)) {
+    res.status(403).json({ error: 'Role is not assigned to this user' });
+    return;
+  }
+  try {
+    const result = await pool.query(`
+      select u.id, u.username, u.employee_id, u.email, u.must_change_password, u.status,
+        e.id as employee_record_id, e.name, cd.id as country_director_id
+      from users u
+      left join employees e on e.employee_id = u.employee_id
+      left join country_directors cd on cd.name = e.name
+      where u.id = $1
+      limit 1
+    `, [req.user.sub]);
+    const user = result.rows[0];
+    if (!user || user.status !== 'Active') {
+      res.status(401).json({ error: 'User is not active' });
+      return;
+    }
+    const activeRole = parsed.data.role;
+    const token = signToken({
+      sub: user.id,
+      username: user.username,
+      employeeId: user.employee_id,
+      employeeRecordId: user.employee_record_id,
+      countryDirectorId: user.country_director_id,
+      roles: req.user.roles,
+      activeRole,
+      exp: Date.now() + 8 * 60 * 60 * 1000,
+    });
+    res.cookie?.('rut_session', token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    await audit(req, 'Switch Role', 'Auth', `Switched active role to ${activeRole}`, { entityType: 'User', entityId: user.id, newValue: { activeRole } });
+    res.json({
+      id: user.id,
+      username: user.username,
+      employeeId: user.employee_id,
+      employeeRecordId: user.employee_record_id,
+      countryDirectorId: user.country_director_id,
+      email: user.email,
+      name: user.name,
+      roles: req.user.roles,
+      activeRole,
+      mustChangePassword: Boolean(user.must_change_password),
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Role switch failed' });
+  }
+});
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(req.user);
 });

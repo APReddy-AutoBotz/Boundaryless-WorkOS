@@ -10,6 +10,7 @@ import {
   BarChart3, 
   TrendingUp, 
   PieChart, 
+  ShieldCheck,
   FileUp, 
   History, 
   Settings,
@@ -75,6 +76,7 @@ export const Sidebar = () => {
         { name: 'Planned Utilization', path: '/utilization/planned', icon: BarChart3, roles: ROUTE_ROLES.utilization },
         { name: 'Actual Utilization', path: '/utilization/actual', icon: PieChart, roles: ROUTE_ROLES.utilization },
         { name: 'Forecast Utilization', path: '/utilization/forecast', icon: TrendingUp, roles: ROUTE_ROLES.utilization },
+        { name: 'Data Quality', path: '/reports/data-quality', icon: ShieldCheck, roles: ROUTE_ROLES.dataQuality },
       ]
     },
     { 
@@ -85,7 +87,7 @@ export const Sidebar = () => {
         { name: 'Governance Settings', path: '/admin', icon: Settings, roles: ROUTE_ROLES.adminSettings },
       ]
     },
-  ], []);
+  ], [user?.role]);
 
   const filteredGroups = useMemo(() => {
     if (!user) return [];

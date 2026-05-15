@@ -19,6 +19,7 @@ const TimesheetApproval = lazy(() => import('./pages/TimesheetApproval').then(mo
 const PlannedUtilization = lazy(() => import('./pages/PlannedUtilization').then(module => ({ default: module.PlannedUtilization })));
 const ActualUtilization = lazy(() => import('./pages/ActualUtilization').then(module => ({ default: module.ActualUtilization })));
 const ForecastUtilization = lazy(() => import('./pages/ForecastUtilization').then(module => ({ default: module.ForecastUtilization })));
+const DataQuality = lazy(() => import('./pages/DataQuality').then(module => ({ default: module.DataQuality })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -156,6 +157,11 @@ export default function App() {
                 <Route path="/utilization/forecast" element={
                   <RoleRoute roles={ROUTE_ROLES.utilization}>
                     <ForecastUtilization />
+                  </RoleRoute>
+                } />
+                <Route path="/reports/data-quality" element={
+                  <RoleRoute roles={ROUTE_ROLES.dataQuality}>
+                    <DataQuality />
                   </RoleRoute>
                 } />
 

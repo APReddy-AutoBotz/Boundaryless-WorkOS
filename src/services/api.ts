@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -12,6 +12,7 @@ import {
   normalizeClient, normalizeTimesheetSummary, normalizeAuditLog,
   normalizeSettings, normalizeCatalogItem, normalizeRoleDefinition,
   normalizeCountryDirector, normalizeImportExportLog, normalizeUtilizationReport,
+  normalizeDataQualityReport, normalizeDashboardReport,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
@@ -680,12 +681,94 @@ export const adminService = {
     const s = authService.getCurrentUser();
     DataStorage.logAction(s?.id || 'sys', s?.name || 'System', s?.role || 'Admin', action, module, details);
   },
-  getDataQualityReport: async (): Promise<Record<string, unknown> | null> => {
+  getDataQualityReport: async (): Promise<DataQualityReport> => {
     if (await checkBackend()) {
-      return api.get<Record<string, unknown>>('/api/reports/data-quality');
+      return normalizeDataQualityReport(await api.get<Record<string, unknown>>('/api/reports/data-quality'));
     }
-    return null;
+    return buildLocalDataQualityReport();
   },
+};
+
+const buildLocalDataQualityReport = async (): Promise<DataQualityReport> => {
+  const [employees, projects, allocations] = await Promise.all([
+    employeeService.getAll(),
+    projectService.getAll(),
+    allocationService.getAll(),
+  ]);
+  const projectsById = new Map(projects.map(project => [project.id, project]));
+  const issues = [
+    ...employees
+      .filter(employee => employee.status === 'Active' && !employee.reportingManagerId)
+      .map(employee => ({
+        entityType: 'Employee',
+        entityId: employee.id,
+        entity: employee.name,
+        issueType: 'Missing reporting manager',
+        owner: employee.email || employee.employeeId,
+        impact: 'Approval routing and team views may be unreliable.',
+        suggestedAction: 'Assign a reporting manager in Employee Master.',
+      })),
+    ...employees
+      .filter(employee => employee.status === 'Active' && (!employee.standardWeeklyHours || !employee.capacityType || !employee.contractType))
+      .map(employee => ({
+        entityType: 'Employee',
+        entityId: employee.id,
+        entity: employee.name,
+        issueType: 'Missing capacity profile',
+        owner: employee.email || employee.employeeId,
+        impact: 'Availability and utilization handover checks cannot be fully trusted.',
+        suggestedAction: 'Set standard weekly hours, capacity type, and contract type.',
+      })),
+    ...employees
+      .filter(employee => employee.status === 'Active' && !employee.teamsUserId)
+      .map(employee => ({
+        entityType: 'Employee',
+        entityId: employee.id,
+        entity: employee.name,
+        issueType: 'Missing Teams identity link',
+        owner: employee.email || employee.employeeId,
+        impact: 'Future Teams approvals and reminders cannot target this user.',
+        suggestedAction: 'Capture the Teams user link during identity onboarding.',
+      })),
+    ...employees
+      .filter(employee => employee.email.endsWith('.demo') || employee.email.includes('@boundaryless.demo'))
+      .map(employee => ({
+        entityType: 'Employee',
+        entityId: employee.id,
+        entity: employee.name,
+        issueType: 'Demo data remnant',
+        owner: employee.email || employee.employeeId,
+        impact: 'Production handover may still contain seeded demo records.',
+        suggestedAction: 'Replace demo user and employee records with company-owned data.',
+      })),
+    ...allocations
+      .filter(allocation => {
+        const project = projectsById.get(allocation.projectId);
+        return project && (allocation.startDate < project.startDate || allocation.endDate > project.endDate);
+      })
+      .map(allocation => ({
+        entityType: 'Allocation',
+        entityId: allocation.id,
+        entity: allocation.projectName,
+        issueType: 'Allocation outside project timeline',
+        owner: allocation.employeeId,
+        impact: 'Planned and forecast utilization can be incorrect for this assignment.',
+        suggestedAction: 'Adjust allocation dates to fit within the project start and end dates.',
+      })),
+  ];
+  const byType = issues.reduce<Record<string, number>>((acc, issue) => {
+    acc[issue.issueType] = (acc[issue.issueType] || 0) + 1;
+    return acc;
+  }, {});
+  const denominator = Math.max(employees.length * 4, 1);
+  return {
+    score: Math.max(0, Math.round(((denominator - issues.length) / denominator) * 100)),
+    totalRecords: employees.length,
+    issueCount: issues.length,
+    byType,
+    issues,
+    generatedAt: new Date().toISOString(),
+  };
 };
 
 const buildLocalUtilizationReport = async (mode: UtilizationReportMode, months = 3): Promise<UtilizationReport> => {
@@ -751,4 +834,10 @@ export const utilizationReportService = {
   },
 };
 
-export const dashboardService = { getKPIData: async () => [] };
+export const dashboardService = {
+  getKPIData: async () => [],
+  getReport: async (): Promise<DashboardReport | null> => {
+    if (!(await checkBackend())) return null;
+    return normalizeDashboardReport(await api.get<Record<string, unknown>>('/api/reports/dashboard'));
+  },
+};

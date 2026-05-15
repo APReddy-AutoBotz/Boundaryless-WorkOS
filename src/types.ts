@@ -78,6 +78,38 @@ export interface SystemSettings {
   currency: string;
 }
 
+export interface DataQualityIssue {
+  entityType: string;
+  entityId: string;
+  entity: string;
+  issueType: string;
+  owner: string;
+  impact: string;
+  suggestedAction: string;
+}
+
+export interface DataQualityReport {
+  score: number;
+  totalRecords: number;
+  issueCount: number;
+  byType: Record<string, number>;
+  issues: DataQualityIssue[];
+  generatedAt: string;
+}
+
+export interface DashboardReport {
+  generatedAt: string;
+  settings: Record<string, unknown>;
+  workforce: {
+    activePeople: number;
+    utilizationEligibleFte: number;
+    governanceUsers: number;
+  };
+  projectStaffingRisks: number;
+  pendingTimesheets: number;
+  dataQuality: DataQualityReport;
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

@@ -8,7 +8,7 @@ import type {
   Employee, Project, Allocation, Client, CountryDirector,
   TimesheetSummary, TimesheetEntry, AuditLog, SystemSettings,
   RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
-  UtilizationReport,
+  UtilizationReport, DataQualityReport, DashboardReport,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -321,6 +321,43 @@ export const normalizeImportExportLog = (r: Record<string, unknown>): ImportExpo
   userName: String(r.user_name),
   timestamp: String(r.created_at),
 });
+
+export const normalizeDataQualityReport = (r: Record<string, unknown>): DataQualityReport => {
+  const byType = r.byType && typeof r.byType === 'object' ? r.byType as Record<string, number> : {};
+  const issues = Array.isArray(r.issues) ? r.issues as Record<string, unknown>[] : [];
+  return {
+    score: Number(r.score ?? 0),
+    totalRecords: Number(r.totalRecords ?? 0),
+    issueCount: Number(r.issueCount ?? issues.length),
+    byType,
+    generatedAt: String(r.generatedAt ?? new Date().toISOString()),
+    issues: issues.map(issue => ({
+      entityType: String(issue.entity_type ?? issue.entityType ?? ''),
+      entityId: String(issue.entity_id ?? issue.entityId ?? ''),
+      entity: String(issue.entity ?? ''),
+      issueType: String(issue.issue_type ?? issue.issueType ?? ''),
+      owner: String(issue.owner ?? ''),
+      impact: String(issue.impact ?? ''),
+      suggestedAction: String(issue.suggested_action ?? issue.suggestedAction ?? ''),
+    })),
+  };
+};
+
+export const normalizeDashboardReport = (r: Record<string, unknown>): DashboardReport => {
+  const workforce = r.workforce as Record<string, unknown> | undefined;
+  return {
+    generatedAt: String(r.generatedAt ?? new Date().toISOString()),
+    settings: r.settings && typeof r.settings === 'object' ? r.settings as Record<string, unknown> : {},
+    workforce: {
+      activePeople: Number(workforce?.active_people ?? workforce?.activePeople ?? 0),
+      utilizationEligibleFte: Number(workforce?.utilization_eligible_fte ?? workforce?.utilizationEligibleFte ?? 0),
+      governanceUsers: Number(workforce?.governance_users ?? workforce?.governanceUsers ?? 0),
+    },
+    projectStaffingRisks: Number(r.projectStaffingRisks ?? r.project_staffing_risks ?? 0),
+    pendingTimesheets: Number(r.pendingTimesheets ?? r.pending_timesheets ?? 0),
+    dataQuality: normalizeDataQualityReport((r.dataQuality ?? r.data_quality ?? {}) as Record<string, unknown>),
+  };
+};
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {
   const map = Object.fromEntries(rows.map(r => [r.key, r.value]));

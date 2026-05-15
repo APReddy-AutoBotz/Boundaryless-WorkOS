@@ -6,6 +6,8 @@ const schema = readFileSync('server/schema.sql', 'utf8');
 const migrate = readFileSync('server/migrate.mjs', 'utf8');
 const apiClient = readFileSync('src/services/apiClient.ts', 'utf8');
 const login = readFileSync('src/pages/Login.tsx', 'utf8');
+const app = readFileSync('src/App.tsx', 'utf8');
+const header = readFileSync('src/components/Layout/Header.tsx', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
 assert.match(server, /const requireRoles = \(\.\.\.roles\) => \(req, res, next\) => \{[\s\S]*!roles\.includes\(activeRole\)/, 'backend role guard must enforce activeRole only');
@@ -35,8 +37,11 @@ for (const column of [
 
 assert.match(server, /app\.get\('\/api\/reports\/data-quality'/, 'data quality report endpoint must exist');
 assert.match(server, /app\.get\('\/api\/reports\/dashboard'/, 'dashboard report endpoint must exist');
+assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
 assert.match(server, /Missing reporting manager/, 'data quality report must detect missing reporting manager');
 assert.match(server, /Demo data remnant/, 'data quality report must detect demo data remnants');
+assert.match(app, /\/reports\/data-quality/, 'data quality report must have a routed UI page');
+assert.match(header, /authService\.switchRole/, 'header must expose active-role switching for multi-role users');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');

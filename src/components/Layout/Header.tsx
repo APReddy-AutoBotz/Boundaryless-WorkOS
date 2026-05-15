@@ -4,6 +4,7 @@ import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { adminService, allocationService, clientService, employeeService, projectService } from '../../services/api';
 import { hasRouteRole, ROUTE_ROLES } from '../../services/accessControl';
+import type { UserRole } from '../../types';
 
 type SearchResult = {
   id: string;
@@ -26,6 +27,7 @@ export const Header = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordNotice, setPasswordNotice] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState<string | null>(null);
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
   const isPasswordChangeRequired = Boolean(user?.mustChangePassword);
@@ -86,6 +88,7 @@ export const Header = () => {
       { id: 'page-planned', title: 'Planned Utilization', subtitle: 'Allocation-derived capacity view', path: '/utilization/planned', icon: BarChart3, keywords: 'planned allocation utilization capacity', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-actual', title: 'Actual Utilization', subtitle: 'Approved timesheet reconciliation', path: '/utilization/actual', icon: BarChart3, keywords: 'actual utilization timesheet approved reconciliation', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-forecast', title: 'Forecast Utilization', subtitle: 'Forward allocation outlook', path: '/utilization/forecast', icon: BarChart3, keywords: 'forecast future utilization pipeline', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
+      { id: 'page-data-quality', title: 'Data Quality', subtitle: 'Production handover checks and data confidence', path: '/reports/data-quality', icon: ShieldCheck, keywords: 'data quality confidence production handover missing manager capacity teams identity', roles: ROUTE_ROLES.dataQuality },
       { id: 'page-import', title: 'Import / Export', subtitle: 'CSV imports, exports, history', path: '/import-export', icon: Database, keywords: 'import export csv data bulk', roles: ['Admin'] },
       { id: 'page-audit', title: 'Audit Trail', subtitle: 'System activity and traceability', path: '/audit-trail', icon: ShieldCheck, keywords: 'audit logs history traceability', roles: ['Admin'] },
       { id: 'page-admin', title: 'Admin Settings', subtitle: 'Roles, directors, thresholds, policies', path: '/admin', icon: SettingsIcon, keywords: 'admin settings roles country directors thresholds', roles: ['Admin', 'HR'] },
@@ -231,6 +234,17 @@ export const Header = () => {
     setIsPasswordOpen(false);
   };
 
+  const handleRoleSwitch = async (role: string) => {
+    if (!user || role === user.role) return;
+    setSwitchingRole(role);
+    const next = await authService.switchRole(role as UserRole);
+    setSwitchingRole(null);
+    if (next) {
+      setIsProfileOpen(false);
+      window.location.href = '/';
+    }
+  };
+
   return (
     <>
       <header className="h-16 bg-white border-b border-border-light flex items-center justify-between px-10 shrink-0 sticky top-0 z-10">
@@ -320,6 +334,24 @@ export const Header = () => {
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Signed in as</p>
                 <p className="text-xs font-bold text-heading truncate">{user?.email}</p>
               </div>
+              {user && user.availableRoles.length > 1 && (
+                <div className="border-b border-border-light px-4 py-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Active Role</p>
+                  <div className="space-y-1">
+                    {user.availableRoles.map(role => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => handleRoleSwitch(role)}
+                        disabled={switchingRole !== null || role === user.role}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-[11px] font-bold transition-colors ${role === user.role ? 'bg-orange-50 text-primary' : 'text-heading hover:bg-bg-secondary'} disabled:cursor-not-allowed disabled:opacity-70`}
+                      >
+                        {switchingRole === role ? 'Switching...' : role}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => {
                   setIsProfileOpen(false);
