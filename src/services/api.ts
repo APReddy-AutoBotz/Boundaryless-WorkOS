@@ -417,7 +417,6 @@ export const adminService = {
           validRows: log.validRows,
           errorRows: log.errorRows,
         },
-        source: log.operation,
       }).catch(() => {});
       return normalizeImportExportLog(raw);
     }
@@ -698,7 +697,6 @@ export const adminService = {
         action,
         module,
         details,
-        source: action === 'Export' ? 'Export' : 'Web',
       }).catch(() => {});
       return;
     }

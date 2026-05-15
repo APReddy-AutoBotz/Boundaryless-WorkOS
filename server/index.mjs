@@ -1945,15 +1945,12 @@ app.get('/api/audit-logs', requireDatabase, requireAuth, requireRoles('Admin'), 
 
 app.post('/api/audit-events', requireDatabase, requireAuth, async (req, res) => {
   const schema = z.object({
-    action: z.string().min(1).max(80),
+    action: z.enum(['Export', 'Import', 'Notify']),
     module: z.string().min(1).max(120),
     details: z.string().min(1).max(1000),
     entityType: z.string().max(120).optional(),
     entityId: z.string().max(160).optional(),
-    oldValue: z.unknown().optional(),
     newValue: z.unknown().optional(),
-    reason: z.string().max(1000).optional(),
-    source: z.string().max(40).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -1961,7 +1958,10 @@ app.post('/api/audit-events', requireDatabase, requireAuth, async (req, res) => 
     return;
   }
   try {
-    await audit(pool, req, parsed.data);
+    await audit(pool, req, {
+      ...parsed.data,
+      source: parsed.data.action,
+    });
     res.status(201).json({ status: 'ok' });
   } catch (error) {
     console.error(error);
