@@ -297,6 +297,7 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | Employee production fields | Complete foundation | Production-core migration adds manager, weekly hours, capacity, contract, Entra/Teams placeholders, and related fields. |
 | Data-quality report | Complete foundation | UI route and backend endpoint exist; export is audited. |
 | Dashboard report endpoint | Complete foundation | Backend endpoint exists for command-center style summary. |
+| BRD traceability UI | Complete foundation | `/governance/brd-traceability` maps new BRD modules to Production Core, future roadmap, UI status, API/data status, and next actions. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -323,6 +324,29 @@ VITE_DISABLE_DEMO_FALLBACK=true
 | P1 | Automated browser QA | Add Playwright or equivalent workflows for core roles and high-risk journeys. | No |
 | P2 | Code consolidation | Continue reducing table/filter/report duplication after UAT stabilizes requirements. | No |
 | P2 | Loading/error polish | Standardize save/loading/error states across every API-backed page. | No |
+
+---
+
+### BRD Feature to UI/API Traceability
+
+| BRD Feature | Production Core Decision | UI Status | API/Data Status | Plan Status |
+|---|---|---|---|---|
+| Employee Master as root | Included now | Employee Master, Employee Detail, imports, data quality | Backend employee APIs and production fields exist | Complete foundation; real data pending |
+| ESS / Employee Workspace | Partially included now | My Workspace and My Timesheet exist | Employee-scoped APIs and timesheet APIs exist | Partial; leave/notifications deferred |
+| Client and Project Master | Included now | Client Portfolio, Project Master, Project Detail | Backend client/project APIs and imports exist | Complete foundation; UAT pending |
+| Allocation Management | Included now | Allocation Control and project/employee allocation entry points | Backend allocation APIs and import guardrails exist | Partial; deeper UAT pending |
+| Timesheet Management | Included now | My Timesheet and Timesheet Governance | Backend timesheet, entries, status, approval, import APIs exist | Partial; PM/Team Lead rules pending |
+| Workforce Command Center | Included now | Dashboard and Data Quality | Dashboard and data-quality report endpoints exist | Partial; real-data validation pending |
+| Reports | Included now for core reports | Planned, Actual, Forecast, Data Quality, Audit, Import/Export | Core report endpoints and hosted smoke coverage exist | Partial; DB fixtures/browser QA pending |
+| Import / Export | Included now as CSV-first | Import / Export center with dry run, errors, history, and exports | Backend apply endpoints, duplicate-row guardrails, logs | Partial; real-file UAT pending |
+| Audit and Governance | Included now | Audit Trail, Governance Settings, Data Quality | Backend audit metadata and constrained audit events exist | Partial; retention/sign-off pending |
+| Leave Management | Deferred | Not in Production Core UI | Nullable placeholders only | Future phase |
+| Notification Center | Deferred | Not in Production Core UI | No queue/delivery engine | Future phase |
+| Microsoft Teams | Deferred | Not in Production Core UI | Teams identity placeholders only | Future phase |
+| Microsoft Entra SSO | Deferred | Not in Production Core UI | Entra object placeholder only | Future phase |
+| Resource Planning Board | Deferred | Not in Production Core UI | Allocation/report data can support later design | Future phase |
+
+The same mapping is available in the application at `/governance/brd-traceability` for reviewers and UAT leads.
 
 ---
 

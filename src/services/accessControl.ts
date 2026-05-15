@@ -12,6 +12,7 @@ export const ROUTE_ROLES = {
   timesheetApproval: ['Admin', 'CountryDirector', 'ProjectManager', 'TeamLead'],
   utilization: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'],
   dataQuality: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'],
+  brdTraceability: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'],
   importExport: ['Admin'],
   auditTrail: ['Admin'],
   adminSettings: ['Admin', 'HR'],

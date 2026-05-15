@@ -8,6 +8,8 @@ const apiClient = readFileSync('src/services/apiClient.ts', 'utf8');
 const login = readFileSync('src/pages/Login.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
 const header = readFileSync('src/components/Layout/Header.tsx', 'utf8');
+const sidebar = readFileSync('src/components/Layout/Sidebar.tsx', 'utf8');
+const brdTraceability = readFileSync('src/pages/BRDTraceability.tsx', 'utf8');
 const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
 const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
 const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
@@ -48,6 +50,11 @@ assert.match(server, /Missing reporting manager/, 'data quality report must dete
 assert.match(server, /Demo data remnant/, 'data quality report must detect demo data remnants');
 assert.match(app, /\/reports\/data-quality/, 'data quality report must have a routed UI page');
 assert.match(header, /authService\.switchRole/, 'header must expose active-role switching for multi-role users');
+assert.match(app, /\/governance\/brd-traceability/, 'BRD traceability must have a routed UI page');
+assert.match(sidebar, /BRD Traceability/, 'BRD traceability must be visible in navigation for reviewer roles');
+assert.match(header, /page-brd-traceability/, 'BRD traceability must be searchable from the header');
+assert.match(brdTraceability, /Traceability Matrix/, 'BRD traceability UI must include a traceability matrix');
+assert.match(brdTraceability, /Leave Management[\s\S]*Future Roadmap[\s\S]*Microsoft Teams Integration[\s\S]*Future Roadmap[\s\S]*Microsoft Entra SSO[\s\S]*Future Roadmap/, 'BRD traceability UI must cross-check deferred strategic modules');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
@@ -72,4 +79,5 @@ console.log(JSON.stringify({
   dataQualityReport: true,
   versionedMigrations: true,
   sourceOfTruthBrd: true,
+  brdTraceabilityUi: true,
 }, null, 2));

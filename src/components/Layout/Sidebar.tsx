@@ -11,6 +11,7 @@ import {
   TrendingUp, 
   PieChart, 
   ShieldCheck,
+  ClipboardCheck,
   FileUp, 
   History, 
   Settings,
@@ -77,6 +78,7 @@ export const Sidebar = () => {
         { name: 'Actual Utilization', path: '/utilization/actual', icon: PieChart, roles: ROUTE_ROLES.utilization },
         { name: 'Forecast Utilization', path: '/utilization/forecast', icon: TrendingUp, roles: ROUTE_ROLES.utilization },
         { name: 'Data Quality', path: '/reports/data-quality', icon: ShieldCheck, roles: ROUTE_ROLES.dataQuality },
+        { name: 'BRD Traceability', path: '/governance/brd-traceability', icon: ClipboardCheck, roles: ROUTE_ROLES.brdTraceability },
       ]
     },
     { 

@@ -1,4 +1,4 @@
-import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, KeyRound, X, type LucideIcon } from 'lucide-react';
+import { Search, Bell, User, Settings as SettingsIcon, LogOut, Users, BriefcaseBusiness, Building2, BarChart3, ShieldCheck, Database, KeyRound, X, ClipboardCheck, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -89,6 +89,7 @@ export const Header = () => {
       { id: 'page-actual', title: 'Actual Utilization', subtitle: 'Approved timesheet reconciliation', path: '/utilization/actual', icon: BarChart3, keywords: 'actual utilization timesheet approved reconciliation', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-forecast', title: 'Forecast Utilization', subtitle: 'Forward allocation outlook', path: '/utilization/forecast', icon: BarChart3, keywords: 'forecast future utilization pipeline', roles: ['Admin', 'HR', 'CountryDirector', 'ProjectManager', 'TeamLead'] },
       { id: 'page-data-quality', title: 'Data Quality', subtitle: 'Production handover checks and data confidence', path: '/reports/data-quality', icon: ShieldCheck, keywords: 'data quality confidence production handover missing manager capacity teams identity', roles: ROUTE_ROLES.dataQuality },
+      { id: 'page-brd-traceability', title: 'BRD Traceability', subtitle: 'BRD scope, UI, API, completed, pending, and future roadmap cross-check', path: '/governance/brd-traceability', icon: ClipboardCheck, keywords: 'brd traceability source truth roadmap completed pending ui api production core future leave teams entra', roles: ROUTE_ROLES.brdTraceability },
       { id: 'page-import', title: 'Import / Export', subtitle: 'CSV imports, exports, history', path: '/import-export', icon: Database, keywords: 'import export csv data bulk', roles: ['Admin'] },
       { id: 'page-audit', title: 'Audit Trail', subtitle: 'System activity and traceability', path: '/audit-trail', icon: ShieldCheck, keywords: 'audit logs history traceability', roles: ['Admin'] },
       { id: 'page-admin', title: 'Admin Settings', subtitle: 'Roles, directors, thresholds, policies', path: '/admin', icon: SettingsIcon, keywords: 'admin settings roles country directors thresholds', roles: ['Admin', 'HR'] },

@@ -46,6 +46,7 @@ assert.ok(admin, 'admin account should be available');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.dashboard), true, 'admin should access the overview dashboard');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.importExport), true, 'admin should access import/export');
 assert.equal(hasRouteRole(admin, ROUTE_ROLES.auditTrail), true, 'admin should access audit trail');
+assert.equal(hasRouteRole(admin, ROUTE_ROLES.brdTraceability), true, 'admin should access BRD traceability');
 assert.equal(canOpenImportExport(admin), true, 'admin should see import/export actions');
 assert.equal(canEditEmployeeData(admin), true, 'admin should see employee edit actions');
 assert.equal(canResetEmployeePassword(admin), true, 'admin should see password reset actions');
@@ -57,6 +58,7 @@ assert.ok(hr, 'HR account should be available');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.dashboard), true, 'HR should access the overview dashboard');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.adminSettings), true, 'HR should access governance settings');
 assert.equal(hasRouteRole(hr, ROUTE_ROLES.auditTrail), false, 'HR should not access audit trail');
+assert.equal(hasRouteRole(hr, ROUTE_ROLES.brdTraceability), true, 'HR should access BRD traceability');
 assert.equal(canOpenImportExport(hr), false, 'HR should not see import/export actions');
 assert.equal(canEditEmployeeData(hr), true, 'HR should see employee edit actions');
 assert.equal(canEditProjectData(hr), true, 'HR should see project edit actions');
@@ -66,6 +68,7 @@ assert.ok(projectManager, 'PM account should be available');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.dashboard), false, 'PM should land in project workspace instead of overview dashboard');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.projectManagerWorkspace), true, 'PM should access PM Workspace');
 assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.utilization), true, 'PM should access scoped planned and actual utilization reports');
+assert.equal(hasRouteRole(projectManager, ROUTE_ROLES.brdTraceability), true, 'PM should access BRD traceability');
 const managedProject = projects.find(project =>
   project.managerId === projectManager.id ||
   project.managerId === projectManager.employeeId ||
@@ -100,6 +103,7 @@ assert.equal(canManageAllocations(projectManager), true, 'PM should see allocati
 const countryDirector = await authService.login('cd-1', 'demo123', 'CountryDirector');
 assert.ok(countryDirector?.cdId, 'Country Director session should include CD scope id');
 assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.dashboard), true, 'CD should access the scoped overview dashboard');
+assert.equal(hasRouteRole(countryDirector, ROUTE_ROLES.brdTraceability), true, 'CD should access BRD traceability');
 const cdEmployeeIds = new Set(employees
   .filter(employee =>
     employee.primaryCountryDirectorId === countryDirector.cdId ||
@@ -149,6 +153,7 @@ assert.ok(employee, 'employee account should be available');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.dashboard), false, 'employee should land in timesheet workspace instead of overview dashboard');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.employeeWorkspace), true, 'employee should access My Workspace');
 assert.equal(hasRouteRole(employee, ROUTE_ROLES.utilization), false, 'employee should not access global planned or actual utilization reports');
+assert.equal(hasRouteRole(employee, ROUTE_ROLES.brdTraceability), false, 'employee should not access BRD traceability');
 assert.equal(canAccessEmployeeDetail({ user: employee, employeeId: allocatedEmployee.id, employees, allocations, projects }), true, 'employee should access own detail');
 assert.equal(canEditEmployeeData(employee), false, 'employee should not see employee edit actions');
 assert.equal(canManageAllocations(employee), false, 'employee should not see allocation controls');
