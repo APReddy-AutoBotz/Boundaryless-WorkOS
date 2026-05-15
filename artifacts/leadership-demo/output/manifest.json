@@ -1,9 +1,9 @@
 {
-  "pptxPath": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\output\\Boundaryless_RUT_Leadership_Demo_Screenshot_Driven.pptx",
-  "previewDir": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\previews",
-  "montagePath": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\previews\\montage.png",
-  "layoutDir": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\layouts",
-  "screenshotDir": "E:\\BL-Utilization Tracker\\artifacts\\leadership-demo\\screenshots",
+  "pptxPath": "artifacts/leadership-demo/output/Boundaryless-WorkOS_Leadership_Demo_Screenshot_Driven.pptx",
+  "previewDir": "artifacts/leadership-demo/previews",
+  "montagePath": "artifacts/leadership-demo/previews/montage.png",
+  "layoutDir": "artifacts/leadership-demo/layouts",
+  "screenshotDir": "artifacts/leadership-demo/screenshots",
   "slideCount": 10,
   "pdfPath": null,
   "note": "PDF export was not attempted because the local artifact runtime reliably supports PPTX and PNG previews in this environment."

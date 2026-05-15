@@ -6,7 +6,7 @@ const artifactToolPath =
 
 const { PresentationFile } = await import(artifactToolPath);
 
-const pptxPath = path.resolve("artifacts/leadership-demo/output/Boundaryless_RUT_Leadership_Demo_Screenshot_Driven.pptx");
+const pptxPath = path.resolve("artifacts/leadership-demo/output/Boundaryless-WorkOS_Leadership_Demo_Screenshot_Driven.pptx");
 const outputDir = path.resolve("artifacts/leadership-demo/pptx-parity-previews");
 
 await fs.mkdir(outputDir, { recursive: true });

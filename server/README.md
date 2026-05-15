@@ -1,4 +1,4 @@
-# StaffPulse Workforce Operations Core API
+# Boundaryless-WorkOS Workforce Operations Core API
 
 This is the production backend starting point for the internal utilization tracker.
 

@@ -1,10 +1,10 @@
-# Boundaryless Resource Utilization Tracker
+# Boundaryless-WorkOS
 
 ## Executive User Flow and Leadership Demo Script
 
 ### Purpose
 
-The Resource Utilization Tracker is an internal operating workspace for delivery capacity, project staffing, weekly effort evidence, and governance traceability.
+The Boundaryless-WorkOS is an internal operating workspace for delivery capacity, project staffing, weekly effort evidence, and governance traceability.
 
 The leadership story is simple:
 
@@ -43,7 +43,7 @@ This sequence shows the full operating loop: access, signal, scope, ownership, p
 
 | Slide | What to Say | What the Screenshot Proves |
 |---|---|---|
-| 1. Resource Utilization Tracker | "This is a production-oriented command center for capacity, client delivery, weekly evidence, and governance." | The product has a real internal workspace and dashboard, not a marketing-style landing page. |
+| 1. Boundaryless-WorkOS | "This is a production-oriented command center for capacity, client delivery, weekly evidence, and governance." | The product has a real internal workspace and dashboard, not a marketing-style landing page. |
 | 2. Why this matters | "Utilization is credible only when the path from plan to approved effort is visible." | Login is role based and the product is designed for internal governed access. |
 | 3. Command center | "Leadership starts with portfolio health, not raw tables." | Dashboard KPIs, Country Director portfolio, and attention queues are visible above the fold. |
 | 4. Client scope | "Country Directors need a client-and-project lens, not only an FTE number." | Client concentration, project count, mapped resources, allocated FTE, and billable footprint are visible together. |
@@ -122,7 +122,7 @@ The tracker is being used correctly when:
 
 ### Deliverables in This Demo Pack
 
-- `output/Boundaryless_RUT_Leadership_Demo_Screenshot_Driven.pptx`
+- `output/Boundaryless-WorkOS_Leadership_Demo_Screenshot_Driven.pptx`
 - `previews/slide-01.png` through `previews/slide-10.png`
 - `previews/montage.png`
 - `screenshots/01-login-internal-access.png` through `screenshots/12-audit-trail.png`

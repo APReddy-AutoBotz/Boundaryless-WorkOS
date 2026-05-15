@@ -1,4 +1,4 @@
-# StaffPulse Production Core Handover Checklist
+# Boundaryless-WorkOS Production Core Handover Checklist
 
 Use this checklist for the first company production handover. Teams, leave management, Entra SSO, notification delivery, billing, AI, and Kanban/task management are outside this release.
 

@@ -236,7 +236,7 @@ function step(index, label, body) {
   );
 }
 
-function footer(slideNo, textValue = "Boundaryless Resource Utilization Tracker | Leadership demo") {
+function footer(slideNo, textValue = "Boundaryless-WorkOS | Leadership demo") {
   return row(
     { name: `footer.${slideNo}`, width: fill, height: hug, gap: 24 },
     [
@@ -280,7 +280,7 @@ compose(
         { name: "slide-01.copy", width: fill, height: hug, gap: 24 },
         [
           kicker("Executive product demo"),
-          title("Resource Utilization Tracker", { width: 720, size: 72 }),
+          title("Boundaryless-WorkOS", { width: 720, size: 56 }),
           subtitle("A production-oriented command center for capacity, client delivery, weekly evidence, and governance.", { width: 650, size: 28 }),
           rule({ name: "slide-01.rule", width: fixed(220), stroke: colors.orange, weight: 6 }),
           text("Signal -> drilldown -> action -> governance", {
@@ -648,7 +648,7 @@ compose(
   ),
 );
 
-const pptxPath = path.join(outputDir, "Boundaryless_RUT_Leadership_Demo_Screenshot_Driven.pptx");
+const pptxPath = path.join(outputDir, "Boundaryless-WorkOS_Leadership_Demo_Screenshot_Driven.pptx");
 const pptxBlob = await PresentationFile.exportPptx(presentation);
 await pptxBlob.save(pptxPath);
 

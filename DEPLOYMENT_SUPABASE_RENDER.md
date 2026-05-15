@@ -1,8 +1,8 @@
 # Supabase + Render Deployment Guide
 
-**Application:** Boundaryless Resource Utilization Tracker  
+**Application:** Boundaryless-WorkOS  
 **Recommended temporary deployment:** Render Web Service + Supabase PostgreSQL  
-**Repository:** https://github.com/APReddy-AutoBotz/Boundaryless-RUT
+**Repository:** https://github.com/APReddy-AutoBotz/Boundaryless-WorkOS
 
 This guide explains how to deploy the current application using a personal Supabase project now, while keeping handover to the company technical team simple later.
 
@@ -57,7 +57,7 @@ In Render, add these variables to the Web Service:
 | `AUTO_MIGRATE` | `true` for first Render deployment |
 | `AUTO_SEED_DEMO` | `true` only for the first disposable demo seed; set to `false` before real data edits |
 | `DEMO_SEED_PASSWORD` | `demo123` or your chosen demo password |
-| `APP_URL` | Render app URL, for example `https://boundaryless-rut.onrender.com` |
+| `APP_URL` | Render app URL, for example `https://boundaryless-workos.onrender.com` |
 
 Render provides `PORT` automatically. Do not manually set `PORT` unless Render asks you to.
 
@@ -85,7 +85,7 @@ Create a new Render Web Service:
 
 | Setting | Value |
 |---|---|
-| Repository | `APReddy-AutoBotz/Boundaryless-RUT` |
+| Repository | `APReddy-AutoBotz/Boundaryless-WorkOS` |
 | Runtime | Node |
 | Node Version | 22 |
 | Branch | `main` or your active deployment branch |

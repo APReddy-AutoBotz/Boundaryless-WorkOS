@@ -3157,5 +3157,5 @@ if (isProduction || process.env.SERVE_STATIC === 'true') {
 }
 
 app.listen(port, () => {
-  console.log(`StaffPulse Workforce Operations Core API listening on http://localhost:${port}`);
+  console.log(`Boundaryless-WorkOS Workforce Operations Core API listening on http://localhost:${port}`);
 });

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: boundaryless-rut
+    name: boundaryless-workos
     runtime: node
     plan: free
     buildCommand: npm install && npm run build

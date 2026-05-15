@@ -103,7 +103,7 @@ export const Login = () => {
               </div>
 
               <div className="mt-8">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">StaffPulse Workforce Operations Core</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Boundaryless-WorkOS Workforce Operations Core</p>
                 <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight leading-tight">
                   Internal workforce planning workspace
                 </h1>

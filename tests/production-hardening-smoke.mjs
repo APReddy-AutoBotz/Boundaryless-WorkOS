@@ -39,7 +39,7 @@ assert.match(server, /Missing reporting manager/, 'data quality report must dete
 assert.match(server, /Demo data remnant/, 'data quality report must detect demo data remnants');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
-assert.ok(existsSync('server/migrations/006_staffpulse_prod_core.sql'), 'StaffPulse production-core migration must exist');
+assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
 
 assert.equal(packageJson.dependencies['@google/genai'], undefined, 'unused Gemini dependency must be removed');
 
@@ -47,7 +47,7 @@ console.log(JSON.stringify({
   status: 'passed',
   activeRoleOnly: true,
   demoFallbackGuard: true,
-  staffPulseSchema: true,
+  boundarylessWorkOSSchema: true,
   dataQualityReport: true,
   versionedMigrations: true,
 }, null, 2));

@@ -1,14 +1,14 @@
-# Resource Utilization Tracker - Business User Flow Guide
+# Boundaryless-WorkOS - Business User Flow Guide
 
 **Audience:** HR, Admin, Country Directors, Project Managers, Team Leads, Employees, and Business Leadership  
-**Purpose:** Explain how the Resource Utilization Tracker should be used in day-to-day operations without requiring technical knowledge.  
+**Purpose:** Explain how the Boundaryless-WorkOS should be used in day-to-day operations without requiring technical knowledge.  
 **Recommended Use:** Internal operating guide for demo, onboarding, weekly governance, and business adoption.
 
 ---
 
 ## 1. What This Tracker Is For
 
-The Resource Utilization Tracker is an internal business application used to manage:
+The Boundaryless-WorkOS is an internal business application used to manage:
 
 - Employees and their reporting/director mappings
 - Clients and active delivery portfolios

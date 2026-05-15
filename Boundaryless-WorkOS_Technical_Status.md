@@ -1,4 +1,4 @@
-# Resource Utilization Tracker - Technical Status and Production Readiness
+# Boundaryless-WorkOS - Technical Status and Production Readiness
 
 **Last Updated:** 12 May 2026
 **Audience:** Engineering, QA, technical reviewers, implementation partners, and production-readiness reviewers  
@@ -41,7 +41,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 |---|---|---|
 | Frontend Vite app | `http://localhost:3000/` | Local demo server |
 | Backend API health | `http://localhost:4000/api/health` or deployed `/api/health` | Depends on active server |
-| Render deployment | `https://boundaryless-rut.onrender.com` | Demo deployment verified by user |
+| Render deployment | `https://boundaryless-workos.onrender.com` | Demo deployment verified by user |
 | Backend database state | `database: connected` on Render/Supabase | Personal Supabase currently used for demo/UAT |
 
 ---
@@ -84,7 +84,7 @@ The app is ready for guided leadership/demo walkthroughs and controlled backend-
 | Audit Trail | Partial | Frontend/local audit is visible/exportable, and backend audit exists for major writes. Immutable full server-side audit coverage is pending. |
 | Governance Settings | Partial | Roles, CDs, departments, countries, industries, thresholds, settings write API, and guarded deletes exist. Full browser UAT pending. |
 | Global Search | Done for demo | Routes to employees, projects, clients, and relevant records; outside-click behavior is handled. |
-| Business user documentation | Done | `Resource_Utilization_Tracker_User_Flow_Guide.md` exists for non-technical users. |
+| Business user documentation | Done | `Boundaryless-WorkOS_User_Flow_Guide.md` exists for non-technical users. |
 
 ---
 
@@ -204,7 +204,7 @@ Temporary deployment direction selected for handover preparation:
 
 - Database: personal Supabase PostgreSQL via transaction pooler for now.
 - Hosting target: Render Web Service.
-- Repository: `https://github.com/APReddy-AutoBotz/Boundaryless-RUT`.
+- Repository: `https://github.com/APReddy-AutoBotz/Boundaryless-WorkOS`.
 - Handover model: company technical team replaces `DATABASE_URL`, `API_SESSION_SECRET`, hosting account, and demo data with company-owned equivalents.
 
 ---

@@ -1,6 +1,6 @@
-# StaffPulse Production Core Runbook
+# Boundaryless-WorkOS Production Core Runbook
 
-This runbook covers production-style operation for StaffPulse Workforce Operations Core before and after company-owned infrastructure is available.
+This runbook covers production-style operation for Boundaryless-WorkOS Workforce Operations Core before and after company-owned infrastructure is available.
 
 ## 1. Release Modes
 

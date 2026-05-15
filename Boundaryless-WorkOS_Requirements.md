@@ -1,7 +1,7 @@
-# Resource Utilization Tracker — Version 2 Production Readiness Requirements & QA Brief
+# Boundaryless-WorkOS — Version 2 Production Readiness Requirements & QA Brief
 
 **Document Owner:** AP  
-**Application:** Resource Utilization Tracker  
+**Application:** Boundaryless-WorkOS  
 **Target Stack:** React + TypeScript + Tailwind CSS frontend, Node.js API backend, PostgreSQL database  
 **Current State:** Near-production internal product build with local demo mode, Render/Supabase backend deployment, dual-mode async service layer, PostgreSQL schema/migrations/seed, scoped backend APIs, backend settings/timesheet/import-export history support, backend utilization report endpoints, backend CSV import apply endpoints, and handover documentation
 **Last Reconciled:** 6 May 2026
@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-This document guides Antigravity in evaluating and upgrading the current Resource Utilization Tracker codebase into a near-production internal web application.
+This document guides Antigravity in evaluating and upgrading the current Boundaryless-WorkOS codebase into a near-production internal web application.
 
 The application should manage:
 
@@ -49,7 +49,7 @@ For Phase 1 / near-production readiness, the system should focus on reliable man
 
 ## 3. Business Context
 
-The company currently uses an Excel-based resource utilization tracker. The new application should replace Excel as the primary operational tool after go-live.
+The company currently uses an Excel-based Boundaryless-WorkOS. The new application should replace Excel as the primary operational tool after go-live.
 
 Because the organization currently has a limited number of employees and projects, master data can be maintained manually within the application. Bulk import/export is useful, but manual maintenance should be fully supported and reliable.
 
@@ -1312,7 +1312,7 @@ Antigravity should evaluate the codebase for:
 Use this with Antigravity after uploading/exporting the code:
 
 ```text
-Evaluate the current Resource Utilization Tracker codebase against the attached requirements document.
+Evaluate the current Boundaryless-WorkOS codebase against the attached requirements document.
 
 The goal is to convert this from an AI Studio-generated local interactive app into a near-production internal application foundation.
 
@@ -1653,8 +1653,8 @@ This section reflects the 6 May 2026 codebase review after Render/Supabase deplo
 | Product scope | Employee, client, project, allocation, timesheet, approval, planned/actual/forecast utilization, dashboards, import/export, audit, and admin settings are represented. | High for demo scope. |
 | Demo data | 120-person dataset, 60 projects, 15 clients, 8 CDs, PM/HR/Admin users, multi-CD mappings, realistic utilization, allocations, and daily timesheets with per-entry DB-safe hours. | High for demo and UAT seed. |
 | UI/UX | Boundaryless-inspired internal UI, compact CD dashboard, client/resource drilldowns, global search, route-aware scroll reset, app-native notices/modals, better sorting affordance, and route-level lazy loading. | High for demo; needs browser UAT across roles. |
-| Business user documentation | A non-technical user flow guide now exists at `Resource_Utilization_Tracker_User_Flow_Guide.md`, covering role responsibilities, ideal weekly operating rhythm, screen-by-screen usage, utilization logic, governance ownership, and data quality rules. | High for business onboarding and demo support. |
-| Technical status documentation | `Resource_Utilization_Tracker_Technical_Status.md` now summarizes implemented areas, pending demo/UAT/production work, current QA status, user inputs needed, and recommended next technical actions. | High for engineering review and production-readiness tracking. |
+| Business user documentation | A non-technical user flow guide now exists at `Boundaryless-WorkOS_User_Flow_Guide.md`, covering role responsibilities, ideal weekly operating rhythm, screen-by-screen usage, utilization logic, governance ownership, and data quality rules. | High for business onboarding and demo support. |
+| Technical status documentation | `Boundaryless-WorkOS_Technical_Status.md` now summarizes implemented areas, pending demo/UAT/production work, current QA status, user inputs needed, and recommended next technical actions. | High for engineering review and production-readiness tracking. |
 | Core local calculations | Planned utilization, actual utilization from approved timesheets, forecast snapshots, resource headcount, and project actual contribution are implemented in frontend/local mode. | Medium-high; backend parity tests pending. |
 | Admin governance | Role, Country Director, department, country, industry, threshold/settings, demo reset, and guarded delete flows exist in UI/local mode. | Medium-high; API cutover pending. |
 | Backend foundation | Express API, PostgreSQL schema, migration runner, seed script, scrypt login, signed sessions/tokens, scoped route checks, catalog/settings/import-export/timesheet APIs, and static production serving exist. | Medium-high for controlled UAT; full production operations still pending. |
@@ -1715,5 +1715,5 @@ For the next demo, use the deployed Render/Supabase demo or local demo mode. Bef
 1. Confirm `AUTO_SEED_DEMO=false` if any demo records have been manually edited.
 2. Run smoke tests and a browser pass for Admin, HR, CD, PM, Team Lead, and Employee.
 3. Keep the current Boundaryless color/font styling unchanged.
-4. Share `Resource_Utilization_Tracker_User_Flow_Guide.md` with business stakeholders before or during demo walkthroughs.
+4. Share `Boundaryless-WorkOS_User_Flow_Guide.md` with business stakeholders before or during demo walkthroughs.
 5. Clearly describe the system as "ready for controlled UAT and company handover hardening" rather than "final production go-live."

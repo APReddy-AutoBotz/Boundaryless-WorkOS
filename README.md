@@ -1,6 +1,6 @@
-# StaffPulse Workforce Operations Core
+# Boundaryless-WorkOS Workforce Operations Core
 
-StaffPulse Workforce Operations Core is the production-core handover build for employee master data, project/client allocation, timesheets, utilization reporting, import/export, audit, and governance.
+Boundaryless-WorkOS Workforce Operations Core is the production-core handover build for employee master data, project/client allocation, timesheets, utilization reporting, import/export, audit, and governance.
 
 Utilization is calculated against delivery capacity only. Admin, HR, and Country Director governance users remain in the app for access, approvals, and ownership, but they are excluded from utilization denominators. Project Managers count only when they have active project allocations.
 
@@ -106,9 +106,9 @@ npm run test:prod-readiness
 
 ## Handover Documents
 
-- `Resource_Utilization_Tracker_Requirements.md`
-- `Resource_Utilization_Tracker_Technical_Status.md`
-- `Resource_Utilization_Tracker_User_Flow_Guide.md`
+- `Boundaryless-WorkOS_Requirements.md`
+- `Boundaryless-WorkOS_Technical_Status.md`
+- `Boundaryless-WorkOS_User_Flow_Guide.md`
 - `DEPLOYMENT_SUPABASE_RENDER.md`
 - `PRODUCTION_RUNBOOK.md`
 - `REAL_DATA_IMPORT_GUIDE.md`
