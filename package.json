@@ -15,6 +15,7 @@
     "lint": "tsc --noEmit",
     "test:requirements": "node --import tsx tests/requirements-smoke.mjs",
     "test:access": "node --import tsx tests/access-control-smoke.mjs",
+    "test:leave": "node --import tsx tests/leave-management-smoke.mjs",
     "test:backend": "node tests/backend-contract-smoke.mjs",
     "test:backend-api": "node tests/backend-api-smoke.mjs",
     "test:backend-roles": "node tests/backend-role-smoke.mjs",

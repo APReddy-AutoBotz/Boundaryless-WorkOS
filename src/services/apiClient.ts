@@ -9,6 +9,7 @@ import type {
   TimesheetSummary, TimesheetEntry, AuditLog, SystemSettings,
   RoleDefinition, CatalogItem, UserSession, UserRole, ImportExportLog,
   UtilizationReport, DataQualityReport, DashboardReport,
+  LeaveType, LeavePolicy, HolidayCalendar, Holiday, LeaveBalance, LeaveRequest,
 } from '../types';
 import { roundMetric } from '../lib/format';
 
@@ -358,6 +359,90 @@ export const normalizeDashboardReport = (r: Record<string, unknown>): DashboardR
     dataQuality: normalizeDataQualityReport((r.dataQuality ?? r.data_quality ?? {}) as Record<string, unknown>),
   };
 };
+
+export const normalizeLeaveType = (r: Record<string, unknown>): LeaveType => ({
+  id: String(r.id),
+  code: String(r.code),
+  name: String(r.name),
+  paid: Boolean(r.paid),
+  requiresApproval: r.requires_approval === undefined ? Boolean(r.requiresApproval ?? true) : Boolean(r.requires_approval),
+  active: r.active === undefined ? true : Boolean(r.active),
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeLeavePolicy = (r: Record<string, unknown>): LeavePolicy => ({
+  id: String(r.id),
+  name: String(r.name),
+  country: String(r.country ?? 'Global'),
+  annualAllowanceDays: Number(r.annual_allowance_days ?? r.annualAllowanceDays ?? 0),
+  carryForwardDays: Number(r.carry_forward_days ?? r.carryForwardDays ?? 0),
+  accrualMethod: String(r.accrual_method ?? r.accrualMethod ?? 'Annual'),
+  status: String(r.status ?? 'Active') as LeavePolicy['status'],
+  leaveTypeIds: Array.isArray(r.leave_type_ids)
+    ? (r.leave_type_ids as string[])
+    : Array.isArray(r.leaveTypeIds)
+      ? (r.leaveTypeIds as string[])
+      : [],
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeHoliday = (r: Record<string, unknown>): Holiday => ({
+  id: String(r.id),
+  calendarId: String(r.calendar_id ?? r.calendarId),
+  name: String(r.name),
+  date: String(r.holiday_date ?? r.date).slice(0, 10),
+  type: String(r.holiday_type ?? r.type ?? 'Public') as Holiday['type'],
+});
+
+export const normalizeHolidayCalendar = (r: Record<string, unknown>): HolidayCalendar => ({
+  id: String(r.id),
+  name: String(r.name),
+  country: String(r.country ?? 'Global'),
+  year: Number(r.calendar_year ?? r.year),
+  status: String(r.status ?? 'Active') as HolidayCalendar['status'],
+  holidays: Array.isArray(r.holidays) ? (r.holidays as Record<string, unknown>[]).map(normalizeHoliday) : [],
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeLeaveBalance = (r: Record<string, unknown>): LeaveBalance => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeName: r.employee_name ? String(r.employee_name) : r.employeeName ? String(r.employeeName) : undefined,
+  leaveTypeId: String(r.leave_type_id ?? r.leaveTypeId),
+  leaveTypeName: r.leave_type_name ? String(r.leave_type_name) : r.leaveTypeName ? String(r.leaveTypeName) : undefined,
+  policyId: r.policy_id ? String(r.policy_id) : r.policyId ? String(r.policyId) : undefined,
+  year: Number(r.balance_year ?? r.year),
+  openingDays: Number(r.opening_days ?? r.openingDays ?? 0),
+  accruedDays: Number(r.accrued_days ?? r.accruedDays ?? 0),
+  usedDays: Number(r.used_days ?? r.usedDays ?? 0),
+  adjustedDays: Number(r.adjusted_days ?? r.adjustedDays ?? 0),
+  pendingDays: Number(r.pending_days ?? r.pendingDays ?? 0),
+  availableDays: Number(r.available_days ?? r.availableDays ?? 0),
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
+
+export const normalizeLeaveRequest = (r: Record<string, unknown>): LeaveRequest => ({
+  id: String(r.id),
+  employeeId: String(r.employee_id ?? r.employeeId),
+  employeeName: r.employee_name ? String(r.employee_name) : r.employeeName ? String(r.employeeName) : undefined,
+  leaveTypeId: String(r.leave_type_id ?? r.leaveTypeId),
+  leaveTypeName: r.leave_type_name ? String(r.leave_type_name) : r.leaveTypeName ? String(r.leaveTypeName) : undefined,
+  startDate: String(r.start_date ?? r.startDate).slice(0, 10),
+  endDate: String(r.end_date ?? r.endDate).slice(0, 10),
+  totalDays: Number(r.total_days ?? r.totalDays ?? 0),
+  status: String(r.status ?? 'Submitted') as LeaveRequest['status'],
+  reason: r.reason ? String(r.reason) : undefined,
+  approverId: r.approver_id ? String(r.approver_id) : r.approverId ? String(r.approverId) : undefined,
+  approverName: r.approver_name ? String(r.approver_name) : r.approverName ? String(r.approverName) : undefined,
+  comments: r.comments ? String(r.comments) : undefined,
+  submittedAt: r.submitted_at ? String(r.submitted_at) : r.submittedAt ? String(r.submittedAt) : undefined,
+  decidedAt: r.decided_at ? String(r.decided_at) : r.decidedAt ? String(r.decidedAt) : undefined,
+  createdAt: r.created_at ? String(r.created_at) : r.createdAt ? String(r.createdAt) : undefined,
+  updatedAt: r.updated_at ? String(r.updated_at) : r.updatedAt ? String(r.updatedAt) : undefined,
+});
 
 export const normalizeSettings = (rows: Array<{ key: string; value: unknown }>): SystemSettings => {
   const map = Object.fromEntries(rows.map(r => [r.key, r.value]));

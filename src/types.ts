@@ -110,6 +110,95 @@ export interface DashboardReport {
   dataQuality: DataQualityReport;
 }
 
+export interface LeaveType {
+  id: string;
+  code: string;
+  name: string;
+  paid: boolean;
+  requiresApproval: boolean;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LeavePolicy {
+  id: string;
+  name: string;
+  country: string;
+  annualAllowanceDays: number;
+  carryForwardDays: number;
+  accrualMethod: 'Annual' | 'Monthly' | 'Manual' | string;
+  status: 'Active' | 'Inactive';
+  leaveTypeIds: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Holiday {
+  id: string;
+  calendarId: string;
+  name: string;
+  date: string;
+  type: 'Public' | 'Company' | 'Regional' | string;
+}
+
+export interface HolidayCalendar {
+  id: string;
+  name: string;
+  country: string;
+  year: number;
+  status: 'Active' | 'Inactive';
+  holidays: Holiday[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LeaveBalance {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  leaveTypeId: string;
+  leaveTypeName?: string;
+  policyId?: string;
+  year: number;
+  openingDays: number;
+  accruedDays: number;
+  usedDays: number;
+  adjustedDays: number;
+  pendingDays: number;
+  availableDays: number;
+  updatedAt?: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  leaveTypeId: string;
+  leaveTypeName?: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Cancelled';
+  reason?: string;
+  approverId?: string;
+  approverName?: string;
+  comments?: string;
+  submittedAt?: string;
+  decidedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LeaveAvailabilityEntry {
+  employeeId: string;
+  employeeName: string;
+  standardWeeklyHours: number;
+  approvedLeaveDays: number;
+  holidayDays: number;
+  availabilityHours: number;
+}
+
 export interface CountryDirector {
   id: string;
   name: string;

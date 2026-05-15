@@ -3,7 +3,7 @@
  * AUTO-DETECTS backend: if /api/health returns database:connected → uses REST API.
  * Otherwise → falls back to localStorage (demo mode). Zero code change needed to switch.
  */
-import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport } from '../types';
+import type { Employee, Project, Allocation, TimesheetSummary, AuditLog, ImportExportLog, SystemSettings, CountryDirector, RoleDefinition, Client, CatalogItem, UtilizationReport, UtilizationReportMode, UserAccount, DataQualityReport, DashboardReport, LeaveType, LeavePolicy, HolidayCalendar, LeaveBalance, LeaveRequest, LeaveAvailabilityEntry } from '../types';
 import { DataStorage, STORAGE_KEYS } from './storage';
 import { authService } from './authService';
 import {
@@ -12,7 +12,9 @@ import {
   normalizeClient, normalizeTimesheetSummary, normalizeAuditLog,
   normalizeSettings, normalizeCatalogItem, normalizeRoleDefinition,
   normalizeCountryDirector, normalizeImportExportLog, normalizeUtilizationReport,
-  normalizeDataQualityReport, normalizeDashboardReport,
+  normalizeDataQualityReport, normalizeDashboardReport, normalizeLeaveType,
+  normalizeLeavePolicy, normalizeHolidayCalendar, normalizeLeaveBalance,
+  normalizeLeaveRequest,
 } from './apiClient';
 import { getAllocationLoad, getLatestApprovedActualUtilization, getActiveAllocationsForEmployee, getDefaultUtilizationEligible, getUtilizationEligibleEmployees } from './calculations';
 import { roundMetric } from '../lib/format';
@@ -372,6 +374,286 @@ export const timesheetService = {
 };
 
 // ── Admin Service ────────────────────────────────────────────────────────────
+const leaveDayCount = (startDate: string, endDate: string) => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+  let days = 0;
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) days += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+};
+
+const refreshLocalLeaveBalances = () => {
+  const balances = DataStorage.get<LeaveBalance[]>(STORAGE_KEYS.LEAVE_BALANCES, []);
+  const requests = DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+  const employees = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+  const leaveTypes = DataStorage.get<LeaveType[]>(STORAGE_KEYS.LEAVE_TYPES, []);
+  const employeesById = new Map(employees.map(employee => [employee.id, employee]));
+  const leaveTypeById = new Map(leaveTypes.map(type => [type.id, type]));
+  const next = balances.map(balance => {
+    const matchingRequests = requests.filter(request =>
+      request.employeeId === balance.employeeId &&
+      request.leaveTypeId === balance.leaveTypeId &&
+      new Date(`${request.startDate}T00:00:00`).getFullYear() === balance.year
+    );
+    const usedDays = matchingRequests
+      .filter(request => request.status === 'Approved')
+      .reduce((sum, request) => sum + request.totalDays, 0);
+    const pendingDays = matchingRequests
+      .filter(request => request.status === 'Submitted')
+      .reduce((sum, request) => sum + request.totalDays, 0);
+    const availableDays = Math.max(0, balance.openingDays + balance.accruedDays + balance.adjustedDays - usedDays - pendingDays);
+    return {
+      ...balance,
+      employeeName: balance.employeeName || employeesById.get(balance.employeeId)?.name,
+      leaveTypeName: balance.leaveTypeName || leaveTypeById.get(balance.leaveTypeId)?.name,
+      usedDays,
+      pendingDays,
+      availableDays,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  DataStorage.set(STORAGE_KEYS.LEAVE_BALANCES, next);
+  return next;
+};
+
+const buildLocalLeaveAvailability = async (): Promise<LeaveAvailabilityEntry[]> => {
+  const [employees, requests, calendars] = await Promise.all([
+    employeeService.getAll(),
+    leaveService.getRequests(),
+    leaveService.getHolidayCalendars(),
+  ]);
+  const currentYear = new Date().getFullYear();
+  return employees
+    .filter(employee => employee.status !== 'Exited')
+    .map(employee => {
+      const approvedLeaveDays = requests
+        .filter(request =>
+          request.employeeId === employee.id &&
+          request.status === 'Approved' &&
+          new Date(`${request.startDate}T00:00:00`).getFullYear() === currentYear
+        )
+        .reduce((sum, request) => sum + request.totalDays, 0);
+      const holidayDays = calendars
+        .filter(calendar => calendar.status === 'Active' && calendar.year === currentYear && (calendar.country === 'Global' || calendar.country === employee.country))
+        .flatMap(calendar => calendar.holidays)
+        .filter(holiday => {
+          const day = new Date(`${holiday.date}T00:00:00`).getDay();
+          return day !== 0 && day !== 6;
+        }).length;
+      const standardWeeklyHours = employee.standardWeeklyHours || 40;
+      const dailyHours = standardWeeklyHours / 5;
+      return {
+        employeeId: employee.id,
+        employeeName: employee.name,
+        standardWeeklyHours,
+        approvedLeaveDays,
+        holidayDays,
+        availabilityHours: Math.max(0, standardWeeklyHours * 52 - (approvedLeaveDays + holidayDays) * dailyHours),
+      };
+    });
+};
+
+export const leaveService = {
+  getTypes: async (): Promise<LeaveType[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/leave/types');
+      return raw.map(normalizeLeaveType);
+    }
+    return DataStorage.get<LeaveType[]>(STORAGE_KEYS.LEAVE_TYPES, []);
+  },
+  saveType: async (type: LeaveType): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/leave/types', {
+        id: type.id,
+        code: type.code,
+        name: type.name,
+        paid: type.paid,
+        requires_approval: type.requiresApproval,
+        active: type.active,
+      });
+      return;
+    }
+    const list = DataStorage.get<LeaveType[]>(STORAGE_KEYS.LEAVE_TYPES, []);
+    const idx = list.findIndex(item => item.id === type.id);
+    if (idx >= 0) list[idx] = type; else list.push(type);
+    DataStorage.set(STORAGE_KEYS.LEAVE_TYPES, list);
+  },
+  getPolicies: async (): Promise<LeavePolicy[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/leave/policies');
+      return raw.map(normalizeLeavePolicy);
+    }
+    return DataStorage.get<LeavePolicy[]>(STORAGE_KEYS.LEAVE_POLICIES, []);
+  },
+  savePolicy: async (policy: LeavePolicy): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/leave/policies', {
+        id: policy.id,
+        name: policy.name,
+        country: policy.country,
+        annual_allowance_days: policy.annualAllowanceDays,
+        carry_forward_days: policy.carryForwardDays,
+        accrual_method: policy.accrualMethod,
+        status: policy.status,
+        leave_type_ids: policy.leaveTypeIds,
+      });
+      return;
+    }
+    const list = DataStorage.get<LeavePolicy[]>(STORAGE_KEYS.LEAVE_POLICIES, []);
+    const idx = list.findIndex(item => item.id === policy.id);
+    if (idx >= 0) list[idx] = policy; else list.push(policy);
+    DataStorage.set(STORAGE_KEYS.LEAVE_POLICIES, list);
+    const u = actor();
+    DataStorage.logAction(u.id, u.name, u.role, idx >= 0 ? 'Update' : 'Create', 'Leave', `${idx >= 0 ? 'Updated' : 'Created'} leave policy ${policy.name}`, { entityType: 'LeavePolicy', entityId: policy.id });
+  },
+  getHolidayCalendars: async (): Promise<HolidayCalendar[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/holiday-calendars');
+      return raw.map(normalizeHolidayCalendar);
+    }
+    return DataStorage.get<HolidayCalendar[]>(STORAGE_KEYS.HOLIDAY_CALENDARS, []);
+  },
+  saveHolidayCalendar: async (calendar: HolidayCalendar): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/holiday-calendars', {
+        id: calendar.id,
+        name: calendar.name,
+        country: calendar.country,
+        year: calendar.year,
+        status: calendar.status,
+        holidays: calendar.holidays.map(holiday => ({
+          id: holiday.id,
+          name: holiday.name,
+          date: holiday.date,
+          type: holiday.type,
+        })),
+      });
+      return;
+    }
+    const list = DataStorage.get<HolidayCalendar[]>(STORAGE_KEYS.HOLIDAY_CALENDARS, []);
+    const idx = list.findIndex(item => item.id === calendar.id);
+    if (idx >= 0) list[idx] = calendar; else list.push(calendar);
+    DataStorage.set(STORAGE_KEYS.HOLIDAY_CALENDARS, list);
+  },
+  getBalances: async (): Promise<LeaveBalance[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/leave/balances');
+      return raw.map(normalizeLeaveBalance);
+    }
+    return refreshLocalLeaveBalances();
+  },
+  saveBalance: async (balance: LeaveBalance): Promise<void> => {
+    if (await checkBackend()) {
+      await api.post('/api/leave/balances', {
+        id: balance.id,
+        employee_id: balance.employeeId,
+        leave_type_id: balance.leaveTypeId,
+        policy_id: balance.policyId || null,
+        year: balance.year,
+        opening_days: balance.openingDays,
+        accrued_days: balance.accruedDays,
+        adjusted_days: balance.adjustedDays,
+      });
+      return;
+    }
+    const list = DataStorage.get<LeaveBalance[]>(STORAGE_KEYS.LEAVE_BALANCES, []);
+    const idx = list.findIndex(item => item.id === balance.id);
+    if (idx >= 0) list[idx] = balance; else list.push(balance);
+    DataStorage.set(STORAGE_KEYS.LEAVE_BALANCES, list);
+    refreshLocalLeaveBalances();
+  },
+  getRequests: async (): Promise<LeaveRequest[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/leave/requests');
+      return raw.map(normalizeLeaveRequest);
+    }
+    const employees = await employeeService.getAll();
+    const types = DataStorage.get<LeaveType[]>(STORAGE_KEYS.LEAVE_TYPES, []);
+    const employeesById = new Map(employees.map(employee => [employee.id, employee]));
+    const typesById = new Map(types.map(type => [type.id, type]));
+    return DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []).map(request => ({
+      ...request,
+      employeeName: request.employeeName || employeesById.get(request.employeeId)?.name,
+      leaveTypeName: request.leaveTypeName || typesById.get(request.leaveTypeId)?.name,
+    }));
+  },
+  submitRequest: async (request: LeaveRequest): Promise<LeaveRequest> => {
+    const totalDays = request.totalDays || leaveDayCount(request.startDate, request.endDate);
+    if (await checkBackend()) {
+      const raw = await api.post<Record<string, unknown>>('/api/leave/requests', {
+        employee_id: request.employeeId,
+        leave_type_id: request.leaveTypeId,
+        start_date: request.startDate,
+        end_date: request.endDate,
+        total_days: totalDays,
+        reason: request.reason || null,
+      });
+      return normalizeLeaveRequest(raw);
+    }
+    const employees = DataStorage.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+    const types = DataStorage.get<LeaveType[]>(STORAGE_KEYS.LEAVE_TYPES, []);
+    const next: LeaveRequest = {
+      ...request,
+      id: request.id || crypto.randomUUID(),
+      totalDays,
+      status: 'Submitted',
+      employeeName: employees.find(employee => employee.id === request.employeeId)?.name,
+      leaveTypeName: types.find(type => type.id === request.leaveTypeId)?.name,
+      submittedAt: new Date().toISOString(),
+      createdAt: request.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const list = DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+    DataStorage.set(STORAGE_KEYS.LEAVE_REQUESTS, [next, ...list.filter(item => item.id !== next.id)]);
+    refreshLocalLeaveBalances();
+    const u = actor();
+    DataStorage.logAction(u.id, u.name, u.role, 'Submit Leave', 'Leave', `Submitted leave request for ${next.employeeName || next.employeeId}`, { entityType: 'LeaveRequest', entityId: next.id, newValue: next });
+    return next;
+  },
+  updateRequestStatus: async (id: string, status: 'Approved' | 'Rejected' | 'Cancelled', comments?: string): Promise<LeaveRequest> => {
+    if (await checkBackend()) {
+      return normalizeLeaveRequest(await api.patch<Record<string, unknown>>(`/api/leave/requests/${id}/status`, { status, comments }));
+    }
+    const list = DataStorage.get<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
+    const previous = list.find(item => item.id === id);
+    if (!previous) throw new Error('Leave request was not found.');
+    const u = actor();
+    const next = {
+      ...previous,
+      status,
+      comments,
+      approverId: u.id,
+      approverName: u.name,
+      decidedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    DataStorage.set(STORAGE_KEYS.LEAVE_REQUESTS, list.map(item => item.id === id ? next : item));
+    refreshLocalLeaveBalances();
+    DataStorage.logAction(u.id, u.name, u.role, `${status} Leave`, 'Leave', `${status} leave request for ${next.employeeName || next.employeeId}`, { entityType: 'LeaveRequest', entityId: next.id, oldValue: previous, newValue: next, reason: comments });
+    return next;
+  },
+  getAvailability: async (): Promise<LeaveAvailabilityEntry[]> => {
+    if (await checkBackend()) {
+      const raw = await api.get<Record<string, unknown>[]>('/api/reports/availability');
+      return raw.map(row => ({
+        employeeId: String(row.employee_id ?? row.employeeId),
+        employeeName: String(row.employee_name ?? row.employeeName),
+        standardWeeklyHours: Number(row.standard_weekly_hours ?? row.standardWeeklyHours ?? 40),
+        approvedLeaveDays: Number(row.approved_leave_days ?? row.approvedLeaveDays ?? 0),
+        holidayDays: Number(row.holiday_days ?? row.holidayDays ?? 0),
+        availabilityHours: Number(row.availability_hours ?? row.availabilityHours ?? 0),
+      }));
+    }
+    return buildLocalLeaveAvailability();
+  },
+};
+
 export const adminService = {
   getAuditLogs: async (): Promise<AuditLog[]> => {
     if (await checkBackend()) {

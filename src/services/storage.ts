@@ -12,7 +12,12 @@ import {
   UserSession,
   CountryDirector,
   UserAccount,
-  UserRole
+  UserRole,
+  LeaveType,
+  LeavePolicy,
+  HolidayCalendar,
+  LeaveBalance,
+  LeaveRequest
 } from '../types';
 import { getActiveAllocationsForEmployee, getAllocationLoad, getLatestApprovedActualUtilization, overlapsDateRange } from './calculations';
 import {
@@ -41,6 +46,11 @@ const STORAGE_KEYS = {
   DEPARTMENT_CATALOG: 'rt_department_catalog',
   COUNTRY_CATALOG: 'rt_country_catalog',
   INDUSTRY_CATALOG: 'rt_industry_catalog',
+  LEAVE_TYPES: 'bw_leave_types',
+  LEAVE_POLICIES: 'bw_leave_policies',
+  HOLIDAY_CALENDARS: 'bw_holiday_calendars',
+  LEAVE_BALANCES: 'bw_leave_balances',
+  LEAVE_REQUESTS: 'bw_leave_requests',
   DEMO_DATA_VERSION: 'rt_demo_data_version'
 };
 
@@ -135,6 +145,63 @@ const defaultSettings: SystemSettings = {
   blockOverAllocation: false,
   demoSubmissionMode: false,
   currency: 'GBP'
+};
+
+const defaultLeaveTypes: LeaveType[] = [
+  { id: 'leave-type-annual', code: 'ANNUAL', name: 'Annual Leave', paid: true, requiresApproval: true, active: true },
+  { id: 'leave-type-sick', code: 'SICK', name: 'Sick Leave', paid: true, requiresApproval: true, active: true },
+  { id: 'leave-type-unpaid', code: 'UNPAID', name: 'Unpaid Leave', paid: false, requiresApproval: true, active: true },
+];
+
+const defaultLeavePolicies: LeavePolicy[] = [
+  {
+    id: 'leave-policy-global',
+    name: 'Global Standard Leave Policy',
+    country: 'Global',
+    annualAllowanceDays: 24,
+    carryForwardDays: 5,
+    accrualMethod: 'Annual',
+    status: 'Active',
+    leaveTypeIds: defaultLeaveTypes.map(type => type.id),
+  },
+];
+
+const buildDefaultHolidayCalendars = (): HolidayCalendar[] => {
+  const year = new Date().getFullYear();
+  return [
+    {
+      id: `holiday-global-${year}`,
+      name: `Global Company Calendar ${year}`,
+      country: 'Global',
+      year,
+      status: 'Active',
+      holidays: [
+        { id: `holiday-global-${year}-new-year`, calendarId: `holiday-global-${year}`, name: 'New Year Holiday', date: `${year}-01-01`, type: 'Company' },
+        { id: `holiday-global-${year}-year-end`, calendarId: `holiday-global-${year}`, name: 'Year End Holiday', date: `${year}-12-25`, type: 'Company' },
+      ],
+    },
+  ];
+};
+
+const buildDefaultLeaveBalances = (employees: Employee[]): LeaveBalance[] => {
+  const year = new Date().getFullYear();
+  return employees
+    .filter(employee => employee.status !== 'Exited')
+    .map(employee => ({
+      id: `leave-balance-${employee.id}-${year}`,
+      employeeId: employee.id,
+      employeeName: employee.name,
+      leaveTypeId: 'leave-type-annual',
+      leaveTypeName: 'Annual Leave',
+      policyId: 'leave-policy-global',
+      year,
+      openingDays: 0,
+      accruedDays: 24,
+      usedDays: 0,
+      adjustedDays: 0,
+      pendingDays: 0,
+      availableDays: 24,
+    }));
 };
 
 const todayIso = () => new Date().toISOString().split('T')[0];
@@ -238,6 +305,7 @@ export class DataStorage {
     if (!localStorage.getItem(STORAGE_KEYS.IMPORT_EXPORT_LOGS)) {
       this.set<ImportExportLog[]>(STORAGE_KEYS.IMPORT_EXPORT_LOGS, []);
     }
+    this.ensureLeaveFoundation();
     this.ensureUserAccounts();
     this.recalculateUtilization();
   }
@@ -257,6 +325,11 @@ export class DataStorage {
     this.set<CatalogItem[]>(STORAGE_KEYS.COUNTRY_CATALOG, createDefaultCatalog('country', DEFAULT_COUNTRIES));
     this.set<CatalogItem[]>(STORAGE_KEYS.INDUSTRY_CATALOG, createDefaultCatalog('industry', DEFAULT_INDUSTRIES));
     this.set(STORAGE_KEYS.SETTINGS, defaultSettings);
+    this.set(STORAGE_KEYS.LEAVE_TYPES, defaultLeaveTypes);
+    this.set(STORAGE_KEYS.LEAVE_POLICIES, defaultLeavePolicies);
+    this.set(STORAGE_KEYS.HOLIDAY_CALENDARS, buildDefaultHolidayCalendars());
+    this.set(STORAGE_KEYS.LEAVE_BALANCES, buildDefaultLeaveBalances(dataset.employees));
+    this.set<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
     localStorage.removeItem(STORAGE_KEYS.AUTH);
     localStorage.removeItem(STORAGE_KEYS.USER_ACCOUNTS);
     this.set(STORAGE_KEYS.DEMO_DATA_VERSION, DEMO_DATA_VERSION);
@@ -270,6 +343,25 @@ export class DataStorage {
     const missing = generateDemoDataset().employees.filter(e => !existingEmails.has(e.email.toLowerCase()));
     if (missing.length > 0) {
       this.set(STORAGE_KEYS.EMPLOYEES, [...employees, ...missing]);
+    }
+  }
+
+  static ensureLeaveFoundation() {
+    const employees = this.get<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+    if (!localStorage.getItem(STORAGE_KEYS.LEAVE_TYPES)) {
+      this.set(STORAGE_KEYS.LEAVE_TYPES, defaultLeaveTypes);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.LEAVE_POLICIES)) {
+      this.set(STORAGE_KEYS.LEAVE_POLICIES, defaultLeavePolicies);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.HOLIDAY_CALENDARS)) {
+      this.set(STORAGE_KEYS.HOLIDAY_CALENDARS, buildDefaultHolidayCalendars());
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.LEAVE_BALANCES)) {
+      this.set(STORAGE_KEYS.LEAVE_BALANCES, buildDefaultLeaveBalances(employees));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.LEAVE_REQUESTS)) {
+      this.set<LeaveRequest[]>(STORAGE_KEYS.LEAVE_REQUESTS, []);
     }
   }
 

@@ -11,6 +11,8 @@ const header = readFileSync('src/components/Layout/Header.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Layout/Sidebar.tsx', 'utf8');
 const brdTraceability = readFileSync('src/pages/BRDTraceability.tsx', 'utf8');
 const featureFlags = readFileSync('src/config/featureFlags.ts', 'utf8');
+const leaveManagement = readFileSync('src/pages/LeaveManagement.tsx', 'utf8');
+const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
 const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
 const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
@@ -43,6 +45,9 @@ for (const column of [
 
 assert.match(server, /app\.get\('\/api\/reports\/data-quality'/, 'data quality report endpoint must exist');
 assert.match(server, /app\.get\('\/api\/reports\/dashboard'/, 'dashboard report endpoint must exist');
+assert.match(server, /app\.get\('\/api\/leave\/requests'/, 'leave request API must exist');
+assert.match(server, /app\.patch\('\/api\/leave\/requests\/:id\/status'/, 'leave approval API must exist');
+assert.match(server, /app\.get\('\/api\/reports\/availability'/, 'availability report API must exist');
 assert.match(server, /app\.post\('\/api\/auth\/switch-role'/, 'backend active-role switch endpoint must exist');
 assert.match(server, /app\.post\('\/api\/audit-events'/, 'backend audit event endpoint must exist for UI-triggered exports');
 assert.match(server, /action: z\.enum\(\['Export', 'Import', 'Notify'\]\)/, 'client audit events must be constrained to approved UI event actions');
@@ -58,11 +63,17 @@ assert.match(brdTraceability, /Traceability Matrix/, 'BRD traceability UI must i
 assert.match(brdTraceability, /Leave Management[\s\S]*Workforce OS Phase[\s\S]*Microsoft Teams Integration[\s\S]*Workforce OS Phase[\s\S]*Microsoft Entra SSO[\s\S]*Workforce OS Phase/, 'BRD traceability UI must cross-check feature-flagged strategic modules');
 assert.match(featureFlags, /FEATURE_LEAVE[\s\S]*FEATURE_NOTIFICATIONS[\s\S]*FEATURE_TEAMS[\s\S]*FEATURE_ENTRA[\s\S]*FEATURE_PLANNING/, 'enterprise feature flags must cover all Workforce OS modules');
 assert.match(app, /\/ess[\s\S]*\/leave\/my[\s\S]*\/approvals[\s\S]*\/notifications[\s\S]*\/integrations\/identity[\s\S]*\/planning\/resources[\s\S]*\/reports\/command-center/, 'Workforce OS route foundations must exist');
+assert.match(app, /<ESSHome \/>[\s\S]*<MyLeave \/>[\s\S]*<TeamLeaveCalendar \/>[\s\S]*<LeaveAdmin \/>/, 'Phase 2 leave routes must render real leave screens');
 assert.match(sidebar, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS navigation must be feature-gated');
 assert.match(header, /feature: 'leave'[\s\S]*feature: 'notifications'[\s\S]*feature: 'planning'[\s\S]*feature: 'entra'[\s\S]*feature: 'teams'/, 'Workforce OS search entries must be feature-gated');
+assert.match(leaveManagement, /Leave Balance[\s\S]*Submit Request[\s\S]*Team Leave Calendar[\s\S]*Leave Administration/, 'Phase 2 leave UI must include self-service, balances, team calendar, and admin views');
 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
+assert.ok(existsSync('server/migrations/007_workforce_os_leave.sql'), 'Workforce OS leave migration must exist');
+for (const table of ['leave_types', 'leave_policies', 'holiday_calendars', 'leave_balances', 'leave_requests']) {
+  assert.match(leaveMigration, new RegExp(`create table if not exists ${table}`), `leave migration must create ${table}`);
+}
 
 assert.match(requirements, /Single source of truth for product scope, production-core requirements, implementation status, and next technical plan\./, 'requirements document must be the BRD source of truth');
 assert.match(requirements, /## 8\. Completed vs Pending Status/, 'requirements must mark completed and pending status');
@@ -86,4 +97,5 @@ console.log(JSON.stringify({
   versionedMigrations: true,
   sourceOfTruthBrd: true,
   brdTraceabilityUi: true,
+  leaveManagement: true,
 }, null, 2));

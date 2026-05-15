@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const server = readFileSync('server/index.mjs', 'utf8');
 const schema = readFileSync('server/schema.sql', 'utf8');
+const leaveMigration = readFileSync('server/migrations/007_workforce_os_leave.sql', 'utf8');
 const seedDemo = readFileSync('server/seed-demo.mjs', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -54,6 +55,13 @@ assert.match(server, /json_agg\(json_build_object/, 'timesheet API must include 
 assert.match(server, /app\.get\('\/api\/reports\/planned-utilization'/, 'planned utilization report route must exist');
 assert.match(server, /app\.get\('\/api\/reports\/actual-utilization'/, 'actual utilization report route must exist');
 assert.match(server, /app\.get\('\/api\/reports\/forecast-utilization'/, 'forecast utilization report route must exist');
+assert.match(server, /app\.get\('\/api\/leave\/requests'/, 'leave request list route must exist');
+assert.match(server, /app\.post\('\/api\/leave\/requests'/, 'leave request submit route must exist');
+assert.match(server, /app\.patch\('\/api\/leave\/requests\/:id\/status'/, 'leave approval route must exist');
+assert.match(server, /app\.get\('\/api\/holiday-calendars'/, 'holiday calendar route must exist');
+assert.match(server, /app\.get\('\/api\/reports\/availability'/, 'availability report route must exist');
+assert.match(leaveMigration, /create table if not exists leave_requests/, 'leave migration must create leave requests');
+assert.match(leaveMigration, /create table if not exists leave_balances/, 'leave migration must create leave balances');
 assert.match(server, /buildEmployeeScopeWhere/, 'report endpoints must reuse backend employee scoping');
 
 console.log(JSON.stringify({
@@ -64,6 +72,7 @@ console.log(JSON.stringify({
   passwordLifecycle: true,
   demoSeed: true,
   reportRoutes: true,
+  leaveRoutes: true,
   employeeImportApply: true,
   clientImportApply: true,
   projectImportApply: true,

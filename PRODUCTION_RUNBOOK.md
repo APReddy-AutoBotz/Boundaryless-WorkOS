@@ -24,7 +24,7 @@ Render UAT proves the application path, but it is not company production until t
 | `APP_URL` | Yes | Public/internal HTTPS app URL. Required for CORS and cookie planning. |
 | `APP_MODE` | Yes | Use `production` for company production and `demo` only for local demos. |
 | `DISABLE_DEMO_FALLBACK` | Yes | Use `true` for company production so localStorage demo data is never used as a fallback. |
-| `FEATURE_LEAVE` / `VITE_FEATURE_LEAVE` | Optional | Enables feature-gated ESS and leave route foundations. Keep disabled until Phase 2 UAT. |
+| `FEATURE_LEAVE` / `VITE_FEATURE_LEAVE` | Optional | Enables Phase 2 ESS/leave screens, leave APIs, balances, holiday calendars, and availability reporting. Keep disabled until leave role UAT passes. |
 | `FEATURE_NOTIFICATIONS` / `VITE_FEATURE_NOTIFICATIONS` | Optional | Enables approval and notification route foundations. Keep disabled until Phase 3/4 UAT. |
 | `FEATURE_TEAMS` / `VITE_FEATURE_TEAMS` | Optional | Enables Teams integration route foundations. Use `TEAMS_PROVIDER=mock` until company credentials exist. |
 | `FEATURE_ENTRA` / `VITE_FEATURE_ENTRA` | Optional | Enables identity integration route foundations. Use `IDENTITY_PROVIDER=local` until Entra is configured. |

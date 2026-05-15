@@ -78,8 +78,8 @@ One trusted operational layer for employees, capacity, availability, allocations
 | Workforce OS Module | BRD Intent | Current Status | Implementation Decision |
 |---|---|---|---|
 | Employee Master as root | Employee data feeds identity, reporting, capacity, allocations, timesheets, approvals, leave, notifications, and Teams identity. | Partially complete | Included now; identity/leave/Teams fields are the bridge into Workforce OS phases. |
-| ESS Portal | Employee self-service for profile, allocations, timesheets, leave, notifications, and manager views. | Phase 1 foundation | Feature-flagged route foundation now; full ESS/leave UI in Phase 2. |
-| Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Phase 1 foundation | Feature-flagged route foundation now; data model, APIs, and UI in Phase 2. |
+| ESS Portal | Employee self-service for profile, allocations, timesheets, leave, notifications, and manager views. | Phase 2 in progress | Feature-flagged ESS home now shows profile, leave balances, pending requests, and leave-adjusted availability. |
+| Leave Management | Leave requests, balances, policies, calendars, approvals, and utilization availability impact. | Phase 2 in progress | Leave data model, backend APIs, local/demo services, self-service UI, team calendar, admin policy view, balance report, and availability report are implemented. |
 | Approval Management | Common approval model for timesheets, leave, allocation changes, delegations, and SLAs. | Phase 1 foundation | Feature-flagged route foundation now; shared approval model in Phase 3. |
 | Notification Center | Role/scope/event based in-app, email, and Teams notifications. | Phase 1 foundation | Feature-flagged route foundation now; notification data and adapters in Phase 4. |
 | Microsoft Teams | Personal tab, deterministic bot commands, Adaptive Cards, and secure action tokens. | Phase 1 foundation | Feature-flagged route foundation now; mock adapter and mapping in Phase 5. |
@@ -279,12 +279,18 @@ VITE_FEATURE_PLANNING=true|false
 - `GET /api/auth/me`
 - `POST /api/auth/change-password`
 - `POST /api/users/:id/password-reset`
-- Employee, client, project, allocation, timesheet, settings, catalog, Country Director, role, audit, and import/export endpoints
+- Employee, client, project, allocation, timesheet, leave, holiday calendar, settings, catalog, Country Director, role, audit, and import/export endpoints
 - `GET /api/reports/planned-utilization`
 - `GET /api/reports/actual-utilization`
 - `GET /api/reports/forecast-utilization`
 - `GET /api/reports/data-quality`
 - `GET /api/reports/dashboard`
+- `GET /api/reports/availability`
+- `GET/POST /api/leave/requests`
+- `PATCH /api/leave/requests/:id/status`
+- `GET/POST /api/leave/policies`
+- `GET/POST /api/leave/balances`
+- `GET/POST /api/holiday-calendars`
 - CSV import apply endpoints for employees, clients, projects, allocations, and timesheets
 
 ---
@@ -305,6 +311,13 @@ VITE_FEATURE_PLANNING=true|false
 | Dashboard report endpoint | Complete foundation | Backend endpoint exists for command-center style summary. |
 | BRD traceability UI | Complete foundation | `/governance/brd-traceability` maps new BRD modules to Production Core, future roadmap, UI status, API/data status, and next actions. |
 | Enterprise feature flag foundation | Complete foundation | ESS, Leave, Approvals, Notifications, Integrations, Planning, and Command Center routes/navigation are gated by Workforce OS feature flags. |
+| ESS home | Phase 2 complete foundation | `/ess` renders employee profile, leave balances, pending request count, and leave/holiday adjusted availability behind `FEATURE_LEAVE`. |
+| Leave request workflow | Phase 2 complete foundation | `/leave/my` supports leave balance review and employee leave request submission; service and backend APIs persist requests with audit. |
+| Team leave calendar | Phase 2 complete foundation | `/leave/team-calendar` shows scoped leave requests, approval/rejection actions, and availability timeline. |
+| Leave administration and reports | Phase 2 complete foundation | `/leave/admin` shows leave policies, holiday calendars, and balance reporting; policy save is audited. |
+| Leave data model and migration | Phase 2 complete foundation | `007_workforce_os_leave.sql` adds leave types, policies, policy-type mapping, holiday calendars, holidays, balances, and requests. |
+| Availability-adjusted capacity | Phase 2 complete foundation | `GET /api/reports/availability` and local service calculate annual availability hours from standard weekly hours minus approved leave and holidays. |
+| Leave smoke coverage | Complete | `test:leave` covers leave seed data, request submission, approval, balance impact, availability impact, and audit entries. |
 | Hosted report smoke coverage | Complete foundation | Backend API and role smoke tests now cover planned, actual, forecast, dashboard, and data-quality report endpoints. |
 | CSV import templates | Complete | Templates exist and are covered by `test:import-templates`. |
 | Backend CSV apply endpoints | Complete foundation | Employees, clients, projects, allocations, and timesheets apply endpoints exist. |
@@ -509,7 +522,7 @@ Production Core is acceptable for company handover only when:
 Implement these in order behind feature flags, updating BRD traceability, tests, runbooks, and UAT evidence after each phase:
 
 1. Phase 1: enterprise feature flags, route foundations, adapter-first configuration, and traceability.
-2. Phase 2: ESS and Leave Management.
+2. Phase 2: ESS and Leave Management. Core leave model, APIs, ESS, self-service leave, team calendar, admin policy view, balance report, availability report, and smoke test are complete; remaining hardening is richer manager hierarchy, accrual automation, calendar UX, and browser UAT evidence.
 3. Phase 3: generic approval engine.
 4. Phase 4: notification center with in-app, mock email, and mock Teams adapters.
 5. Phase 5: Entra-ready identity mapping and deterministic Teams action foundation.

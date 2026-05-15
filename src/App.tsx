@@ -23,6 +23,10 @@ const ForecastUtilization = lazy(() => import('./pages/ForecastUtilization').the
 const DataQuality = lazy(() => import('./pages/DataQuality').then(module => ({ default: module.DataQuality })));
 const BRDTraceability = lazy(() => import('./pages/BRDTraceability').then(module => ({ default: module.BRDTraceability })));
 const EnterpriseModuleShell = lazy(() => import('./pages/EnterpriseModuleShell').then(module => ({ default: module.EnterpriseModuleShell })));
+const ESSHome = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.ESSHome })));
+const MyLeave = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.MyLeave })));
+const TeamLeaveCalendar = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.TeamLeaveCalendar })));
+const LeaveAdmin = lazy(() => import('./pages/LeaveManagement').then(module => ({ default: module.LeaveAdmin })));
 const ImportExport = lazy(() => import('./pages/ImportExport').then(module => ({ default: module.ImportExport })));
 const AuditTrail = lazy(() => import('./pages/AuditTrail').then(module => ({ default: module.AuditTrail })));
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -189,46 +193,22 @@ export default function App() {
                 } />
                 <Route path="/ess" element={
                   <FeatureRoute flag="leave" roles={ROUTE_ROLES.ess}>
-                    <EnterpriseModuleShell
-                      module="ESS"
-                      phase="Phase 2"
-                      subtitle="Employee self-service for profile, leave, timesheets, notifications, and work context."
-                      capabilities={['My profile and work context', 'Leave and balance surface', 'Timesheet and notification entry point']}
-                      nextMilestone="Build ESS profile, leave balance, and employee-facing leave request workflows."
-                    />
+                    <ESSHome />
                   </FeatureRoute>
                 } />
                 <Route path="/leave/my" element={
                   <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveSelfService}>
-                    <EnterpriseModuleShell
-                      module="Leave"
-                      phase="Phase 2"
-                      subtitle="Employee leave requests, balances, approval status, and availability impact."
-                      capabilities={['Leave request workflow', 'Leave balances and policies', 'Availability-adjusted capacity inputs']}
-                      nextMilestone="Add leave tables, request APIs, balance APIs, and employee leave UI."
-                    />
+                    <MyLeave />
                   </FeatureRoute>
                 } />
                 <Route path="/leave/team-calendar" element={
                   <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveTeam}>
-                    <EnterpriseModuleShell
-                      module="Leave"
-                      phase="Phase 2"
-                      subtitle="Team leave calendar for managers, Country Directors, HR, and Admin."
-                      capabilities={['Scoped team availability', 'Pending leave visibility', 'Holiday-aware calendar view']}
-                      nextMilestone="Implement scoped team leave calendar after leave request storage is in place."
-                    />
+                    <TeamLeaveCalendar />
                   </FeatureRoute>
                 } />
                 <Route path="/leave/admin" element={
                   <FeatureRoute flag="leave" roles={ROUTE_ROLES.leaveAdmin}>
-                    <EnterpriseModuleShell
-                      module="Leave"
-                      phase="Phase 2"
-                      subtitle="Leave policy, holiday calendar, balance, and administration workspace."
-                      capabilities={['Leave policy configuration', 'Holiday calendar administration', 'Balance adjustments with audit']}
-                      nextMilestone="Implement policy, holiday, and balance admin APIs with audit coverage."
-                    />
+                    <LeaveAdmin />
                   </FeatureRoute>
                 } />
                 <Route path="/approvals" element={

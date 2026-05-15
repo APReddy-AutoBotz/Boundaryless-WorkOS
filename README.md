@@ -36,6 +36,8 @@ TEAMS_PROVIDER=mock
 IDENTITY_PROVIDER=local
 ```
 
+`FEATURE_LEAVE` enables the Phase 2 ESS/leave foundation: `/ess`, `/leave/my`, `/leave/team-calendar`, `/leave/admin`, leave APIs, holiday calendars, balances, and the availability report. Keep it enabled only after leave role UAT is complete in the target environment.
+
 ## Prerequisites
 
 - Node.js 22
@@ -112,6 +114,7 @@ npm run lint
 npm run build
 npm run test:backend
 npm run test:access
+npm run test:leave
 npm run test:requirements
 npm run test:backend-api
 npm run test:backend-roles
