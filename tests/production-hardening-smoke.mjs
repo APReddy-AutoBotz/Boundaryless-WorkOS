@@ -8,6 +8,9 @@ const apiClient = readFileSync('src/services/apiClient.ts', 'utf8');
 const login = readFileSync('src/pages/Login.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
 const header = readFileSync('src/components/Layout/Header.tsx', 'utf8');
+const requirements = readFileSync('Boundaryless-WorkOS_Requirements.md', 'utf8');
+const technicalStatus = readFileSync('Boundaryless-WorkOS_Technical_Status.md', 'utf8');
+const handoverChecklist = readFileSync('BOUNDARYLESS_WORKOS_PRODUCTION_HANDOVER_CHECKLIST.md', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 
 assert.match(server, /const requireRoles = \(\.\.\.roles\) => \(req, res, next\) => \{[\s\S]*!roles\.includes\(activeRole\)/, 'backend role guard must enforce activeRole only');
@@ -49,6 +52,16 @@ assert.match(header, /authService\.switchRole/, 'header must expose active-role 
 assert.match(migrate, /serverDir, 'migrations'/, 'migration runner must apply versioned migration files');
 assert.ok(existsSync('server/migrations/006_boundaryless_workos_prod_core.sql'), 'Boundaryless-WorkOS production-core migration must exist');
 
+assert.match(requirements, /Single source of truth for product scope, production-core requirements, implementation status, and next technical plan\./, 'requirements document must be the BRD source of truth');
+assert.match(requirements, /## 8\. Completed vs Pending Status/, 'requirements must mark completed and pending status');
+assert.match(requirements, /## 9\. Updated Technical Plan/, 'requirements must include the updated technical plan');
+assert.match(requirements, /Leave management workflow[\s\S]*Microsoft Teams bot[\s\S]*Microsoft Entra SSO[\s\S]*Email\/Teams notification delivery engine/, 'Production Core must explicitly defer leave, Teams, Entra, and notifications');
+assert.match(requirements, /Long-Term Module[\s\S]*Leave Management[\s\S]*Pending[\s\S]*Microsoft Teams[\s\S]*Pending[\s\S]*Microsoft Entra SSO[\s\S]*Pending/, 'long-term BRD roadmap must preserve deferred strategic modules');
+assert.match(requirements, /APP_MODE=production\|demo[\s\S]*DISABLE_DEMO_FALLBACK=true\|false[\s\S]*AUTO_SEED_DEMO=false/, 'requirements must document production environment safety flags');
+assert.match(requirements, /Multi-role users cannot use inactive roles to bypass permissions/, 'requirements must retain active-role UAT acceptance');
+assert.match(technicalStatus, /avoid a second, conflicting source of truth/, 'technical status must not duplicate the BRD source of truth');
+assert.match(handoverChecklist, /APP_MODE=production[\s\S]*DISABLE_DEMO_FALLBACK=true[\s\S]*AUTO_SEED_DEMO=false/, 'handover checklist must require production-safe environment flags');
+
 assert.equal(packageJson.dependencies['@google/genai'], undefined, 'unused Gemini dependency must be removed');
 
 console.log(JSON.stringify({
@@ -58,4 +71,5 @@ console.log(JSON.stringify({
   boundarylessWorkOSSchema: true,
   dataQualityReport: true,
   versionedMigrations: true,
+  sourceOfTruthBrd: true,
 }, null, 2));
